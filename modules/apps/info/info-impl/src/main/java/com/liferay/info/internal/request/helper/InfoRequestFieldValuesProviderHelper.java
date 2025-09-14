@@ -154,19 +154,26 @@ public class InfoRequestFieldValuesProviderHelper {
 			List<String> regularParameters = regularParameterMap.get(
 				infoField.getName());
 
-			if (regularParameters == null) {
-				if ((infoField.getInfoFieldType() instanceof
-						BooleanInfoFieldType) &&
-					ArrayUtil.contains(checkboxNames, infoField.getName())) {
+			if (infoField.getInfoFieldType() instanceof BooleanInfoFieldType) {
+				boolean value = false;
 
-					infoFieldValues.put(
-						infoField.getUniqueId(),
-						_getInfoFieldValue(
-							true, infoField, themeDisplay.getLocale(), false));
+				if ((regularParameters != null) &&
+					!regularParameters.isEmpty()) {
 
-					continue;
+					String param = regularParameters.get(0);
+
+					value = GetterUtil.getBoolean(param);
 				}
 
+				infoFieldValues.put(
+					infoField.getUniqueId(),
+					_getInfoFieldValue(
+						true, infoField, themeDisplay.getLocale(), value));
+
+				continue;
+			}
+
+			if (regularParameters == null) {
 				if ((infoField.getInfoFieldType() instanceof
 						MultiselectInfoFieldType) &&
 					ArrayUtil.contains(checkboxNames, infoField.getName())) {
