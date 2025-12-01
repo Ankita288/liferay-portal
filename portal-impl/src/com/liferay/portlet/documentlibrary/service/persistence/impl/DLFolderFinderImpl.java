@@ -7,8 +7,10 @@ package com.liferay.portlet.documentlibrary.service.persistence.impl;
 
 import com.liferay.document.library.kernel.model.DLFileEntry;
 import com.liferay.document.library.kernel.model.DLFileShortcutConstants;
+import com.liferay.document.library.kernel.model.DLFileVersion;
 import com.liferay.document.library.kernel.model.DLFolder;
 import com.liferay.document.library.kernel.model.DLFolderConstants;
+import com.liferay.document.library.kernel.service.DLFileVersionLocalServiceUtil;
 import com.liferay.document.library.kernel.service.persistence.DLFileEntryUtil;
 import com.liferay.document.library.kernel.service.persistence.DLFileShortcutUtil;
 import com.liferay.document.library.kernel.service.persistence.DLFolderFinder;
@@ -26,7 +28,9 @@ import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.Role;
 import com.liferay.portal.kernel.security.permission.InlineSQLHelperUtil;
+import com.liferay.portal.kernel.service.RoleLocalServiceUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.OrderByComparator;
 import com.liferay.portal.kernel.util.PortalUtil;
@@ -741,8 +745,37 @@ public class DLFolderFinderImpl
 				else {
 					String name = (String)array[1];
 
-					object = DLFileEntryUtil.findByG_F_N(
+					DLFileEntry dlFileEntry = DLFileEntryUtil.findByG_F_N(
 						groupId, curFolderId, name);
+
+					Role guestRole = RoleLocalServiceUtil.fetchRole(
+						dlFileEntry.getCompanyId(), "GUEST");
+
+					boolean guestUser = false;
+
+					if (guestRole != null) {
+						guestUser = RoleLocalServiceUtil.hasUserRole(
+							queryDefinition.getOwnerUserId(),
+							guestRole.getRoleId());
+					}
+
+					if (guestUser) {
+						List<DLFileVersion> dlFileVersionList =
+							DLFileVersionLocalServiceUtil.getFileVersions(
+								dlFileEntry.getFileEntryId(),
+								queryDefinition.getStatus());
+
+						if ((dlFileVersionList != null) &&
+							!dlFileVersionList.isEmpty()) {
+
+							DLFileVersion dlFileVersion = dlFileVersionList.get(
+								0);
+
+							dlFileEntry.setVersion(dlFileVersion.getVersion());
+						}
+					}
+
+					object = dlFileEntry;
 				}
 
 				models.add(object);
