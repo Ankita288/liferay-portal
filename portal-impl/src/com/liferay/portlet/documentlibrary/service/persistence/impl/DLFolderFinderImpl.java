@@ -763,7 +763,7 @@ public class DLFolderFinderImpl
 						List<DLFileVersion> dlFileVersionList =
 							DLFileVersionLocalServiceUtil.getFileVersions(
 								dlFileEntry.getFileEntryId(),
-								queryDefinition.getStatus());
+								queryDefinition.getStatus(), 0, 1);
 
 						if ((dlFileVersionList != null) &&
 							!dlFileVersionList.isEmpty()) {
