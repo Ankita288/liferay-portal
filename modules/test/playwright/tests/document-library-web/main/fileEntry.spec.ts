@@ -1076,3 +1076,49 @@ test(
 		).not.toBeVisible();
 	}
 );
+
+test(
+	'For documents in Pending status, both Submit for Workflow and Checkout actions must be disabled',
+	{tag: '@LPD-73328'},
+	{tag: '@LPD-73574'},
+	async ({
+		documentLibraryEditFilePage,
+		documentLibraryEditFolderPage,
+		documentLibraryPage,
+		page,
+		site,
+	}) => {
+		const folderName = `PendingTestFolder-${getRandomString()}`;
+		const documentName = `PendingWorkflowDoc-${getRandomString()}.txt`;
+
+		await test.step('Set up folder', async () => {
+			await documentLibraryPage.goto(site.friendlyUrlPath);
+			await documentLibraryPage.goToCreateNewFolder();
+			await documentLibraryEditFolderPage.createNewFolder(folderName);
+		});
+
+		await test.step('Update folder workflow to Single Approver', async () => {
+			await documentLibraryPage.goToEditFolder(folderName);
+			await documentLibraryEditFolderPage.setWorkflow('Single Approver');
+		});
+
+		await test.step('Go to folder Upload document and submit for workflow', async () => {
+			await page.getByRole('link', {name: folderName}).click();
+			await documentLibraryPage.goToCreateNewFile();
+			await documentLibraryEditFilePage.titleSelector.fill(documentName);
+			await page
+				.getByRole('button', {name: 'Submit for Workflow'})
+				.click();
+		});
+
+		await test.step('Assert that Submit for Workflow and Checkout buttons are disabled', async () => {
+			await documentLibraryPage.goToEditFileEntry(documentName);
+			await expect(
+				page.getByRole('button', {name: 'Submit for Workflow'})
+			).toBeDisabled();
+			await expect(
+				page.getByRole('button', {name: 'Checkout'})
+			).toBeDisabled();
+		});
+	}
+);
