@@ -38,6 +38,7 @@ import com.liferay.document.library.kernel.service.DLFileEntryTypeLocalService;
 import com.liferay.document.library.kernel.service.DLTrashService;
 import com.liferay.document.library.kernel.util.DLUtil;
 import com.liferay.document.library.util.DLFileEntryTypeUtil;
+import com.liferay.document.library.web.internal.exception.FileEntryWorkflowInProgressException;
 import com.liferay.document.library.web.internal.exception.FileNameExtensionException;
 import com.liferay.document.library.web.internal.settings.DLPortletInstanceSettings;
 import com.liferay.dynamic.data.mapping.exception.StorageFieldRequiredException;
@@ -1347,7 +1348,8 @@ public class EditFileEntryMVCActionCommand extends BaseMVCActionCommand {
 
 		long fileEntryId = ParamUtil.getLong(
 			uploadPortletRequest, "fileEntryId");
-
+		int latestFileVersionStatus = ParamUtil.getInteger(
+			uploadPortletRequest, "latestFileVersionStatus");
 		String externalReferenceCode = ParamUtil.getString(
 			actionRequest, "externalReferenceCode");
 		long repositoryId = ParamUtil.getLong(
@@ -1503,6 +1505,12 @@ public class EditFileEntryMVCActionCommand extends BaseMVCActionCommand {
 				}
 				else {
 					_validateFileName(sourceFileName, fileEntry.getExtension());
+				}
+
+				if (latestFileVersionStatus ==
+						WorkflowConstants.STATUS_PENDING) {
+
+					throw new FileEntryWorkflowInProgressException();
 				}
 
 				if (cmd.equals(Constants.UPDATE_AND_CHECKIN)) {

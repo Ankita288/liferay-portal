@@ -113,6 +113,7 @@ page import="com.liferay.document.library.web.internal.display.context.helper.DL
 page import="com.liferay.document.library.web.internal.display.context.helper.DLRequestHelper" %><%@
 page import="com.liferay.document.library.web.internal.display.context.helper.IGRequestHelper" %><%@
 page import="com.liferay.document.library.web.internal.exception.DLObjectSizeLimitExceededException" %><%@
+page import="com.liferay.document.library.web.internal.exception.FileEntryWorkflowInProgressException" %><%@
 page import="com.liferay.document.library.web.internal.exception.FileNameExtensionException" %><%@
 page import="com.liferay.document.library.web.internal.helper.DLTrashHelper" %><%@
 page import="com.liferay.document.library.web.internal.portlet.action.EditFileEntryMVCActionCommand" %><%@

@@ -187,6 +187,7 @@ renderResponse.setTitle(headerTitle);
 		<aui:input name="repositoryId" type="hidden" value="<%= repositoryId %>" />
 		<aui:input name="folderId" type="hidden" value="<%= folderId %>" />
 		<aui:input name="fileEntryId" type="hidden" value="<%= fileEntryId %>" />
+		<aui:input name="latestFileVersionStatus" type="hidden" value="<%= (fileVersion != null) ? fileVersion.getStatus() : WorkflowConstants.STATUS_ANY %>" />
 
 		<c:if test="<%= (fileEntry != null) && checkedOut %>">
 			<aui:input name="versionIncrease" type="hidden" />
@@ -221,6 +222,7 @@ renderResponse.setTitle(headerTitle);
 			<liferay-ui:error exception="<%= DuplicateFileEntryException.class %>" message="please-enter-a-unique-document-name" />
 			<liferay-ui:error exception="<%= DuplicateFileEntryExternalReferenceCodeException.class %>" message="please-enter-a-unique-external-reference-code" />
 			<liferay-ui:error exception="<%= DuplicateFolderNameException.class %>" message="please-enter-a-unique-document-name" />
+			<liferay-ui:error exception="<%= FileEntryWorkflowInProgressException.class %>" message="document-in-pending-state" />
 
 			<liferay-ui:error exception="<%= LiferayFileItemException.class %>">
 				<liferay-ui:message arguments="<%= LanguageUtil.formatStorageSize(FileItem.THRESHOLD_SIZE, locale) %>" key="please-enter-valid-content-with-valid-content-size-no-larger-than-x" translateArguments="<%= false %>" />
