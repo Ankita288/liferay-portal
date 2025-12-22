@@ -253,6 +253,10 @@ public class DefaultDLEditFileEntryDisplayContext
 
 	@Override
 	public boolean isCheckoutDocumentButtonDisabled() {
+		if ((_fileVersion != null) && _fileVersion.isPending()) {
+			return true;
+		}
+
 		return false;
 	}
 
