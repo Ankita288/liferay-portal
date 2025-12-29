@@ -9,8 +9,6 @@ import com.liferay.client.extension.constants.ClientExtensionEntryConstants;
 import com.liferay.client.extension.service.ClientExtensionEntryRelLocalServiceUtil;
 import com.liferay.client.extension.type.CET;
 import com.liferay.client.extension.type.manager.CETManager;
-import com.liferay.document.library.kernel.model.DLFileEntry;
-import com.liferay.document.library.kernel.service.DLFileEntryServiceUtil;
 import com.liferay.exportimport.kernel.staging.StagingUtil;
 import com.liferay.fragment.processor.FragmentEntryProcessorRegistry;
 import com.liferay.headless.admin.site.dto.v1_0.ClientExtension;
@@ -27,6 +25,8 @@ import com.liferay.headless.admin.site.dto.v1_0.WidgetLookAndFeelConfig;
 import com.liferay.headless.admin.site.dto.v1_0.WidgetPageSection;
 import com.liferay.headless.admin.site.dto.v1_0.WidgetPageSpecification;
 import com.liferay.headless.admin.site.dto.v1_0.WidgetPageWidgetInstance;
+import com.liferay.headless.admin.site.internal.dto.v1_0.util.FileEntryUtil;
+import com.liferay.headless.admin.site.internal.dto.v1_0.util.ItemScopeUtil;
 import com.liferay.headless.admin.site.internal.util.LogUtil;
 import com.liferay.info.item.InfoItemServiceRegistry;
 import com.liferay.layout.constants.LayoutTypeSettingsConstants;
@@ -67,7 +67,6 @@ import com.liferay.portal.kernel.util.UnicodePropertiesBuilder;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.vulcan.custom.field.CustomFieldsUtil;
-import com.liferay.portal.vulcan.scope.Scope;
 import com.liferay.portal.vulcan.util.LocalizedMapUtil;
 import com.liferay.segments.model.SegmentsExperience;
 import com.liferay.segments.service.SegmentsExperienceServiceUtil;
@@ -124,7 +123,7 @@ public class LayoutUtil {
 			throw new UnsupportedOperationException();
 		}
 
-		ContentPageSpecification draftContentPageSpecification = null;
+		ContentPageSpecification draftContentPageSpecification;
 		ContentPageSpecification publishedContentPageSpecification =
 			(ContentPageSpecification)pageSpecifications[0];
 
@@ -252,11 +251,11 @@ public class LayoutUtil {
 			serviceContext.setAttribute("published", Boolean.FALSE.toString());
 		}
 
-		Layout layout = LayoutLocalServiceUtil.addLayout(
+		Layout layout = LayoutServiceUtil.addLayout(
 			publishedContentPageSpecification.getExternalReferenceCode(),
-			serviceContext.getUserId(), groupId, privateLayout, parentLayoutId,
-			0, 0, nameMap, titleMap, descriptionMap, keywordsMap, robotsMap,
-			type, typeSettingsUnicodeProperties.toString(), hidden, system,
+			groupId, privateLayout, parentLayoutId, 0, 0, nameMap, titleMap,
+			descriptionMap, keywordsMap, robotsMap, type,
+			typeSettingsUnicodeProperties.toString(), hidden, system,
 			friendlyURLMap, masterLayoutPageTemplateEntryERC, serviceContext);
 
 		Layout draftLayout = layout.fetchDraftLayout();
@@ -446,7 +445,8 @@ public class LayoutUtil {
 			return _updateLayout(
 				layout, nameMap, titleMap, descriptionMap, keywordsMap,
 				robotsMap, layout.getStyleBookEntryERC(),
-				layout.getFaviconFileEntryId(),
+				layout.getFaviconFileEntryERC(),
+				layout.getFaviconFileEntryScopeERC(),
 				layout.getMasterLayoutPageTemplateEntryERC(), friendlyURLMap,
 				serviceContext);
 		}
@@ -455,7 +455,7 @@ public class LayoutUtil {
 			throw new UnsupportedOperationException();
 		}
 
-		ContentPageSpecification draftContentPageSpecification = null;
+		ContentPageSpecification draftContentPageSpecification;
 		ContentPageSpecification publishedContentPageSpecification =
 			(ContentPageSpecification)pageSpecifications[0];
 
@@ -536,9 +536,8 @@ public class LayoutUtil {
 			cetManager, layout, nameMap, titleMap, descriptionMap, keywordsMap,
 			robotsMap, friendlyURLMap, pageSpecification, serviceContext);
 
-		if (pageSpecification instanceof ContentPageSpecification) {
-			ContentPageSpecification contentPageSpecification =
-				(ContentPageSpecification)pageSpecification;
+		if (pageSpecification instanceof
+				ContentPageSpecification contentPageSpecification) {
 
 			_updatePageExperiences(
 				fragmentEntryProcessorRegistry, infoItemServiceRegistry, layout,
@@ -655,45 +654,6 @@ public class LayoutUtil {
 				"portletSetupUseCustomTitle",
 				Boolean.toString(generalConfig.getUseCustomTitle()));
 		}
-	}
-
-	private static long _getFaviconFileEntryId(
-			Settings settings, ServiceContext serviceContext)
-		throws Exception {
-
-		if ((settings == null) || (settings.getFavIcon() == null)) {
-			return 0;
-		}
-
-		FavIcon favIcon = settings.getFavIcon();
-
-		if (!(favIcon instanceof FavIconItemExternalReference)) {
-			return 0;
-		}
-
-		FavIconItemExternalReference favIconItemExternalReference =
-			(FavIconItemExternalReference)favIcon;
-
-		long groupId = serviceContext.getScopeGroupId();
-
-		Scope scope = favIconItemExternalReference.getScope();
-
-		if (scope != null) {
-			groupId = GroupUtil.getGroupId(
-				true, true, serviceContext.getCompanyId(),
-				scope.getExternalReferenceCode());
-		}
-
-		DLFileEntry dlFileEntry =
-			DLFileEntryServiceUtil.fetchFileEntryByExternalReferenceCode(
-				groupId,
-				favIconItemExternalReference.getExternalReferenceCode());
-
-		if (dlFileEntry == null) {
-			throw new UnsupportedOperationException();
-		}
-
-		return dlFileEntry.getFileEntryId();
 	}
 
 	private static String _getMasterLayoutPageTemplateEntryERC(
@@ -922,18 +882,13 @@ public class LayoutUtil {
 
 		FavIcon favIcon = settings.getFavIcon();
 
-		if (favIcon instanceof FavIconClientExtension) {
-			FavIconClientExtension favIconClientExtension =
-				(FavIconClientExtension)favIcon;
-
+		if (favIcon instanceof FavIconClientExtension favIconClientExtension) {
 			clientExtension = new ClientExtension() {
 				{
 					setClientExtensionConfig(
-						() ->
-							favIconClientExtension.getClientExtensionConfig());
+						favIconClientExtension::getClientExtensionConfig);
 					setExternalReferenceCode(
-						() ->
-							favIconClientExtension.getExternalReferenceCode());
+						favIconClientExtension::getExternalReferenceCode);
 				}
 			};
 		}
@@ -979,11 +934,36 @@ public class LayoutUtil {
 
 		_setExpandoBridgeAttributes(pageSpecification, serviceContext);
 
+		String faviconFileEntryERC = null;
+		String faviconFileEntryScopeERC = null;
+
+		if ((settings != null) && (settings.getFavIcon() != null)) {
+			FavIcon favIcon = settings.getFavIcon();
+
+			if (favIcon instanceof
+					FavIconItemExternalReference favIconItemExternalReference) {
+
+				faviconFileEntryERC =
+					favIconItemExternalReference.getExternalReferenceCode();
+
+				faviconFileEntryScopeERC =
+					ItemScopeUtil.getItemScopeExternalReferenceCode(
+						favIconItemExternalReference.getScope(),
+						serviceContext.getScopeGroupId());
+
+				FileEntryUtil.fetchFileEntryByExternalReferenceCode(
+					serviceContext.getCompanyId(),
+					favIconItemExternalReference.getExternalReferenceCode(),
+					favIconItemExternalReference.getScope(),
+					serviceContext.getScopeGroupId());
+			}
+		}
+
 		return _updateLayout(
 			layout, nameMap, titleMap, descriptionMap, keywordsMap, robotsMap,
 			_getStyleBookEntryERC(
 				layout.getCompanyId(), layout.getGroupId(), settings),
-			_getFaviconFileEntryId(settings, serviceContext),
+			faviconFileEntryERC, faviconFileEntryScopeERC,
 			_getMasterLayoutPageTemplateEntryERC(
 				serviceContext.getScopeGroupId(), layout, settings),
 			friendlyURLMap, serviceContext);
@@ -993,7 +973,8 @@ public class LayoutUtil {
 			Layout layout, Map<Locale, String> nameMap,
 			Map<Locale, String> titleMap, Map<Locale, String> descriptionMap,
 			Map<Locale, String> keywordsMap, Map<Locale, String> robotsMap,
-			String styleBookEntryERC, long faviconFileEntryId,
+			String styleBookEntryERC, String faviconFileEntryERC,
+			String faviconFileEntryScopeERC,
 			String masterLayoutPageTemplateEntryERC,
 			Map<Locale, String> friendlyURLMap, ServiceContext serviceContext)
 		throws Exception {
@@ -1013,8 +994,8 @@ public class LayoutUtil {
 			GetterUtil.getBoolean(
 				serviceContext.getAttribute("hidden"), layout.isHidden()),
 			friendlyURLMap, layout.getIconImage(), null, styleBookEntryERC,
-			faviconFileEntryId, masterLayoutPageTemplateEntryERC,
-			serviceContext);
+			faviconFileEntryERC, faviconFileEntryScopeERC,
+			masterLayoutPageTemplateEntryERC, serviceContext);
 	}
 
 	private static Layout _updateLookAndFeel(Layout layout, Settings settings)

@@ -149,6 +149,11 @@ public class PageTemplateResourceImpl
 				return FeatureFlagManagerUtil.isEnabled("LPD-35443");
 			}
 
+			@Override
+			public boolean isStagingSupported() {
+				return true;
+			}
+
 		};
 	}
 
@@ -416,7 +421,7 @@ public class PageTemplateResourceImpl
 		throws Exception {
 
 		LayoutPageTemplateEntry layoutPageTemplateEntry =
-			_layoutPageTemplateEntryLocalService.
+			_layoutPageTemplateEntryService.
 				getLayoutPageTemplateEntryByExternalReferenceCode(
 					externalReferenceCode,
 					getPermissionCheckerGroupId(groupExternalReferenceCode));
@@ -881,7 +886,7 @@ public class PageTemplateResourceImpl
 				widgetPageTemplate.getPageSpecifications()));
 
 		return _pageTemplateDTOConverter.toDTO(
-			_layoutPageTemplateEntryLocalService.getLayoutPageTemplateEntry(
+			_layoutPageTemplateEntryService.getLayoutPageTemplateEntry(
 				layoutPageTemplateEntry.getLayoutPageTemplateEntryId()));
 	}
 

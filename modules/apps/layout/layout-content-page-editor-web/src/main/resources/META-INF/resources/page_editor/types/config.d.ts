@@ -49,6 +49,15 @@ export interface Config {
 
 	changeMasterLayoutURL: string;
 	changeStyleBookEntryURL: string;
+	codeEditorSidebarPanels: Array<{
+		items: Array<{
+			content: string;
+			helpText?: string;
+			label: string;
+			tooltip?: string;
+		}>;
+		label: string;
+	}>;
 	collectionSelectorURL: string;
 
 	commonStyles: Array<{
@@ -196,7 +205,7 @@ export interface Config {
 		subtype: {
 			id: string;
 			label: string;
-		};
+		} | null;
 		type: {
 			id: string;
 			label: string;
@@ -236,6 +245,7 @@ export interface Config {
 	updateRulesURL: string;
 	updateSegmentsExperiencePriorityURL: string;
 	updateSegmentsExperienceURL: string;
+	validateExpressionURL: string;
 	videoItemSelectorURL: string;
 	workflowEnabled: boolean;
 }

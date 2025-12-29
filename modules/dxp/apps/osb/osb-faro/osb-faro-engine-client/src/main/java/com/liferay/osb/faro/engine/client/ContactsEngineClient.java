@@ -33,6 +33,7 @@ import com.liferay.osb.faro.engine.client.model.IndividualSegment;
 import com.liferay.osb.faro.engine.client.model.IndividualSegmentMembership;
 import com.liferay.osb.faro.engine.client.model.IndividualSegmentMembershipChange;
 import com.liferay.osb.faro.engine.client.model.IndividualSegmentMembershipChangeAggregation;
+import com.liferay.osb.faro.engine.client.model.IndividualSegmentRealTimeMembership;
 import com.liferay.osb.faro.engine.client.model.IndividualTransformation;
 import com.liferay.osb.faro.engine.client.model.Interest;
 import com.liferay.osb.faro.engine.client.model.PageVisited;
@@ -157,6 +158,10 @@ public interface ContactsEngineClient {
 	public Account getAccount(FaroProject faroProject, String id)
 		throws FaroEngineClientException;
 
+	public Results<Object> getAccountFieldValues(
+		FaroProject faroProject, Long channelId, String fieldMappingFieldName,
+		String query, int cur, int delta);
+
 	public Results<IndividualSegment> getAccountIndividualSegments(
 		FaroProject faroProject, String accountId, String channelId,
 		String query, String status, int cur, int delta,
@@ -268,6 +273,9 @@ public interface ContactsEngineClient {
 
 	public Results<DataSource> getDataSources(
 		FaroProject faroProject, List<String> channelIds);
+
+	public List<DataSource> getDataSources(
+		FaroProject faroProject, long channelId, String provideTypeExclude);
 
 	public Results<DataSource> getDataSources(
 		FaroProject faroProject, String faroEntityId, String query, String name,
@@ -402,6 +410,12 @@ public interface ContactsEngineClient {
 	public Results<IndividualSegmentMembership> getIndividualSegmentMemberships(
 		FaroProject faroProject, String individualSegmentId, int cur, int delta,
 		List<OrderByField> orderByFields);
+
+	public Results<IndividualSegmentRealTimeMembership>
+		getIndividualSegmentRealTimeMemberships(
+			FaroProject faroProject, String day, String filter,
+			String individualSegmentId, int cur, int delta,
+			List<OrderByField> orderByFields);
 
 	public Results<IndividualSegment> getIndividualSegments(
 		FaroProject faroProject, String channelId, String dataSourceId,

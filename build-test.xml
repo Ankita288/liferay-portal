@@ -2741,7 +2741,6 @@ war.path=${app.server.portal.dir}/</echo>
 	<macrodef name="prepare-aws-s3-configuration">
 		<sequential>
 			<echo file="${liferay.home}/osgi/configs/com.liferay.portal.store.s3.configuration.S3StoreConfiguration.config">
-ntlmProxyDomain=&quot;&quot;
 proxyAuthType=&quot;none&quot;
 httpClientMaxConnections=&quot;50&quot;
 secretKey=&quot;${aws.s3.secret.access.key}&quot;
@@ -2757,10 +2756,9 @@ proxyUsername=&quot;&quot;
 proxyPort=&quot;12345&quot;
 s3Region=&quot;us-west-1&quot;
 proxyHost=&quot;&quot;
-ntlmProxyWorkstation=&quot;&quot;
 corePoolSize=&quot;7&quot;
 s3StorageClass=&quot;STANDARD&quot;
-s3Endpoint=&quot;s3.us-west-1.amazonaws.com&quot;</echo>
+s3Endpoint=&quot;https://s3.us-west-1.amazonaws.com&quot;</echo>
 		</sequential>
 	</macrodef>
 
@@ -7824,6 +7822,8 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 
 			<property name="docker.start.script" value="docker_start.sh" />
 
+			<echo>Starting Docker container for @{image} on host @{name} with run options: @{run.options}.</echo>
+
 			<if>
 				<or>
 					<contains string="@{name}" substring="amazonlinux2022" />
@@ -7904,7 +7904,7 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 					</not>
 				</or>
 				<then>
-					<fail>Unable to start docker container:
+					<fail>Unable to start Docker container:
 ${docker.start.error}</fail>
 				</then>
 			</if>

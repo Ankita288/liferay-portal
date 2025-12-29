@@ -78,6 +78,7 @@ import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.language.Language;
+import com.liferay.portal.kernel.lazy.referencing.LazyReferencingThreadLocal;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.ResourceConstants;
@@ -262,8 +263,13 @@ public class ObjectFieldLocalServiceImpl
 				objectFieldSettings);
 		}
 
+		validateExternalReferenceCode(
+			externalReferenceCode, existingObjectField.getObjectFieldId(),
+			existingObjectField.getCompanyId(),
+			existingObjectField.getObjectDefinitionId());
 		_validateLabel(labelMap, existingObjectField);
 
+		existingObjectField.setExternalReferenceCode(externalReferenceCode);
 		existingObjectField.setLabelMap(labelMap, LocaleUtil.getSiteDefault());
 
 		return objectFieldPersistence.update(existingObjectField);
@@ -285,7 +291,8 @@ public class ObjectFieldLocalServiceImpl
 		ObjectDefinition objectDefinition =
 			_objectDefinitionPersistence.findByPrimaryKey(objectDefinitionId);
 
-		if (objectDefinition.isModifiableAndSystem() &&
+		if (!LazyReferencingThreadLocal.isEnabled() &&
+			objectDefinition.isModifiableAndSystem() &&
 			!ObjectDefinitionUtil.isInvokerBundleAllowed()) {
 
 			throw new ObjectFieldSystemException(
@@ -432,7 +439,7 @@ public class ObjectFieldLocalServiceImpl
 
 				objectField.setObjectFieldSettings(
 					_objectFieldSettingLocalService.
-						getObjectFieldObjectFieldSettings(objectFieldId));
+						getObjectFieldObjectFieldSettings(objectField));
 
 				if (Validator.isNull(objectField.getRelationshipType())) {
 					return objectField;
@@ -1210,7 +1217,7 @@ public class ObjectFieldLocalServiceImpl
 
 		newObjectField.setObjectFieldSettings(
 			_objectFieldSettingLocalService.getObjectFieldObjectFieldSettings(
-				newObjectField.getObjectFieldId()));
+				newObjectField));
 	}
 
 	private void _alterTableDropColumn(String tableName, String columnName) {

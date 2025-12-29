@@ -12,7 +12,7 @@ import ClayMultiSelect from '@clayui/multi-select';
 import {InternalDispatch, useControlledState} from '@clayui/shared';
 import {ClayTooltipProvider} from '@clayui/tooltip';
 import {fetch, getObjectValueFromPath} from 'frontend-js-web';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 
 import ItemSelectorModal, {IItemSelectorModalProps} from './ItemSelectorModal';
 
@@ -306,6 +306,19 @@ function ItemSelector<T extends Record<string, any>>({
 		variables: {search: value},
 	});
 
+	const selectedKeys = useMemo(() => {
+		return (
+			items?.map((item) =>
+				String(
+					getObjectValueFromPath({
+						object: item,
+						path: locator.value,
+					})
+				)
+			) ?? []
+		);
+	}, [items, locator.value]);
+
 	const memoizedChildren = useCallback(
 		(item: T) => {
 			const child = children(item) as React.ReactElement<
@@ -359,6 +372,7 @@ function ItemSelector<T extends Record<string, any>>({
 			<ClayMultiSelect
 				{...(otherProps as any)}
 				active={active}
+				allowsCustomLabel={false}
 				items={items}
 				locator={{
 					id: (item: T) => {
@@ -425,6 +439,18 @@ function ItemSelector<T extends Record<string, any>>({
 				loadingState={networkStatus}
 				menuTrigger="focus"
 				messages={{
+					infiniteScrollInitialLoad: Liferay.Language.get(
+						'x-item-loaded-reach-the-last-item-to-load-more'
+					),
+					infiniteScrollInitialLoadPlural: Liferay.Language.get(
+						'x-items-loaded-reach-the-last-item-to-load-more'
+					),
+					infiniteScrollOnLoad:
+						Liferay.Language.get('loading-more-items'),
+					infiniteScrollOnLoaded:
+						Liferay.Language.get('x-item-loaded'),
+					infiniteScrollOnLoadedPlural:
+						Liferay.Language.get('x-items-loaded'),
 					listCount: Liferay.Language.get('x-list-option'),
 					listCountPlural: Liferay.Language.get('x-list-options'),
 					loading: Liferay.Language.get('loading...'),
@@ -439,6 +465,7 @@ function ItemSelector<T extends Record<string, any>>({
 					setValue(value);
 				}}
 				onLoadMore={async () => loadMore()}
+				selectedKeys={selectedKeys}
 				value={value}
 			>
 				{memoizedChildren}

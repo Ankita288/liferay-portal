@@ -165,11 +165,15 @@ public class ObjectDefinitionUtil {
 		).put(
 			"DataSetSelectionFilter", "/data-set-admin/selection-filters"
 		).put(
+			"DataSetSnapshot", "/data-set-admin/snapshots"
+		).put(
 			"DataSetSort", "/data-set-admin/sorts"
 		).put(
 			"DataSetTableSection", "/data-set-admin/table-sections"
 		).put(
 			"DSRRoom", "/digital-sales-room/rooms"
+		).put(
+			"DSRTemplate", "/digital-sales-room/templates"
 		).put(
 			"FDSAction", "/data-set-manager/actions"
 		).put(

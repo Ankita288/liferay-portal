@@ -401,6 +401,7 @@ public class DisplayPageTemplateResourceTest
 		super.testPostSiteDisplayPageTemplate();
 
 		_testPostSiteDisplayPageTemplateWithKey();
+		_testPostSiteDisplayPageTemplateWithMarkedAsDefault();
 		_testPostSiteDisplayPageTemplateWithPageSpecifications();
 		_testPostSiteDisplayPageTemplateWithParentFolder();
 		_testPostSiteDisplayPageTemplateWithThumbnail();
@@ -421,7 +422,8 @@ public class DisplayPageTemplateResourceTest
 		throws Exception {
 
 		DisplayPageTemplateResource displayPageTemplateResource =
-			_getDisplayPageTemplateResource();
+			_getDisplayPageTemplateResource(
+				"friendlyUrlHistory,pageSpecifications");
 
 		DisplayPageTemplate displayPageTemplate =
 			displayPageTemplateResource.postSiteDisplayPageTemplate(
@@ -461,7 +463,7 @@ public class DisplayPageTemplateResourceTest
 	@Test
 	public void testPutSiteDisplayPageTemplate() throws Exception {
 		_testPutSiteDisplayPageTemplateContentTypeReference();
-		_testPutSiteDisplayPageTemplateMarkAsDefault();
+		_testPutSiteDisplayPageTemplateMarkedAsDefault();
 		_testPutSiteDisplayPageTemplateSettings();
 		_testPutSiteDisplayPageTemplateThumbnail();
 
@@ -495,26 +497,7 @@ public class DisplayPageTemplateResourceTest
 
 	@Override
 	protected DisplayPageTemplate randomDisplayPageTemplate() throws Exception {
-		DisplayPageTemplate displayPageTemplate =
-			super.randomDisplayPageTemplate();
-
-		displayPageTemplate.setContentTypeReference(
-			_getRandomClassSubtypeReference());
-		displayPageTemplate.setDisplayPageTemplateSettings(
-			_randomDisplayPageTemplateSettings());
-		displayPageTemplate.setFriendlyUrlPath_i18n(
-			() -> HashMapBuilder.put(
-				LocaleUtil.toBCP47LanguageId(LocaleUtil.SPAIN),
-				StringPool.FORWARD_SLASH +
-					StringUtil.toLowerCase(RandomTestUtil.randomString())
-			).put(
-				LocaleUtil.toBCP47LanguageId(LocaleUtil.US),
-				StringPool.FORWARD_SLASH +
-					StringUtil.toLowerCase(RandomTestUtil.randomString())
-			).build());
-		displayPageTemplate.setMarkedAsDefault(Boolean.FALSE);
-
-		return displayPageTemplate;
+		return _randomDisplayPageTemplate(Boolean.FALSE);
 	}
 
 	@Override
@@ -798,7 +781,8 @@ public class DisplayPageTemplateResourceTest
 		return null;
 	}
 
-	private DisplayPageTemplateResource _getDisplayPageTemplateResource()
+	private DisplayPageTemplateResource _getDisplayPageTemplateResource(
+			String nestedFields)
 		throws Exception {
 
 		User user = UserTestUtil.getAdminUser(testCompany.getCompanyId());
@@ -811,7 +795,7 @@ public class DisplayPageTemplateResourceTest
 		).locale(
 			LocaleUtil.getDefault()
 		).parameters(
-			"nestedFields", "friendlyUrlHistory,pageSpecifications"
+			"nestedFields", nestedFields
 		).build();
 	}
 
@@ -848,6 +832,32 @@ public class DisplayPageTemplateResourceTest
 
 		return GetterUtil.getBoolean(
 			draftLayout.getTypeSettingsProperty("published"));
+	}
+
+	private DisplayPageTemplate _randomDisplayPageTemplate(
+			Boolean markedAsDefault)
+		throws Exception {
+
+		DisplayPageTemplate displayPageTemplate =
+			super.randomDisplayPageTemplate();
+
+		displayPageTemplate.setContentTypeReference(
+			() -> _getRandomClassSubtypeReference());
+		displayPageTemplate.setDisplayPageTemplateSettings(
+			() -> _randomDisplayPageTemplateSettings());
+		displayPageTemplate.setFriendlyUrlPath_i18n(
+			() -> HashMapBuilder.put(
+				LocaleUtil.toBCP47LanguageId(LocaleUtil.SPAIN),
+				StringPool.FORWARD_SLASH +
+					StringUtil.toLowerCase(RandomTestUtil.randomString())
+			).put(
+				LocaleUtil.toBCP47LanguageId(LocaleUtil.US),
+				StringPool.FORWARD_SLASH +
+					StringUtil.toLowerCase(RandomTestUtil.randomString())
+			).build());
+		displayPageTemplate.setMarkedAsDefault(() -> markedAsDefault);
+
+		return displayPageTemplate;
 	}
 
 	private DisplayPageTemplateSettings _randomDisplayPageTemplateSettings() {
@@ -1012,7 +1022,8 @@ public class DisplayPageTemplateResourceTest
 		Assert.assertFalse(_isPublished(layout));
 
 		DisplayPageTemplateResource displayPageTemplateResource =
-			_getDisplayPageTemplateResource();
+			_getDisplayPageTemplateResource(
+				"friendlyUrlHistory,pageSpecifications");
 
 		page = displayPageTemplateResource.getSiteDisplayPageTemplatesPage(
 			testGroup.getExternalReferenceCode(), null, null, null, null, null);
@@ -1044,7 +1055,8 @@ public class DisplayPageTemplateResourceTest
 		throws Exception {
 
 		DisplayPageTemplateResource displayPageTemplateResource =
-			_getDisplayPageTemplateResource();
+			_getDisplayPageTemplateResource(
+				"friendlyUrlHistory,pageSpecifications");
 
 		_assertNestedFields(
 			displayPageTemplateResource.getSiteDisplayPageTemplate(
@@ -1139,7 +1151,8 @@ public class DisplayPageTemplateResourceTest
 			});
 
 		DisplayPageTemplateResource displayPageTemplateResource =
-			_getDisplayPageTemplateResource();
+			_getDisplayPageTemplateResource(
+				"friendlyUrlHistory,pageSpecifications");
 
 		DisplayPageTemplate postDisplayPageTemplate =
 			displayPageTemplateResource.postSiteDisplayPageTemplate(
@@ -1197,6 +1210,54 @@ public class DisplayPageTemplateResourceTest
 			displayPageTemplate.getKey(), postDisplayPageTemplate.getKey());
 	}
 
+	private void _testPostSiteDisplayPageTemplateWithMarkedAsDefault()
+		throws Exception {
+
+		DisplayPageTemplate postDisplayPageTemplate =
+			displayPageTemplateResource.postSiteDisplayPageTemplate(
+				testGroup.getExternalReferenceCode(),
+				randomDisplayPageTemplate());
+
+		Assert.assertFalse(postDisplayPageTemplate.getMarkedAsDefault());
+
+		postDisplayPageTemplate =
+			displayPageTemplateResource.postSiteDisplayPageTemplate(
+				testGroup.getExternalReferenceCode(),
+				_randomDisplayPageTemplate(null));
+
+		Assert.assertFalse(postDisplayPageTemplate.getMarkedAsDefault());
+
+		DisplayPageTemplate displayPageTemplate = _randomDisplayPageTemplate(
+			Boolean.TRUE);
+
+		String draftContentPageSpecificationExternalReferenceCode =
+			RandomTestUtil.randomString();
+
+		displayPageTemplate.setPageSpecifications(
+			() -> new PageSpecification[] {
+				PageSpecificationsTestUtil.getContentPageSpecification(
+					draftContentPageSpecificationExternalReferenceCode,
+					testGroup.getGroupId(), PageSpecification.Status.APPROVED),
+				PageSpecificationsTestUtil.getContentPageSpecification(
+					draftContentPageSpecificationExternalReferenceCode, null,
+					null, null, testGroup.getGroupId(),
+					PageSpecification.Status.DRAFT)
+			});
+
+		postDisplayPageTemplate =
+			displayPageTemplateResource.postSiteDisplayPageTemplate(
+				testGroup.getExternalReferenceCode(), displayPageTemplate);
+
+		Assert.assertTrue(postDisplayPageTemplate.getMarkedAsDefault());
+
+		_assertProblemException(
+			"CONFLICT",
+			"The default display page template must be published first.",
+			() -> displayPageTemplateResource.postSiteDisplayPageTemplate(
+				testGroup.getExternalReferenceCode(),
+				_randomDisplayPageTemplate(Boolean.TRUE)));
+	}
+
 	private void _testPostSiteDisplayPageTemplateWithPageSpecifications()
 		throws Exception {
 
@@ -1235,7 +1296,8 @@ public class DisplayPageTemplateResourceTest
 			});
 
 		DisplayPageTemplateResource displayPageTemplateResource =
-			_getDisplayPageTemplateResource();
+			_getDisplayPageTemplateResource(
+				"friendlyUrlHistory,pageSpecifications");
 
 		_assertPageSpecifications(
 			displayPageTemplateResource.postSiteDisplayPageTemplate(
@@ -1247,7 +1309,8 @@ public class DisplayPageTemplateResourceTest
 		throws Exception {
 
 		DisplayPageTemplateResource displayPageTemplateResource =
-			_getDisplayPageTemplateResource();
+			_getDisplayPageTemplateResource(
+				"friendlyUrlHistory,pageSpecifications");
 
 		DisplayPageTemplate displayPageTemplate =
 			displayPageTemplateResource.postSiteDisplayPageTemplate(
@@ -1297,7 +1360,8 @@ public class DisplayPageTemplateResourceTest
 			});
 
 		DisplayPageTemplateResource displayPageTemplateResource =
-			_getDisplayPageTemplateResource();
+			_getDisplayPageTemplateResource(
+				"friendlyUrlHistory,pageSpecifications");
 
 		try (LogCapture logCapture1 = LoggerTestUtil.configureLog4JLogger(
 				"com.liferay.client.extension.type.internal.manager." +
@@ -1517,23 +1581,47 @@ public class DisplayPageTemplateResourceTest
 			putDisplayPageTemplate.getContentTypeReference());
 	}
 
-	private void _testPutSiteDisplayPageTemplateMarkAsDefault()
+	private void _testPutSiteDisplayPageTemplateMarkedAsDefault()
 		throws Exception {
 
-		DisplayPageTemplate displayPageTemplate =
-			displayPageTemplateResource.postSiteDisplayPageTemplate(
-				testGroup.getExternalReferenceCode(),
-				randomDisplayPageTemplate());
+		DisplayPageTemplateResource displayPageTemplateResource =
+			_getDisplayPageTemplateResource("pageSpecifications");
 
-		displayPageTemplate.setMarkedAsDefault(true);
+		DisplayPageTemplate displayPageTemplate = randomDisplayPageTemplate();
 
-		_assertProblemException(
-			"CONFLICT",
-			"The default display page template must be published first.",
-			() -> displayPageTemplateResource.putSiteDisplayPageTemplate(
+		DisplayPageTemplate putDisplayPageTemplate =
+			displayPageTemplateResource.putSiteDisplayPageTemplate(
 				testGroup.getExternalReferenceCode(),
 				displayPageTemplate.getExternalReferenceCode(),
-				displayPageTemplate));
+				displayPageTemplate);
+
+		Assert.assertFalse(putDisplayPageTemplate.getMarkedAsDefault());
+
+		putDisplayPageTemplate.setMarkedAsDefault(() -> null);
+
+		putDisplayPageTemplate =
+			displayPageTemplateResource.putSiteDisplayPageTemplate(
+				testGroup.getExternalReferenceCode(),
+				putDisplayPageTemplate.getExternalReferenceCode(),
+				putDisplayPageTemplate);
+
+		Assert.assertFalse(putDisplayPageTemplate.getMarkedAsDefault());
+
+		putDisplayPageTemplate.setMarkedAsDefault(true);
+
+		for (PageSpecification pageSpecification :
+				putDisplayPageTemplate.getPageSpecifications()) {
+
+			pageSpecification.setStatus(PageSpecification.Status.APPROVED);
+		}
+
+		putDisplayPageTemplate =
+			displayPageTemplateResource.putSiteDisplayPageTemplate(
+				testGroup.getExternalReferenceCode(),
+				displayPageTemplate.getExternalReferenceCode(),
+				putDisplayPageTemplate);
+
+		Assert.assertTrue(putDisplayPageTemplate.getMarkedAsDefault());
 	}
 
 	private void _testPutSiteDisplayPageTemplateSettings() throws Exception {
@@ -1699,7 +1787,8 @@ public class DisplayPageTemplateResourceTest
 			});
 
 		DisplayPageTemplateResource displayPageTemplateResource =
-			_getDisplayPageTemplateResource();
+			_getDisplayPageTemplateResource(
+				"friendlyUrlHistory,pageSpecifications");
 
 		_assertPageSpecifications(
 			displayPageTemplateResource.putSiteDisplayPageTemplate(

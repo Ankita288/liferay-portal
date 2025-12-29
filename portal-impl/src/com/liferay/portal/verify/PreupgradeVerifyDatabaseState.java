@@ -34,6 +34,21 @@ import java.util.concurrent.ConcurrentSkipListMap;
  */
 public class PreupgradeVerifyDatabaseState extends PreupgradeVerifyProcess {
 
+	public PreupgradeVerifyDatabaseState() {
+		_falsePositive74UpgradeDroppedTableNames = new TreeSet<>(
+			String.CASE_INSENSITIVE_ORDER);
+
+		_falsePositive74UpgradeDroppedTableNames.addAll(
+			Set.of(
+				"Account_", "AccountGroupAccountEntryRel",
+				"AssetEntries_AssetCategories", "BlogsStatsUser",
+				"CAccountGroupCAccountRel", "CommerceAccount",
+				"CommerceAccountGroup", "CommerceAccountGroupRel",
+				"CommerceAccountOrganizationRel", "CommerceAccountUserRel",
+				"CommerceAddress", "CommerceCountry", "CommerceRegion",
+				"MBStatsUser", "OrgGroupRole", "RemoteAppEntry"));
+	}
+
 	public void verify() throws VerifyException {
 		try {
 			try (Connection connection = getConnection()) {
@@ -81,6 +96,8 @@ public class PreupgradeVerifyDatabaseState extends PreupgradeVerifyProcess {
 			missingTableNames.addAll(serviceComponentTableNames);
 
 			missingTableNames.removeAll(databaseTableNames);
+			missingTableNames.removeAll(
+				_falsePositive74UpgradeDroppedTableNames);
 
 			Set<String> viewNames = _removeViewNames(
 				dbInspector, missingTableNames);
@@ -264,5 +281,7 @@ public class PreupgradeVerifyDatabaseState extends PreupgradeVerifyProcess {
 
 	private static final Log _log = LogFactoryUtil.getLog(
 		PreupgradeVerifyDatabaseState.class);
+
+	private final Set<String> _falsePositive74UpgradeDroppedTableNames;
 
 }

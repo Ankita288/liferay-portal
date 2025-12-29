@@ -789,6 +789,18 @@ public abstract class BaseJob implements Job {
 			}
 		}
 
+		for (AxisTestClassGroup axisTestClassGroup : getAxisTestClassGroups()) {
+			Properties axisProperties = new Properties();
+
+			axisProperties.setProperty(
+				"test.batch.os.architecture",
+				axisTestClassGroup.getOSArchitecture());
+			axisProperties.setProperty(
+				"test.batch.slave.label", axisTestClassGroup.getSlaveLabel());
+
+			propertiesMap.put(axisTestClassGroup.getAxisName(), axisProperties);
+		}
+
 		StringBuilder sb = new StringBuilder();
 
 		for (Map.Entry<String, Properties> propertiesEntry :

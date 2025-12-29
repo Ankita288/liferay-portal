@@ -50,6 +50,7 @@ import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
+import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.model.Company;
 import com.liferay.portal.kernel.model.CustomizedPages;
 import com.liferay.portal.kernel.model.Group;
@@ -62,6 +63,7 @@ import com.liferay.portal.kernel.service.CompanyLocalServiceUtil;
 import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.LayoutLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
+import com.liferay.portal.kernel.test.TestInfo;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
@@ -241,6 +243,7 @@ public class SitePageResourceTest extends BaseSitePageResourceTestCase {
 
 	@Override
 	@Test
+	@TestInfo("LPD-74225")
 	public void testPatchSiteSitePage() throws Exception {
 		_testPatchSiteSitePage(SitePage.Type.CONTENT_PAGE);
 		_testPatchSiteSitePage(SitePage.Type.WIDGET_PAGE);
@@ -480,6 +483,61 @@ public class SitePageResourceTest extends BaseSitePageResourceTestCase {
 		}
 	}
 
+	private void _assertFriendlyUrlHistory(
+			Map<Locale, String> friendlyURLMap,
+			Map<String, String> newFriendlyURLsMap, boolean published,
+			SitePage sitePage)
+		throws Exception {
+
+		FriendlyUrlHistory friendlyUrlHistory =
+			sitePage.getFriendlyUrlHistory();
+
+		JSONObject friendlyUrlHistoryJSONObject = _jsonFactory.createJSONObject(
+			GetterUtil.getString(friendlyUrlHistory.getFriendlyUrlPath_i18n()));
+
+		if (!published) {
+			Assert.assertTrue(
+				friendlyUrlHistoryJSONObject.toString(),
+				JSONUtil.isEmpty(friendlyUrlHistoryJSONObject));
+
+			return;
+		}
+
+		Map<String, List<String>> expectedFriendlyURLsMap = new HashMap<>();
+
+		for (Map.Entry<Locale, String> entry : friendlyURLMap.entrySet()) {
+			List<String> friendlyURLs = ListUtil.fromArray(entry.getValue());
+			String languageId = LocaleUtil.toBCP47LanguageId(entry.getKey());
+
+			if (newFriendlyURLsMap.containsKey(languageId)) {
+				friendlyURLs.add(newFriendlyURLsMap.get(languageId));
+			}
+
+			expectedFriendlyURLsMap.put(languageId, friendlyURLs);
+		}
+
+		Assert.assertEquals(
+			friendlyUrlHistoryJSONObject.toString(),
+			expectedFriendlyURLsMap.size(),
+			friendlyUrlHistoryJSONObject.length());
+
+		for (String key : friendlyUrlHistoryJSONObject.keySet()) {
+			JSONArray jsonArray = friendlyUrlHistoryJSONObject.getJSONArray(
+				key);
+
+			List<String> expectedFriendlyURLs = expectedFriendlyURLsMap.get(
+				key);
+
+			Assert.assertEquals(
+				jsonArray.toString(), expectedFriendlyURLs.size(),
+				jsonArray.length());
+			Assert.assertTrue(
+				jsonArray.toString(),
+				expectedFriendlyURLs.containsAll(
+					JSONUtil.toStringList(jsonArray)));
+		}
+	}
+
 	private void _assertMapEquals(
 		Map<String, String> expectedMap, Map<String, String> map) {
 
@@ -492,33 +550,12 @@ public class SitePageResourceTest extends BaseSitePageResourceTestCase {
 	}
 
 	private void _assertNestedFields(SitePage sitePage) throws Exception {
-		FriendlyUrlHistory friendlyUrlHistory =
-			sitePage.getFriendlyUrlHistory();
-
-		JSONObject jsonObject = _jsonFactory.createJSONObject(
-			GetterUtil.getString(friendlyUrlHistory.getFriendlyUrlPath_i18n()));
-
 		Layout layout = _layoutLocalService.getLayoutByExternalReferenceCode(
 			sitePage.getExternalReferenceCode(), testGroup.getGroupId());
 
-		Map<Locale, String> friendlyURLMap = new HashMap<>();
-
-		if (layout.isPublished()) {
-			friendlyURLMap = layout.getFriendlyURLMap();
-		}
-
-		Assert.assertEquals(
-			jsonObject.toString(), friendlyURLMap.size(), jsonObject.length());
-
-		for (Map.Entry<Locale, String> entry : friendlyURLMap.entrySet()) {
-			String key = LocaleUtil.toBCP47LanguageId(entry.getKey());
-
-			JSONArray jsonArray = jsonObject.getJSONArray(key);
-
-			Assert.assertEquals(jsonArray.toString(), 1, jsonArray.length());
-			Assert.assertEquals(
-				jsonArray.toString(), entry.getValue(), jsonArray.getString(0));
-		}
+		_assertFriendlyUrlHistory(
+			layout.getFriendlyURLMap(), Collections.emptyMap(),
+			layout.isPublished(), sitePage);
 
 		PageSpecificationsTestUtil.assertPageSpecifications(
 			layout, sitePage.getPageSpecifications());
@@ -1208,33 +1245,12 @@ public class SitePageResourceTest extends BaseSitePageResourceTestCase {
 		SitePage sitePage = testPostSiteSitePage_addSitePage(
 			_getRandomSitePage(type));
 
-		_assertSitePage(
-			_layoutLocalService.getLayoutByExternalReferenceCode(
-				sitePage.getExternalReferenceCode(), testGroup.getGroupId()),
-			sitePage);
+		Layout layout = _layoutLocalService.getLayoutByExternalReferenceCode(
+			sitePage.getExternalReferenceCode(), testGroup.getGroupId());
 
-		sitePage.setFriendlyUrlPath_i18n(
-			() -> HashMapBuilder.put(
-				LocaleUtil.toBCP47LanguageId(LocaleUtil.SPAIN),
-				StringPool.FORWARD_SLASH +
-					StringUtil.toLowerCase(RandomTestUtil.randomString())
-			).put(
-				LocaleUtil.toBCP47LanguageId(LocaleUtil.US),
-				StringPool.FORWARD_SLASH +
-					StringUtil.toLowerCase(RandomTestUtil.randomString())
-			).build());
+		_assertSitePage(layout, sitePage);
 
-		_testPatchSiteSitePage(
-			sitePage,
-			new SitePage() {
-				{
-					setExternalReferenceCode(
-						sitePage::getExternalReferenceCode);
-					setFriendlyUrlPath_i18n(sitePage::getFriendlyUrlPath_i18n);
-					setType(sitePage::getType);
-					setUuid(sitePage::getUuid);
-				}
-			});
+		_testPatchSiteSitePageWithFriendlyUrlPath(layout, sitePage);
 
 		ServiceContext serviceContext =
 			ServiceContextTestUtil.getServiceContext(
@@ -1293,10 +1309,10 @@ public class SitePageResourceTest extends BaseSitePageResourceTestCase {
 				}
 			});
 
-		Layout layout = LayoutTestUtil.addTypePortletLayout(testGroup);
+		Layout parentLayout = LayoutTestUtil.addTypePortletLayout(testGroup);
 
 		sitePage.setParentSitePageExternalReferenceCode(
-			layout.getExternalReferenceCode());
+			parentLayout.getExternalReferenceCode());
 
 		pageSettings.setPriority(0);
 
@@ -1307,7 +1323,7 @@ public class SitePageResourceTest extends BaseSitePageResourceTestCase {
 					setExternalReferenceCode(
 						sitePage::getExternalReferenceCode);
 					setParentSitePageExternalReferenceCode(
-						layout::getExternalReferenceCode);
+						parentLayout::getExternalReferenceCode);
 					setType(sitePage::getType);
 					setUuid(sitePage::getUuid);
 				}
@@ -1337,6 +1353,52 @@ public class SitePageResourceTest extends BaseSitePageResourceTestCase {
 					ListUtil.filter(
 						_types, curType -> !Objects.equals(curType, type))),
 				sitePage.getUuid()));
+	}
+
+	private void _testPatchSiteSitePageWithFriendlyUrlPath(
+			Layout layout, SitePage sitePage)
+		throws Exception {
+
+		SitePageResource sitePageResource = _getSitePageResource(
+			"friendlyUrlHistory");
+
+		Map<Locale, String> friendlyURLMap = layout.getFriendlyURLMap();
+
+		_assertFriendlyUrlHistory(
+			friendlyURLMap, Collections.emptyMap(), layout.isPublished(),
+			sitePageResource.getSiteSitePage(
+				testGroup.getExternalReferenceCode(),
+				sitePage.getExternalReferenceCode()));
+
+		Map<String, String> newFriendlyURLsMap = HashMapBuilder.put(
+			LocaleUtil.toBCP47LanguageId(LocaleUtil.SPAIN),
+			StringPool.FORWARD_SLASH +
+				StringUtil.toLowerCase(RandomTestUtil.randomString())
+		).put(
+			LocaleUtil.toBCP47LanguageId(LocaleUtil.US),
+			StringPool.FORWARD_SLASH +
+				StringUtil.toLowerCase(RandomTestUtil.randomString())
+		).build();
+
+		sitePage.setFriendlyUrlPath_i18n(() -> newFriendlyURLsMap);
+
+		_testPatchSiteSitePage(
+			sitePage,
+			new SitePage() {
+				{
+					setExternalReferenceCode(
+						sitePage::getExternalReferenceCode);
+					setFriendlyUrlPath_i18n(sitePage::getFriendlyUrlPath_i18n);
+					setType(sitePage::getType);
+					setUuid(sitePage::getUuid);
+				}
+			});
+
+		_assertFriendlyUrlHistory(
+			friendlyURLMap, newFriendlyURLsMap, layout.isPublished(),
+			sitePageResource.getSiteSitePage(
+				testGroup.getExternalReferenceCode(),
+				sitePage.getExternalReferenceCode()));
 	}
 
 	private void _testPatchSiteSitePageWithPageSpecifications()

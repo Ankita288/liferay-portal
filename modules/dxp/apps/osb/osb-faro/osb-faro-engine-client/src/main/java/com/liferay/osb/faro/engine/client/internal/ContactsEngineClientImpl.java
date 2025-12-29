@@ -43,6 +43,7 @@ import com.liferay.osb.faro.engine.client.model.IndividualSegment;
 import com.liferay.osb.faro.engine.client.model.IndividualSegmentMembership;
 import com.liferay.osb.faro.engine.client.model.IndividualSegmentMembershipChange;
 import com.liferay.osb.faro.engine.client.model.IndividualSegmentMembershipChangeAggregation;
+import com.liferay.osb.faro.engine.client.model.IndividualSegmentRealTimeMembership;
 import com.liferay.osb.faro.engine.client.model.IndividualTransformation;
 import com.liferay.osb.faro.engine.client.model.Interest;
 import com.liferay.osb.faro.engine.client.model.PageVisited;
@@ -551,6 +552,62 @@ public class ContactsEngineClientImpl
 		throws FaroEngineClientException {
 
 		return get(faroProject, Rels.ACCOUNT, id, Account.class);
+	}
+
+	@Override
+	public Results<Object> getAccountFieldValues(
+		FaroProject faroProject, Long channelId, String fieldMappingFieldName,
+		String query, int cur, int delta) {
+
+		Map<String, Object> uriVariables = getUriVariables(
+			faroProject, cur, delta, null);
+
+		for (FieldMappingMap fieldMappingMap :
+				FieldMappingConstants.getAccountFieldMappingMaps()) {
+
+			if (fieldMappingFieldName.equals(fieldMappingMap.getName())) {
+				FieldMapping fieldMapping = new FieldMapping();
+
+				fieldMapping.setContext(FieldMappingConstants.CONTEXT_ACCOUNT);
+				fieldMapping.setFieldName(fieldMappingMap.getName());
+
+				uriVariables.put("apply", getGroupBy(fieldMapping));
+
+				uriVariables.put("channelId", channelId);
+				uriVariables.put("query", query);
+
+				PagedModel<?, IndividualTransformation> pagedModel = get(
+					faroProject, Rels.ACCOUNTS,
+					new ParameterizedTypeReference
+						<EntityModelPagedModel<IndividualTransformation>>() {
+					},
+					uriVariables);
+
+				Results<IndividualTransformation> results =
+					pagedModel.getResults();
+
+				List<IndividualTransformation> individualTransformations =
+					results.getItems();
+
+				return new Results<>(
+					TransformUtil.transform(
+						individualTransformations,
+						individualTransformation -> {
+							Map<String, Object> terms =
+								individualTransformation.getTerms();
+
+							List<Object> objects = new ArrayList<>(
+								terms.values());
+
+							objects.get(0);
+
+							return objects.get(0);
+						}),
+					results.getTotal());
+			}
+		}
+
+		return null;
 	}
 
 	@Override
@@ -1268,6 +1325,22 @@ public class ContactsEngineClientImpl
 	}
 
 	@Override
+	public List<DataSource> getDataSources(
+		FaroProject faroProject, long channelId, String provideTypeExclude) {
+
+		Map<String, Object> uriVariables = getUriVariables(faroProject);
+
+		uriVariables.put("channelId", channelId);
+		uriVariables.put("provideTypeExclude", provideTypeExclude);
+
+		return get(
+			faroProject, Rels.DATA_SOURCE_CHANNEL_CONNECTED,
+			new ParameterizedTypeReference<>() {
+			},
+			uriVariables);
+	}
+
+	@Override
 	public Results<DataSource> getDataSources(
 		FaroProject faroProject, String faroEntityId, String query, String name,
 		String providerType, List<String> states, int cur, int delta,
@@ -1659,13 +1732,7 @@ public class ContactsEngineClientImpl
 
 		if (StringUtil.equals(
 				fieldMapping.getOwnerType(),
-				FieldMappingConstants.OWNER_TYPE_ACCOUNT)) {
-
-			type = Rels.ACCOUNTS;
-		}
-		else if (StringUtil.equals(
-					fieldMapping.getOwnerType(),
-					FieldMappingConstants.OWNER_TYPE_INDIVIDUAL)) {
+				FieldMappingConstants.OWNER_TYPE_INDIVIDUAL)) {
 
 			type = Rels.INDIVIDUALS;
 		}
@@ -2156,6 +2223,33 @@ public class ContactsEngineClientImpl
 			faroProject, Rels.INDIVIDUAL_SEGMENT_MEMBERSHIPS,
 			new ParameterizedTypeReference
 				<EntityModelPagedModel<IndividualSegmentMembership>>() {
+			},
+			uriVariables);
+
+		return pagedModel.getResults();
+	}
+
+	@Override
+	public Results<IndividualSegmentRealTimeMembership>
+		getIndividualSegmentRealTimeMemberships(
+			FaroProject faroProject, String day, String filter,
+			String individualSegmentId, int cur, int delta,
+			List<OrderByField> orderByFields) {
+
+		Map<String, Object> uriVariables = getUriVariables(
+			faroProject, cur, delta, orderByFields);
+
+		if (Validator.isNotNull(day)) {
+			uriVariables.put("day", day);
+		}
+
+		uriVariables.put("filter", filter);
+		uriVariables.put("id", individualSegmentId);
+
+		PagedModel<?, IndividualSegmentRealTimeMembership> pagedModel = get(
+			faroProject, Rels.INDIVIDUAL_SEGMENT_REAL_TIME_MEMBERSHIPS,
+			new ParameterizedTypeReference
+				<EntityModelPagedModel<IndividualSegmentRealTimeMembership>>() {
 			},
 			uriVariables);
 

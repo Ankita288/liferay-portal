@@ -22,7 +22,6 @@ import {pageEditorPagesTest} from '../../../fixtures/pageEditorPagesTest';
 import {pageTemplatesPagesTest} from '../../../fixtures/pageTemplatesPagesTest';
 import {wikiPagesTest} from '../../../fixtures/wikiPagesTest';
 import {getRandomInt} from '../../../utils/getRandomInt';
-import getRandomString from '../../../utils/getRandomString';
 import performLogin, {
 	performLogout,
 	performUserSwitch,
@@ -47,6 +46,7 @@ export const test = mergeTests(
 	exportImportPagesTest,
 	featureFlagsTest({
 		'LPD-35013': {enabled: true},
+		'LPD-35443': {enabled: true},
 		'LPD-35914': {enabled: true},
 	}),
 	isolatedSiteTest,
@@ -60,7 +60,9 @@ export const test = mergeTests(
 
 test('Can export and import custom object entries at instance level', async ({
 	apiHelpers,
+	applicationsMenuPage,
 	companyExportImportPage,
+	exportImportPage,
 }) => {
 	const objectActionAPIClient =
 		await apiHelpers.buildRestClient(ObjectDefinitionAPI);
@@ -77,9 +79,11 @@ test('Can export and import custom object entries at instance level', async ({
 		'c/tests'
 	);
 
-	const exportFilePath = await companyExportImportPage.export([
-		'Tests 1 Items',
-	]);
+	await applicationsMenuPage.goToExport();
+
+	const exportFilePath = await exportImportPage.export({
+		portletLabels: ['Tests 1 Items'],
+	});
 
 	const content = await readFileFromZip('C_Test.json', exportFilePath);
 
@@ -94,7 +98,9 @@ test('Can export and import custom object entries at instance level', async ({
 		)
 	).toBeOK();
 
-	await companyExportImportPage.import(exportFilePath);
+	await companyExportImportPage.import({
+		filePath: exportFilePath,
+	});
 
 	expect(
 		await apiHelpers.get(
@@ -110,7 +116,9 @@ test('Can export and import custom object entries at instance level', async ({
 
 test('Can import account restricted entry when account does and does not exist in environment', async ({
 	apiHelpers,
+	applicationsMenuPage,
 	companyExportImportPage,
+	exportImportPage,
 }) => {
 	const account = await apiHelpers.headlessAdminUser.postAccount();
 
@@ -168,9 +176,11 @@ test('Can import account restricted entry when account does and does not exist i
 		applicationName
 	);
 
-	const exportFilePath = await companyExportImportPage.export([
-		`${objectDefinition.name} 1 Items`,
-	]);
+	await applicationsMenuPage.goToExport();
+
+	const exportFilePath = await exportImportPage.export({
+		portletLabels: [`${objectDefinition.name} 1 Items`],
+	});
 
 	await test.step('assert entry is imported with account relationship properties when it exists', async () => {
 		await apiHelpers.delete(
@@ -184,7 +194,9 @@ test('Can import account restricted entry when account does and does not exist i
 			})
 		).toEqual({status: 'NOT_FOUND'});
 
-		await companyExportImportPage.import(exportFilePath);
+		await companyExportImportPage.import({
+			filePath: exportFilePath,
+		});
 
 		const importedObjectEntry = await apiHelpers.get(
 			`${apiHelpers.baseUrl}${applicationName}/by-external-reference-code/${objectEntry.externalReferenceCode}`
@@ -215,7 +227,9 @@ test('Can import account restricted entry when account does and does not exist i
 			await apiHelpers.headlessAdminUser.getAccountByName(account.name)
 		).toBe(undefined);
 
-		await companyExportImportPage.import(exportFilePath);
+		await companyExportImportPage.import({
+			filePath: exportFilePath,
+		});
 
 		const newImportedObjectEntry = await apiHelpers.get(
 			`${apiHelpers.baseUrl}${applicationName}/by-external-reference-code/${objectEntry.externalReferenceCode}`
@@ -233,7 +247,9 @@ test('Can import account restricted entry when account does and does not exist i
 
 test('Can import custom and system objects entries at instance level using date filter', async ({
 	apiHelpers,
+	applicationsMenuPage,
 	companyExportImportPage,
+	exportImportPage,
 	page,
 }) => {
 	const objectActionAPIClient =
@@ -266,7 +282,7 @@ test('Can import custom and system objects entries at instance level using date 
 	} = cookiesObjectEntries[0];
 
 	await test.step('export functional cookie entries using date reange filter', async () => {
-		await companyExportImportPage.applicationsMenuPage.goToExport();
+		await applicationsMenuPage.goToExport();
 
 		const startDate = new Date(cookiesObjectEntryCreationDate);
 
@@ -280,20 +296,21 @@ test('Can import custom and system objects entries at instance level using date 
 
 		await page.getByLabel('Export Individual Deletions:').check();
 
+		await applicationsMenuPage.goToExport();
+
 		const functionalCookieEntriesExportFilePath =
-			await companyExportImportPage.export(
-				[
-					`Functional Cookie Entries ${cookiesObjectEntriesTotalCount} Items`,
-					'Tests 1 Items',
-				],
-				false,
-				{
+			await exportImportPage.export({
+				dateFilter: {
 					endDate: toDateRangeDate(endDate),
 					endTime: toDateRangeTime(endDate),
 					startDate: toDateRangeDate(startDate),
 					startTime: toDateRangeTime(startDate),
-				}
-			);
+				},
+				portletLabels: [
+					`Functional Cookie Entries ${cookiesObjectEntriesTotalCount} Items`,
+					'Tests 1 Items',
+				],
+			});
 
 		await apiHelpers.delete(
 			`${apiHelpers.baseUrl}${applicationName}/${objectEntry.id}`
@@ -303,9 +320,9 @@ test('Can import custom and system objects entries at instance level using date 
 			`${apiHelpers.baseUrl}functional-cookies-entries/${cookiesObjectEntryId}`
 		);
 
-		await companyExportImportPage.import(
-			functionalCookieEntriesExportFilePath
-		);
+		await companyExportImportPage.import({
+			filePath: functionalCookieEntriesExportFilePath,
+		});
 
 		const {totalCount: importedCookiesObjectEntriesTotalCount} =
 			await apiHelpers.get(
@@ -328,16 +345,15 @@ test('Can import custom and system objects entries at instance level using date 
 			'c/tests'
 		);
 
-		const allEntriesExportFilePath = await companyExportImportPage.export(
-			[
+		await applicationsMenuPage.goToExport();
+
+		const allEntriesExportFilePath = await exportImportPage.export({
+			dateFilter: {rangeLast: '12 Hours'},
+			portletLabels: [
 				`Functional Cookie Entries ${cookiesObjectEntriesTotalCount} Items`,
 				'Tests 1 Items',
 			],
-			false,
-			{
-				rangeLast: '12 Hours',
-			}
-		);
+		});
 
 		await apiHelpers.delete(
 			`${apiHelpers.baseUrl}functional-cookies-entries/${cookiesObjectEntryId}`
@@ -346,7 +362,9 @@ test('Can import custom and system objects entries at instance level using date 
 		await apiHelpers.delete(
 			`${apiHelpers.baseUrl}${applicationName}/${objectEntry.id}`
 		);
-		await companyExportImportPage.import(allEntriesExportFilePath);
+		await companyExportImportPage.import({
+			filePath: allEntriesExportFilePath,
+		});
 
 		const {totalCount: importedCookiesObjectEntriesTotalCount} =
 			await apiHelpers.get(
@@ -366,7 +384,9 @@ test('Can import custom and system objects entries at instance level using date 
 
 test('Can import custom object entries at instance level with or without permissions based on selection', async ({
 	apiHelpers,
+	applicationsMenuPage,
 	companyExportImportPage,
+	exportImportPage,
 }) => {
 	const objectActionAPIClient =
 		await apiHelpers.buildRestClient(ObjectDefinitionAPI);
@@ -394,10 +414,12 @@ test('Can import custom object entries at instance level with or without permiss
 
 	// Export with permissions
 
-	const exportFilePath = await companyExportImportPage.export(
-		['Tests 1 Items'],
-		true
-	);
+	await applicationsMenuPage.goToExport();
+
+	const exportFilePath = await exportImportPage.export({
+		includePermissions: true,
+		portletLabels: ['Tests 1 Items'],
+	});
 
 	// Import with permissions
 
@@ -410,7 +432,10 @@ test('Can import custom object entries at instance level with or without permiss
 		})
 	).toEqual({status: 'NOT_FOUND'});
 
-	await companyExportImportPage.import(exportFilePath, true);
+	await companyExportImportPage.import({
+		filePath: exportFilePath,
+		includePermissions: true,
+	});
 
 	objectEntry = await apiHelpers.get(
 		`${apiHelpers.baseUrl}c/tests/by-external-reference-code/${objectEntry.externalReferenceCode}/?nestedFields=permissions`
@@ -440,7 +465,9 @@ test('Can import custom object entries at instance level with or without permiss
 		})
 	).toEqual({status: 'NOT_FOUND'});
 
-	await companyExportImportPage.import(exportFilePath);
+	await companyExportImportPage.import({
+		filePath: exportFilePath,
+	});
 
 	objectEntry = await apiHelpers.get(
 		`${apiHelpers.baseUrl}c/tests/by-external-reference-code/${objectEntry.externalReferenceCode}/?nestedFields=permissions`
@@ -467,6 +494,7 @@ test(
 		apiHelpers,
 		applicationsMenuPage,
 		companyExportImportPage,
+		exportImportPage,
 		page,
 	}) => {
 		const objectDefinition =
@@ -489,9 +517,11 @@ test(
 			`c/${objectDefinition.name.toLowerCase()}s`
 		);
 
-		const exportFilePath = await companyExportImportPage.export([
-			`${objectDefinition.name} 1 Items`,
-		]);
+		await applicationsMenuPage.goToExport();
+
+		const exportFilePath = await exportImportPage.export({
+			portletLabels: [`${objectDefinition.name} 1 Items`],
+		});
 
 		const applicationName = `c/${objectDefinition.name.toLowerCase()}s`;
 		await apiHelpers.delete(
@@ -501,12 +531,12 @@ test(
 		await performUserSwitch(page, 'test');
 
 		await test.step('Import the file with useCurrentUser enabled and check the imported entry authorship', async () => {
-			await companyExportImportPage.import(
-				exportFilePath,
-				undefined,
-				undefined,
-				true
-			);
+			await companyExportImportPage.import({
+				expectedUploadErrorMessage: null,
+				filePath: exportFilePath,
+				includePermissions: false,
+				useCurrentUser: true,
+			});
 			await applicationsMenuPage.goToObjectDefinition(
 				objectDefinition.name
 			);
@@ -527,6 +557,7 @@ test(
 		apiHelpers,
 		applicationsMenuPage,
 		companyExportImportPage,
+		exportImportPage,
 		page,
 	}) => {
 		const objectDefinition =
@@ -549,9 +580,11 @@ test(
 			`c/${objectDefinition.name.toLowerCase()}s`
 		);
 
-		const exportFilePath = await companyExportImportPage.export([
-			`${objectDefinition.name} 1 Items`,
-		]);
+		await applicationsMenuPage.goToExport();
+
+		const exportFilePath = await exportImportPage.export({
+			portletLabels: [`${objectDefinition.name} 1 Items`],
+		});
 
 		const applicationName = `c/${objectDefinition.name.toLowerCase()}s`;
 		await apiHelpers.delete(
@@ -561,7 +594,9 @@ test(
 		await performUserSwitch(page, 'test');
 
 		await test.step('Import the file and check the imported entry authorship', async () => {
-			await companyExportImportPage.import(exportFilePath);
+			await companyExportImportPage.import({
+				filePath: exportFilePath,
+			});
 			await applicationsMenuPage.goToObjectDefinition(
 				objectDefinition.name
 			);
@@ -581,6 +616,7 @@ test(
 		apiHelpers,
 		applicationsMenuPage,
 		companyExportImportPage,
+		exportImportPage,
 		page,
 	}) => {
 		const objectDefinition =
@@ -603,9 +639,11 @@ test(
 			`c/${objectDefinition.name.toLowerCase()}s`
 		);
 
-		const exportFilePath = await companyExportImportPage.export([
-			`${objectDefinition.name} 1 Items`,
-		]);
+		await applicationsMenuPage.goToExport();
+
+		const exportFilePath = await exportImportPage.export({
+			portletLabels: [`${objectDefinition.name} 1 Items`],
+		});
 
 		const applicationName = `c/${objectDefinition.name.toLowerCase()}s`;
 		await apiHelpers.delete(
@@ -617,7 +655,9 @@ test(
 		await apiHelpers.headlessAdminUser.deleteUserAccount(Number(user.id));
 
 		await test.step('Import the file and check the authorship fallback to the current user', async () => {
-			await companyExportImportPage.import(exportFilePath);
+			await companyExportImportPage.import({
+				filePath: exportFilePath,
+			});
 			await applicationsMenuPage.goToObjectDefinition(
 				objectDefinition.name
 			);
@@ -636,7 +676,12 @@ test(
 	{
 		tag: '@LPD-66167',
 	},
-	async ({apiHelpers, companyExportImportPage}) => {
+	async ({
+		apiHelpers,
+		applicationsMenuPage,
+		companyExportImportPage,
+		exportImportPage,
+	}) => {
 		const objectFields = generateObjectFields({
 			objectFieldBusinessTypes: [
 				'Boolean',
@@ -678,10 +723,12 @@ test(
 			applicationName
 		);
 
-		const exportFilePath = await companyExportImportPage.export(
-			[`Tests 1 Items`],
-			true
-		);
+		await applicationsMenuPage.goToExport();
+
+		const exportFilePath = await exportImportPage.export({
+			includePermissions: true,
+			portletLabels: [`Tests 1 Items`],
+		});
 
 		await apiHelpers.delete(
 			`${apiHelpers.baseUrl}${applicationName}/${objectEntry.id}`
@@ -694,7 +741,10 @@ test(
 			})
 		).toEqual({status: 'NOT_FOUND'});
 
-		await companyExportImportPage.import(exportFilePath, true);
+		await companyExportImportPage.import({
+			filePath: exportFilePath,
+			includePermissions: true,
+		});
 
 		const importedObjectEntry = await apiHelpers.get(
 			`${apiHelpers.baseUrl}${applicationName}/by-external-reference-code/${objectEntry.externalReferenceCode}`
@@ -719,7 +769,9 @@ test(
 
 test('Can import many to many entries', async ({
 	apiHelpers,
+	applicationsMenuPage,
 	companyExportImportPage,
+	exportImportPage,
 }) => {
 	const objectDefinition1 =
 		await apiHelpers.objectAdmin.postRandomObjectDefinition({
@@ -827,9 +879,11 @@ test('Can import many to many entries', async ({
 		expect(objectEntry[objectRelationship.name].length).toBe(2);
 	});
 
-	const exportFilePath1 = await companyExportImportPage.export([
-		`${objectDefinition1.name} 3 Items`,
-	]);
+	await applicationsMenuPage.goToExport();
+
+	const exportFilePath1 = await exportImportPage.export({
+		portletLabels: [`${objectDefinition1.name} 3 Items`],
+	});
 
 	await test.step("relate objectDefinition1ObjectEntry3 to objectDefinition2ObjectEntry1 and assert it's persistence", async () => {
 		await apiHelpers.objectEntry.putByExternalReferenceCodeCurrentExternalReferenceCodeObjectRelationshipNameRelatedExternalReferenceCode(
@@ -854,12 +908,14 @@ test('Can import many to many entries', async ({
 		expect(objectEntry[objectRelationship.name].length).toBe(3);
 	});
 
-	const exportFilePath2 = await companyExportImportPage.export([
-		`${objectDefinition1.name} 3 Items`,
-	]);
+	await applicationsMenuPage.goToExport();
+
+	const exportFilePath2 = await exportImportPage.export({
+		portletLabels: [`${objectDefinition1.name} 3 Items`],
+	});
 
 	await test.step("import object entry where objectDefinition1ObjectEntry3 was still unrelated and assert it's persistence", async () => {
-		await companyExportImportPage.import(exportFilePath1);
+		await companyExportImportPage.import({filePath: exportFilePath1});
 
 		const objectEntry =
 			await apiHelpers.objectEntry.getObjectEntryByExternalReferenceCode({
@@ -873,7 +929,7 @@ test('Can import many to many entries', async ({
 	});
 
 	await test.step("import object entry where objectDefinition1ObjectEntry3 was related to objectDefinition2ObjectEntry1 and assert it's persistence", async () => {
-		await companyExportImportPage.import(exportFilePath2);
+		await companyExportImportPage.import({filePath: exportFilePath2});
 
 		const objectEntry =
 			await apiHelpers.objectEntry.getObjectEntryByExternalReferenceCode({
@@ -889,7 +945,9 @@ test('Can import many to many entries', async ({
 
 test('Can only import custom object entries when their definitions are already in the system', async ({
 	apiHelpers,
+	applicationsMenuPage,
 	companyExportImportPage,
+	exportImportPage,
 }) => {
 	const objectActionAPIClient =
 		await apiHelpers.buildRestClient(ObjectDefinitionAPI);
@@ -918,27 +976,39 @@ test('Can only import custom object entries when their definitions are already i
 		await objectActionAPIClient.postObjectDefinition(
 			objectDefinitionRequestBody
 		);
+	let objectEntry;
+	let exportFilePath;
 
-	// Ensure cleanup if test execution stops before removing the object definition.
+	try {
+		objectEntry = await apiHelpers.objectEntry.postObjectEntry(
+			{externalReferenceCode: 'testERC', textField: 'test'},
+			'c/tests'
+		);
 
-	apiHelpers.data.push({id: objectDefinition.id, type: 'objectDefinition'});
+		await applicationsMenuPage.goToExport();
 
-	const objectEntry = await apiHelpers.objectEntry.postObjectEntry(
-		{externalReferenceCode: 'testERC', textField: 'test'},
-		'c/tests'
-	);
+		exportFilePath = await exportImportPage.export({
+			portletLabels: ['Tests 1 Items'],
+		});
+	}
+	catch {
 
-	const exportFilePath = await companyExportImportPage.export([
-		'Tests 1 Items',
-	]);
+		// Ensure cleanup if test execution stops before removing the object definition.
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+	}
 
 	await objectActionAPIClient.deleteObjectDefinition(objectDefinition.id);
 
-	await companyExportImportPage.import(
-		exportFilePath,
-		false,
-		'The Data Handler for the "Tests" portlet is missing from the system.'
-	);
+	await companyExportImportPage.import({
+		expectedUploadErrorMessage:
+			'The Data Handler for the "Tests" portlet is missing from the system.',
+		filePath: exportFilePath,
+		includePermissions: false,
+	});
 
 	({body: objectDefinition} =
 		await objectActionAPIClient.postObjectDefinition(
@@ -947,7 +1017,9 @@ test('Can only import custom object entries when their definitions are already i
 
 	apiHelpers.data.push({id: objectDefinition.id, type: 'objectDefinition'});
 
-	await companyExportImportPage.import(exportFilePath);
+	await companyExportImportPage.import({
+		filePath: exportFilePath,
+	});
 
 	expect(
 		await apiHelpers.get(
@@ -963,7 +1035,10 @@ test('Can only import custom object entries when their definitions are already i
 
 test('Can see corresponding elements at instance level', async ({
 	apiHelpers,
+	applicationsMenuPage,
 	companyExportImportPage,
+	exportImportPage,
+	page,
 }) => {
 	const objectActionAPIClient =
 		await apiHelpers.buildRestClient(ObjectDefinitionAPI);
@@ -980,51 +1055,41 @@ test('Can see corresponding elements at instance level', async ({
 		'c/tests'
 	);
 
-	const exportFilePath = await companyExportImportPage.export([
-		'Tests 1 Items',
-	]);
+	await applicationsMenuPage.goToExport();
 
-	await companyExportImportPage.page.goto('/');
+	const exportFilePath = await exportImportPage.export({
+		portletLabels: ['Tests 1 Items'],
+	});
+
+	await page.goto('/');
 
 	await companyExportImportPage.goToImportOptions(exportFilePath);
 
-	await expect(
-		companyExportImportPage.page.getByRole('group', {name: 'Pages'})
-	).not.toBeVisible();
+	await expect(page.getByRole('group', {name: 'Pages'})).not.toBeVisible();
+
+	await expect(page.getByText('Comments, Ratings')).not.toBeVisible();
+
+	await expect(page.getByText('Tests')).toBeVisible();
+
+	await expect(page.getByText('C_Tests Change')).not.toBeVisible();
+
+	await expect(page.getByLabel('Delete Application Data')).not.toBeVisible();
 
 	await expect(
-		companyExportImportPage.page.getByText('Comments, Ratings')
-	).not.toBeVisible();
-
-	await expect(companyExportImportPage.page.getByText('Tests')).toBeVisible();
-
-	await expect(
-		companyExportImportPage.page.getByText('C_Tests Change')
-	).not.toBeVisible();
-
-	await expect(
-		companyExportImportPage.page.getByLabel('Delete Application Data')
-	).not.toBeVisible();
-
-	await expect(
-		companyExportImportPage.page.getByText(
+		page.getByText(
 			'Mirror: All data and content inside the imported LAR is created as new the first time while maintaining a reference to the source. Subsequent imports from the same source update the entries instead of creating new entries.'
 		)
 	).toBeVisible();
 
-	await expect(
-		companyExportImportPage.page.getByText('Mirror with overwriting:')
-	).not.toBeVisible();
+	await expect(page.getByText('Mirror with overwriting:')).not.toBeVisible();
 
-	await expect(
-		companyExportImportPage.page.getByText('Copy as New:')
-	).not.toBeVisible();
+	await expect(page.getByText('Copy as New:')).not.toBeVisible();
 });
 
 test('Can/not view Import menu item in Application menu depending on permissions', async ({
 	apiHelpers,
 	applicationsMenuPage,
-	companyExportImportPage,
+	exportImportPage,
 	page,
 }) => {
 	const companyId = await page.evaluate(() => {
@@ -1101,9 +1166,7 @@ test('Can/not view Import menu item in Application menu depending on permissions
 
 	await applicationsMenuPage.goToImport();
 
-	await expect(
-		companyExportImportPage.exportImportPage.newImportButton
-	).toBeVisible();
+	await expect(exportImportPage.newImportButton).toBeVisible();
 
 	await performLogout(page);
 
@@ -1115,9 +1178,7 @@ test('Can/not view Import menu item in Application menu depending on permissions
 
 	await page.goto(importUrl);
 
-	await expect(
-		companyExportImportPage.exportImportPage.newImportButton
-	).toBeHidden();
+	await expect(exportImportPage.newImportButton).toBeHidden();
 });
 
 test('Cannot import a site scoped lar file', async ({
@@ -1126,24 +1187,12 @@ test('Cannot import a site scoped lar file', async ({
 }) => {
 	await exportImportPage.goToExport();
 
-	const taskName = 'MyExport-' + getRandomString();
+	const exportFilePath = await exportImportPage.export();
 
-	await exportImportPage.export(taskName);
-
-	await expect(
-		exportImportPage.page
-			.locator('//h2[span[normalize-space()="' + taskName + '"]]')
-			.first()
-			.locator('../..')
-			.getByText('Successful')
-	).toBeVisible();
-
-	const exportFilePath =
-		await exportImportPage.downloadExportProcess(taskName);
-
-	await companyExportImportPage.import(
-		exportFilePath,
-		false,
-		'The LAR file contains one or more entities with a different scope.'
-	);
+	await companyExportImportPage.import({
+		expectedUploadErrorMessage:
+			'The LAR file contains one or more entities with a different scope.',
+		filePath: exportFilePath,
+		includePermissions: false,
+	});
 });

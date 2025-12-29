@@ -19,6 +19,7 @@ export class PagesAdminPage {
 	readonly defineCustomThemeRadio: Locator;
 	readonly newButton: Locator;
 	readonly newTemplatePageButton: Locator;
+	readonly addPageModal: Locator;
 
 	private readonly configurationSaveButton: Locator;
 	private readonly javaScriptClientExtensionsTab: Locator;
@@ -33,6 +34,7 @@ export class PagesAdminPage {
 		const addPageIFrame = page.frameLocator(
 			'iframe[id="addLayoutDialog_iframe_"]'
 		);
+		this.addPageModal = page.locator('[id^="addLayoutDialog"]');
 		this.addButton = addPageIFrame.getByRole('button', {name: 'Add'});
 		this.configurationSaveButton = page.getByRole('button', {
 			exact: true,
@@ -151,10 +153,12 @@ export class PagesAdminPage {
 		name: string;
 		template?: string;
 	}) {
-		await this.page
-			.locator('.card-page-item')
-			.filter({hasText: template})
-			.click();
+		await clickAndExpectToBeVisible({
+			target: this.addPageModal,
+			trigger: this.page
+				.locator('.card-page-item')
+				.filter({hasText: template}),
+		});
 
 		await this.pageTitleBox.waitFor();
 
@@ -269,7 +273,13 @@ export class PagesAdminPage {
 	async clickOnJavaScriptClientExtensionsTab() {
 		await this.javaScriptClientExtensionsTab.waitFor();
 
-		await this.javaScriptClientExtensionsTab.click();
+		await clickAndExpectToBeVisible({
+			target: this.page.getByRole('button', {
+				exact: true,
+				name: 'JavaScript Client Extensions',
+			}),
+			trigger: this.javaScriptClientExtensionsTab,
+		});
 	}
 
 	async clickOnAction(action: string, title: string) {
@@ -282,6 +292,16 @@ export class PagesAdminPage {
 			trigger: this.page
 				.locator('li', {has: this.page.getByText(title)})
 				.getByRole('button', {name: 'Open Page Options Menu'}),
+		});
+	}
+
+	async clickNewButtonAndWaitForBlankTemplate() {
+		const blankTemplateCard = this.page
+			.locator('.card-page-item')
+			.filter({hasText: 'Blank'});
+		await clickAndExpectToBeVisible({
+			target: blankTemplateCard,
+			trigger: this.newButton,
 		});
 	}
 

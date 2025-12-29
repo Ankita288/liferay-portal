@@ -43,6 +43,14 @@ public interface ExportImportVulcanBatchEngineTaskItemDelegate<T>
 
 		public Scope getScope();
 
+		public default List<String> getSubtitleLanguageKeys() {
+			return null;
+		}
+
+		public default String getTagLanguageKey() {
+			return null;
+		}
+
 		public default boolean isActive(PortletDataContext portletDataContext) {
 			return true;
 		}
@@ -54,6 +62,10 @@ public interface ExportImportVulcanBatchEngineTaskItemDelegate<T>
 		}
 
 		public default boolean isHidden() {
+			return false;
+		}
+
+		public default boolean isStagingSupported() {
 			return false;
 		}
 

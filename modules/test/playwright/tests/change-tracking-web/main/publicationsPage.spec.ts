@@ -918,8 +918,10 @@ test(
 
 		await changeTrackingPage.reviewChange(layoutTitle);
 
-		await expect(page.getByText('Heading Example')).toBeVisible();
-		await expect(page.getByText('Edited Text')).toBeVisible();
+		const view = page.frameLocator('iframe');
+
+		await expect(view.nth(0).getByText('Heading Example')).toBeVisible();
+		await expect(view.nth(1).getByText('Edited Text')).toBeVisible();
 
 		await apiHelpers.jsonWebServicesLayout.deleteLayout(layout.plid);
 	}
@@ -1115,6 +1117,19 @@ testWithPrivatePages(
 			'Published',
 			ctCollection.body.name
 		);
+
+		// Review published changes
+
+		await changeTrackingPage.goToReviewChangesHistory(
+			ctCollection.body.name
+		);
+
+		await changeTrackingPage.viewChanges({
+			changed: 'Added',
+			site: site.name,
+			title: fragmentEntryName,
+			type: 'Fragment Entry Link',
+		});
 
 		// View fragment in private page
 
@@ -1354,7 +1369,6 @@ test(
 		await dragAndDropElement({
 			dragTarget: page.locator('[data-name="Button"]'),
 			dropTarget: middleGridColumn,
-			page,
 		});
 
 		await expect(

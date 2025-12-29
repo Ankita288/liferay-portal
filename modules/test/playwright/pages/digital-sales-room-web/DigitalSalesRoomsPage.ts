@@ -11,8 +11,11 @@ import {ApplicationsMenuPage} from '../product-navigation-applications-menu/Appl
 export class DigitalSalesRoomsPage {
 	readonly applicationsMenuPage: ApplicationsMenuPage;
 	readonly digitalSalesRoomsTable: DataTablePage;
+	readonly newDigitalSalesRoomButton: Locator;
 	readonly noResultsFoundMessage: Locator;
 	readonly page: Page;
+	readonly roomLink: Locator;
+	readonly templateLink: Locator;
 
 	constructor(page: Page) {
 		this.applicationsMenuPage = new ApplicationsMenuPage(page);
@@ -22,8 +25,16 @@ export class DigitalSalesRoomsPage {
 				'#portlet_com_liferay_digital_sales_room_web_internal_portlet_DigitalSalesRoomManagementPortlet'
 			)
 		);
+		this.newDigitalSalesRoomButton = page.getByText(
+			'New Digital Sales Room'
+		);
 		this.noResultsFoundMessage = page.getByText('No Results Found');
 		this.page = page;
+		this.roomLink = page.getByRole('link', {exact: true, name: 'Room'});
+		this.templateLink = page.getByRole('link', {
+			exact: true,
+			name: 'Template',
+		});
 	}
 
 	async goto() {

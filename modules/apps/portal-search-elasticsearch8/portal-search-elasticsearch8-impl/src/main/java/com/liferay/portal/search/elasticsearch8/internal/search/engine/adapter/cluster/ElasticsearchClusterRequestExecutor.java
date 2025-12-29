@@ -76,10 +76,10 @@ public class ElasticsearchClusterRequestExecutor
 		_stateClusterRequestExecutor = new StateClusterRequestExecutor(
 			_elasticsearchClientResolver);
 		_statsClusterRequestExecutor = new StatsClusterRequestExecutor(
-			_elasticsearchClientResolver, _jsonFactory);
+			_elasticsearchClientResolver);
 		_updateSettingsClusterRequestExecutor =
 			new UpdateSettingsClusterRequestExecutor(
-				_elasticsearchClientResolver);
+				_elasticsearchClientResolver, _jsonFactory);
 	}
 
 	@Reference

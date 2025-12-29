@@ -475,6 +475,32 @@ public class CustomFDSSerializer
 	}
 
 	@Override
+	public JSONArray serializeSnapshots(
+		String fdsName, HttpServletRequest httpServletRequest) {
+
+		try {
+			return serializeSnapshots(
+				fdsName, httpServletRequest, _objectDefinitionLocalService,
+				_objectEntryManagerRegistry);
+		}
+		catch (Exception exception) {
+			_log.error("Unable to serialize snapshots", exception);
+
+			return _jsonFactory.createJSONArray();
+		}
+	}
+
+	@Override
+	public boolean serializeSnapshotsEnabled(
+		String fdsName, HttpServletRequest httpServletRequest) {
+
+		Map<String, Object> properties = getDataSetObjectEntryProperties(
+			fdsName, httpServletRequest);
+
+		return GetterUtil.getBoolean(properties.get("snapshotsEnabled"));
+	}
+
+	@Override
 	public List<FDSSortItem> serializeSorts(
 		String fdsName, HttpServletRequest httpServletRequest) {
 
@@ -855,8 +881,9 @@ public class CustomFDSSerializer
 	private ObjectDefinition _getObjectDefinition(
 		HttpServletRequest httpServletRequest) {
 
-		return _objectDefinitionLocalService.fetchObjectDefinition(
-			PortalUtil.getCompanyId(httpServletRequest), "DataSet");
+		return _objectDefinitionLocalService.
+			fetchObjectDefinitionByExternalReferenceCode(
+				"L_DATA_SET", PortalUtil.getCompanyId(httpServletRequest));
 	}
 
 	private ObjectEntry _getObjectEntry(

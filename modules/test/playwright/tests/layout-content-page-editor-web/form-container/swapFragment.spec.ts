@@ -22,7 +22,6 @@ const test = mergeTests(
 	dataApiHelpersTest,
 	displayPageTemplatesPagesTest,
 	featureFlagsTest({
-		'LPD-52221': {enabled: true},
 		'LPS-178052': {enabled: true},
 	}),
 	loginTest(),
@@ -65,6 +64,21 @@ test(
 
 		await pageEditorPage.mapFormFragment(formId, 'Lemon', ['Lemon Size']);
 
+		// Change also fragment configuration
+
+		const inputId = await pageEditorPage.getFragmentId('Text');
+
+		await pageEditorPage.changeFragmentConfiguration({
+			fieldLabel: 'Show Label',
+			fragmentId: inputId,
+			tab: 'General',
+			value: false,
+		});
+
+		await expect(
+			page.locator('label', {hasText: 'Title'})
+		).not.toBeVisible();
+
 		// Check we can't swap the Heading
 
 		await pageEditorPage.selectFragment(headingId);
@@ -79,13 +93,25 @@ test(
 
 		// Swap the text input fragment
 
-		const inputId = await pageEditorPage.getFragmentId('Text');
-
 		await pageEditorPage.swapFragment({
 			folder: 'Form Components',
 			fragmentId: inputId,
 			fragmentName: 'Textarea',
 		});
+
+		// Check mapping and config persist
+
+		const select = page
+			.locator('.page-editor__item-configuration-sidebar')
+			.getByLabel('Field', {exact: true});
+
+		const selectedOption = select.locator('option:checked');
+
+		await expect(selectedOption).toHaveText('Lemon Size');
+
+		await expect(
+			page.locator('label', {hasText: 'Title'})
+		).not.toBeVisible();
 
 		// Undo and check Text is visible again
 

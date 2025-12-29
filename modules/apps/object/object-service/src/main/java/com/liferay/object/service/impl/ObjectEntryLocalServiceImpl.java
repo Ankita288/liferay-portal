@@ -50,6 +50,7 @@ import com.liferay.object.constants.ObjectFieldSettingConstants;
 import com.liferay.object.constants.ObjectFieldValidationConstants;
 import com.liferay.object.constants.ObjectFilterConstants;
 import com.liferay.object.constants.ObjectRelationshipConstants;
+import com.liferay.object.definition.security.permission.resource.util.ObjectDefinitionResourcePermissionUtil;
 import com.liferay.object.definition.setting.util.ObjectDefinitionSettingUtil;
 import com.liferay.object.definition.util.ObjectDefinitionThreadLocal;
 import com.liferay.object.definition.util.ObjectDefinitionUtil;
@@ -168,6 +169,7 @@ import com.liferay.portal.kernel.dao.orm.ActionableDynamicQuery;
 import com.liferay.portal.kernel.dao.orm.FinderCacheUtil;
 import com.liferay.portal.kernel.dao.orm.Property;
 import com.liferay.portal.kernel.dao.orm.PropertyFactoryUtil;
+import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.dao.orm.Session;
 import com.liferay.portal.kernel.encryptor.Encryptor;
 import com.liferay.portal.kernel.exception.PortalException;
@@ -185,10 +187,7 @@ import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.GroupConstants;
 import com.liferay.portal.kernel.model.ModelWrapper;
 import com.liferay.portal.kernel.model.OrganizationTable;
-import com.liferay.portal.kernel.model.ResourceAction;
 import com.liferay.portal.kernel.model.ResourceConstants;
-import com.liferay.portal.kernel.model.ResourcePermission;
-import com.liferay.portal.kernel.model.Role;
 import com.liferay.portal.kernel.model.SystemEventConstants;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.model.UserNotificationDeliveryConstants;
@@ -213,9 +212,7 @@ import com.liferay.portal.kernel.security.permission.ResourceActions;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
 import com.liferay.portal.kernel.service.CompanyLocalService;
 import com.liferay.portal.kernel.service.GroupLocalService;
-import com.liferay.portal.kernel.service.PermissionService;
 import com.liferay.portal.kernel.service.PersistedModelLocalService;
-import com.liferay.portal.kernel.service.ResourceActionLocalService;
 import com.liferay.portal.kernel.service.ResourceLocalService;
 import com.liferay.portal.kernel.service.ResourcePermissionLocalService;
 import com.liferay.portal.kernel.service.RoleLocalService;
@@ -223,7 +220,6 @@ import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.UserLocalService;
 import com.liferay.portal.kernel.service.UserNotificationEventLocalService;
 import com.liferay.portal.kernel.service.WorkflowInstanceLinkLocalService;
-import com.liferay.portal.kernel.service.permission.ModelPermissions;
 import com.liferay.portal.kernel.systemevent.SystemEvent;
 import com.liferay.portal.kernel.transaction.Propagation;
 import com.liferay.portal.kernel.transaction.TransactionCommitCallbackUtil;
@@ -294,7 +290,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -523,8 +521,10 @@ public class ObjectEntryLocalServiceImpl
 			_startWorkflowInstance(userId, objectEntry, serviceContext, false);
 		}
 
-		_updateResourcePermissions(
-			objectDefinition, objectEntry, serviceContext);
+		ObjectDefinitionResourcePermissionUtil.updateResourcePermissions(
+			objectDefinition.getCompanyId(), objectEntry.getGroupId(),
+			objectDefinition.getClassName(), objectEntry.getObjectEntryId(),
+			serviceContext);
 
 		_deleteTempFileEntries(dlFileEntriesMap);
 
@@ -1167,9 +1167,7 @@ public class ObjectEntryLocalServiceImpl
 	public Map<String, Serializable> getIndexedValues(ObjectEntry objectEntry)
 		throws PortalException {
 
-		ObjectDefinition objectDefinition =
-			_objectDefinitionPersistence.findByPrimaryKey(
-				objectEntry.getObjectDefinitionId());
+		ObjectDefinition objectDefinition = objectEntry.getObjectDefinition();
 
 		List<ObjectField> indexedObjectFields =
 			_objectFieldPersistence.findByODI_I(
@@ -1521,7 +1519,7 @@ public class ObjectEntryLocalServiceImpl
 				dslQuery,
 				_objectDefinitionPersistence.findByPrimaryKey(
 					objectRelationship.getObjectDefinitionId2()),
-				sorts));
+				start, end, sorts));
 	}
 
 	@Override
@@ -1608,7 +1606,7 @@ public class ObjectEntryLocalServiceImpl
 
 		return TransformUtil.transform(
 			objectEntryPersistence.dslQuery(
-				_applyOrderBy(dslQuery, objectDefinition, sorts)),
+				_applyOrderBy(dslQuery, objectDefinition, start, end, sorts)),
 			value -> (Long)_getResult(
 				value, objectDefinitionId,
 				dynamicObjectDefinitionTable.getPrimaryKeyColumn()));
@@ -1772,9 +1770,7 @@ public class ObjectEntryLocalServiceImpl
 	public Map<String, Serializable> getValues(ObjectEntry objectEntry)
 		throws PortalException {
 
-		ObjectDefinition objectDefinition =
-			_objectDefinitionPersistence.findByPrimaryKey(
-				objectEntry.getObjectDefinitionId());
+		ObjectDefinition objectDefinition = objectEntry.getObjectDefinition();
 
 		DynamicObjectDefinitionLocalizationTable
 			dynamicObjectDefinitionLocalizationTable =
@@ -2949,8 +2945,15 @@ public class ObjectEntryLocalServiceImpl
 	}
 
 	private DSLQuery _applyOrderBy(
-			DSLQuery dslQuery, ObjectDefinition objectDefinition, Sort[] sorts)
+			DSLQuery dslQuery, ObjectDefinition objectDefinition, int start,
+			int end, Sort[] sorts)
 		throws PortalException {
+
+		if (((end != QueryUtil.ALL_POS) || (start != QueryUtil.ALL_POS)) &&
+			(sorts == null)) {
+
+			sorts = new Sort[] {new Sort("id", Sort.LONG_TYPE, false)};
+		}
 
 		if (sorts == null) {
 			return dslQuery;
@@ -3490,8 +3493,7 @@ public class ObjectEntryLocalServiceImpl
 
 			objectField.setObjectFieldSettings(
 				_objectFieldSettingLocalService.
-					getObjectFieldObjectFieldSettings(
-						objectField.getObjectFieldId()));
+					getObjectFieldObjectFieldSettings(objectField));
 
 			Object value = ObjectFieldSettingUtil.getDefaultValue(
 				_ddmExpressionFactory, objectField, (Map)values);
@@ -4897,8 +4899,7 @@ public class ObjectEntryLocalServiceImpl
 
 			List<ObjectFieldSetting> objectFieldSettings =
 				_objectFieldSettingLocalService.
-					getObjectFieldObjectFieldSettings(
-						objectField.getObjectFieldId());
+					getObjectFieldObjectFieldSettings(objectField);
 
 			for (ObjectFieldSetting objectFieldSetting : objectFieldSettings) {
 				if (StringUtil.equals(
@@ -5143,9 +5144,8 @@ public class ObjectEntryLocalServiceImpl
 
 				columnName = columnName.substring(0, columnName.length() - 1);
 
-				ObjectField objectField =
-					_objectFieldLocalService.fetchObjectField(
-						objectDefinitionId, columnName);
+				ObjectField objectField = _objectFieldPersistence.fetchByODI_N(
+					objectDefinitionId, columnName);
 
 				if ((object != null) && (objectField != null) &&
 					objectField.compareBusinessType(
@@ -6143,6 +6143,18 @@ public class ObjectEntryLocalServiceImpl
 
 				preparedStatement.setTimestamp(index, timestamp);
 			}
+			else if (value instanceof LocalDate) {
+				LocalDate localDate = (LocalDate)value;
+
+				Date date = Date.from(
+					localDate.atStartOfDay(
+						ZoneId.systemDefault()
+					).toInstant());
+
+				timestamp = new Timestamp(date.getTime());
+
+				preparedStatement.setTimestamp(index, timestamp);
+			}
 			else if (value instanceof LocalDateTime) {
 				LocalDateTime localDateTime = (LocalDateTime)value;
 
@@ -6155,7 +6167,8 @@ public class ObjectEntryLocalServiceImpl
 			}
 			else {
 				Date date = DateUtil.parseDate(
-					"yyyy-MM-dd", valueString, LocaleUtil.getSiteDefault());
+					ObjectFieldUtil.getDateTimePattern(valueString),
+					valueString, LocaleUtil.getSiteDefault());
 
 				timestamp = new Timestamp(date.getTime());
 
@@ -6659,8 +6672,10 @@ public class ObjectEntryLocalServiceImpl
 
 		_startWorkflowInstance(userId, objectEntry, serviceContext, true);
 
-		_updateResourcePermissions(
-			objectDefinition, objectEntry, serviceContext);
+		ObjectDefinitionResourcePermissionUtil.updateResourcePermissions(
+			objectDefinition.getCompanyId(), objectEntry.getGroupId(),
+			objectDefinition.getClassName(), objectEntry.getObjectEntryId(),
+			serviceContext);
 
 		if (!objectDefinition.isEnableObjectEntryVersioning()) {
 			_deleteFileEntries(
@@ -6691,57 +6706,6 @@ public class ObjectEntryLocalServiceImpl
 			user);
 
 		return objectEntry;
-	}
-
-	private void _updateResourcePermissions(
-			ObjectDefinition objectDefinition, ObjectEntry objectEntry,
-			ServiceContext serviceContext)
-		throws PortalException {
-
-		ModelPermissions modelPermissions =
-			serviceContext.getModelPermissions();
-
-		if (modelPermissions == null) {
-			return;
-		}
-
-		_permissionService.checkPermission(
-			objectEntry.getGroupId(), objectDefinition.getClassName(),
-			String.valueOf(objectEntry.getObjectEntryId()));
-
-		Collection<String> roleNames = modelPermissions.getRoleNames();
-
-		for (ResourcePermission resourcePermission :
-				_resourcePermissionLocalService.getResourcePermissions(
-					objectDefinition.getCompanyId(),
-					objectDefinition.getClassName(),
-					ResourceConstants.SCOPE_INDIVIDUAL,
-					String.valueOf(objectEntry.getObjectEntryId()))) {
-
-			Role role = _roleLocalService.fetchRole(
-				resourcePermission.getRoleId());
-
-			if ((role == null) || roleNames.contains(role.getName())) {
-				continue;
-			}
-
-			for (ResourceAction resourceAction :
-					_resourceActionLocalService.getResourceActions(
-						objectDefinition.getClassName())) {
-
-				_resourcePermissionLocalService.removeResourcePermission(
-					objectDefinition.getCompanyId(),
-					objectDefinition.getClassName(),
-					ResourceConstants.SCOPE_INDIVIDUAL,
-					String.valueOf(objectEntry.getObjectEntryId()),
-					role.getRoleId(), resourceAction.getActionId());
-			}
-		}
-
-		_resourcePermissionLocalService.updateResourcePermissions(
-			objectEntry.getCompanyId(), objectEntry.getGroupId(),
-			objectDefinition.getClassName(),
-			String.valueOf(objectEntry.getObjectEntryId()), modelPermissions);
 	}
 
 	private void _updateRootDescendantNodeObjectEntryStatus(
@@ -7934,13 +7898,7 @@ public class ObjectEntryLocalServiceImpl
 	private ObjectValidationRuleLocalService _objectValidationRuleLocalService;
 
 	@Reference
-	private PermissionService _permissionService;
-
-	@Reference
 	private Portal _portal;
-
-	@Reference
-	private ResourceActionLocalService _resourceActionLocalService;
 
 	@Reference
 	private ResourceActions _resourceActions;

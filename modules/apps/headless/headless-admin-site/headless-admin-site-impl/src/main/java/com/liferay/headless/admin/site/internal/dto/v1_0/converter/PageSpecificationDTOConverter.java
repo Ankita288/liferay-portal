@@ -8,7 +8,6 @@ package com.liferay.headless.admin.site.internal.dto.v1_0.converter;
 import com.liferay.client.extension.constants.ClientExtensionEntryConstants;
 import com.liferay.client.extension.model.ClientExtensionEntryRel;
 import com.liferay.client.extension.service.ClientExtensionEntryRelLocalService;
-import com.liferay.document.library.kernel.service.DLAppService;
 import com.liferay.headless.admin.site.dto.v1_0.ClientExtension;
 import com.liferay.headless.admin.site.dto.v1_0.ContentPageSpecification;
 import com.liferay.headless.admin.site.dto.v1_0.FavIconClientExtension;
@@ -221,17 +220,7 @@ public class PageSpecificationDTOConverter
 							};
 						}
 
-						long faviconFileEntryId =
-							layout.getFaviconFileEntryId();
-
-						if (faviconFileEntryId == 0) {
-							return null;
-						}
-
-						FileEntry fileEntry = _dlAppService.getFileEntry(
-							faviconFileEntryId);
-
-						if (fileEntry == null) {
+						if (Validator.isNull(layout.getFaviconFileEntryERC())) {
 							return null;
 						}
 
@@ -239,12 +228,13 @@ public class PageSpecificationDTOConverter
 							{
 								setClassName(FileEntry.class::getName);
 								setExternalReferenceCode(
-									fileEntry::getExternalReferenceCode);
+									layout::getFaviconFileEntryERC);
 								setFavIconType(
 									() -> FavIconType.ITEM_EXTERNAL_REFERENCE);
 								setScope(
 									() -> ItemScopeUtil.getItemScope(
-										fileEntry.getGroupId(),
+										layout.getCompanyId(),
+										layout.getFaviconFileEntryScopeERC(),
 										layout.getGroupId()));
 							}
 						};
@@ -475,9 +465,6 @@ public class PageSpecificationDTOConverter
 	@Reference
 	private ClientExtensionEntryRelLocalService
 		_clientExtensionEntryRelLocalService;
-
-	@Reference
-	private DLAppService _dlAppService;
 
 	@Reference
 	private LayoutPageTemplateEntryLocalService
