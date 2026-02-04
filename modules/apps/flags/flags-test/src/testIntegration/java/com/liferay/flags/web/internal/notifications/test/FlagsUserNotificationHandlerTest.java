@@ -60,6 +60,7 @@ import jakarta.portlet.ActionResponse;
 import jakarta.portlet.PortletPreferences;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Assert;
@@ -193,17 +194,18 @@ public class FlagsUserNotificationHandlerTest {
 	}
 
 	@Test
-	public void testIgnoreTamperedReporterAndReportedUser_MBMessage()
-		throws Exception {
+	public void testIgnoreTamperedReporterAndReportedUser() throws Exception {
+		String originalPrincipal = PrincipalThreadLocal.getName();
+		PermissionChecker originalPermissionChecker =
+			PermissionThreadLocal.getPermissionChecker();
+
+		User reporterUser = TestPropsValues.getUser();
+		User reportedUser = UserTestUtil.addUser();
 
 		long groupId = TestPropsValues.getGroupId();
 
 		ServiceContext serviceContext =
 			ServiceContextTestUtil.getServiceContext(groupId);
-
-		User reporterUser = TestPropsValues.getUser();
-
-		User reportedUser = UserTestUtil.addUser();
 
 		MBCategory category = MBCategoryLocalServiceUtil.addCategory(
 			null, reportedUser.getUserId(),
@@ -226,12 +228,7 @@ public class FlagsUserNotificationHandlerTest {
 
 		themeDisplay.setCompany(
 			_companyLocalService.fetchCompany(TestPropsValues.getCompanyId()));
-
-		MockHttpServletRequest mockHttpServletRequest =
-			new MockHttpServletRequest();
-
 		themeDisplay.setScopeGroupId(groupId);
-
 		themeDisplay.setUser(reporterUser);
 
 		mockLiferayPortletActionRequest.setAttribute(
@@ -246,32 +243,20 @@ public class FlagsUserNotificationHandlerTest {
 		mockLiferayPortletActionRequest.setParameter(
 			"contentTitle", mbMessage.getSubject());
 		mockLiferayPortletActionRequest.setParameter(
-			"contentURL", "http://localhost/test");
-		mockLiferayPortletActionRequest.setParameter(
-			"redirect", "http://localhost");
-
-		mockLiferayPortletActionRequest.setParameter(
 			"reporterEmailAddress", "attacker@evil.com");
 		mockLiferayPortletActionRequest.setParameter(
 			"reportedUserId", String.valueOf(RandomTestUtil.nextLong()));
 
-		String originalPrincipal = PrincipalThreadLocal.getName();
-		PermissionChecker originalPermissionChecker =
-			PermissionThreadLocal.getPermissionChecker();
+		MockHttpServletRequest mockHttpServletRequest =
+			new MockHttpServletRequest();
 
 		mockHttpServletRequest.setAttribute(
 			WebKeys.THEME_DISPLAY, themeDisplay);
 
-		Layout layout = LayoutLocalServiceUtil.getLayouts(
-			groupId, false, LayoutConstants.TYPE_PORTLET
-		).get(
-			0
-		);
+		List<Layout> layouts = LayoutLocalServiceUtil.getLayouts(
+			groupId, false, LayoutConstants.TYPE_PORTLET);
 
-		mockHttpServletRequest.setAttribute(WebKeys.LAYOUT, layout);
-
-		PermissionChecker permissionChecker =
-			PermissionCheckerFactoryUtil.create(reporterUser);
+		mockHttpServletRequest.setAttribute(WebKeys.LAYOUT, layouts.get(0));
 
 		PortletPreferences portletPreferences =
 			PortletPreferencesFactoryUtil.getPortletPreferences(
@@ -302,7 +287,8 @@ public class FlagsUserNotificationHandlerTest {
 					).build())) {
 
 			PrincipalThreadLocal.setName(reporterUser.getUserId());
-			PermissionThreadLocal.setPermissionChecker(permissionChecker);
+			PermissionThreadLocal.setPermissionChecker(
+				PermissionCheckerFactoryUtil.create(reporterUser));
 
 			ReflectionTestUtil.invoke(
 				_mvcActionCommand, "doProcessAction",
@@ -317,13 +303,11 @@ public class FlagsUserNotificationHandlerTest {
 		}
 
 		Assert.assertNotNull(mockFlagsEntryService.getReporterEmailAddress());
-
 		Assert.assertNotNull(mockFlagsEntryService.getReportedUserId());
 
 		Assert.assertEquals(
 			reporterUser.getEmailAddress(),
 			mockFlagsEntryService.getReporterEmailAddress());
-
 		Assert.assertEquals(
 			reportedUser.getUserId(),
 			mockFlagsEntryService.getReportedUserId());
