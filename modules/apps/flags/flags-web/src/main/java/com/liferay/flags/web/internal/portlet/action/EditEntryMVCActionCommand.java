@@ -12,6 +12,7 @@ import com.liferay.flags.service.FlagsEntryService;
 import com.liferay.flags.web.internal.constants.FlagsPortletKeys;
 import com.liferay.portal.kernel.captcha.CaptchaException;
 import com.liferay.portal.kernel.captcha.CaptchaTextException;
+import com.liferay.portal.kernel.exception.NoSuchModelException;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.language.Language;
@@ -59,17 +60,6 @@ public class EditEntryMVCActionCommand extends BaseMVCActionCommand {
 			String className = ParamUtil.getString(actionRequest, "className");
 			long classPK = ParamUtil.getLong(actionRequest, "classPK");
 
-			AssetEntry assetEntry = _assetEntryLocalService.fetchEntry(
-				className, classPK);
-
-			if (assetEntry == null) {
-				_log.error(
-					"No AssetEntry found for the given className and classPK");
-
-				throw new IllegalArgumentException(
-					"Invalid content being flagged");
-			}
-
 			ThemeDisplay themeDisplay =
 				(ThemeDisplay)actionRequest.getAttribute(WebKeys.THEME_DISPLAY);
 
@@ -77,7 +67,8 @@ public class EditEntryMVCActionCommand extends BaseMVCActionCommand {
 
 			String reporterEmailAddress = reporterUser.getEmailAddress();
 
-			long reportedUserId = assetEntry.getUserId();
+			long reportedUserId = _getReportedUserId(className, classPK);
+
 			String contentTitle = ParamUtil.getString(
 				actionRequest, "contentTitle");
 			String contentURL = ParamUtil.getString(
@@ -125,6 +116,20 @@ public class EditEntryMVCActionCommand extends BaseMVCActionCommand {
 		}
 
 		return "captcha-verification-failed";
+	}
+
+	private long _getReportedUserId(String className, long classPK)
+		throws NoSuchModelException {
+
+		AssetEntry assetEntry = _assetEntryLocalService.fetchEntry(
+			className, classPK);
+
+		if (assetEntry == null) {
+			throw new NoSuchModelException(
+				"Unable to find an asset entry for class PK " + classPK);
+		}
+
+		return assetEntry.getUserId();
 	}
 
 	private static final Log _log = LogFactoryUtil.getLog(
