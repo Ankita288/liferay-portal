@@ -17,6 +17,7 @@ import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.portlet.JSONPortletResponseUtil;
 import com.liferay.portal.kernel.portlet.bridges.mvc.BaseMVCActionCommand;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
@@ -72,8 +73,9 @@ public class EditEntryMVCActionCommand extends BaseMVCActionCommand {
 			ThemeDisplay themeDisplay =
 				(ThemeDisplay)actionRequest.getAttribute(WebKeys.THEME_DISPLAY);
 
-			String reporterEmailAddress = themeDisplay.getUser(
-			).getEmailAddress();
+			User reporterUser = themeDisplay.getUser();
+
+			String reporterEmailAddress = reporterUser.getEmailAddress();
 
 			long reportedUserId = assetEntry.getUserId();
 			String contentTitle = ParamUtil.getString(
