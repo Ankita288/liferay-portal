@@ -5,6 +5,8 @@
 
 package com.liferay.flags.web.internal.portlet.action;
 
+import com.liferay.asset.kernel.model.AssetEntry;
+import com.liferay.asset.kernel.service.AssetEntryLocalService;
 import com.liferay.captcha.util.CaptchaUtil;
 import com.liferay.flags.service.FlagsEntryService;
 import com.liferay.flags.web.internal.constants.FlagsPortletKeys;
@@ -55,10 +57,25 @@ public class EditEntryMVCActionCommand extends BaseMVCActionCommand {
 
 			String className = ParamUtil.getString(actionRequest, "className");
 			long classPK = ParamUtil.getLong(actionRequest, "classPK");
-			String reporterEmailAddress = ParamUtil.getString(
-				actionRequest, "reporterEmailAddress");
-			long reportedUserId = ParamUtil.getLong(
-				actionRequest, "reportedUserId");
+
+			AssetEntry assetEntry = _assetEntryLocalService.fetchEntry(
+				className, classPK);
+
+			if (assetEntry == null) {
+				_log.error(
+					"No AssetEntry found for the given className and classPK");
+
+				throw new IllegalArgumentException(
+					"Invalid content being flagged");
+			}
+
+			ThemeDisplay themeDisplay =
+				(ThemeDisplay)actionRequest.getAttribute(WebKeys.THEME_DISPLAY);
+
+			String reporterEmailAddress = themeDisplay.getUser(
+			).getEmailAddress();
+
+			long reportedUserId = assetEntry.getUserId();
 			String contentTitle = ParamUtil.getString(
 				actionRequest, "contentTitle");
 			String contentURL = ParamUtil.getString(
@@ -110,6 +127,9 @@ public class EditEntryMVCActionCommand extends BaseMVCActionCommand {
 
 	private static final Log _log = LogFactoryUtil.getLog(
 		EditEntryMVCActionCommand.class);
+
+	@Reference
+	private AssetEntryLocalService _assetEntryLocalService;
 
 	@Reference
 	private FlagsEntryService _flagsEntryService;
