@@ -31,6 +31,7 @@ export const test = mergeTests(
 	accountSettingsPagesTest,
 	dataApiHelpersTest,
 	featureFlagsTest({
+		'LPD-35443': {enabled: true},
 		'LPD-35914': {enabled: true},
 		'LPS-178052': {enabled: true},
 	}),
@@ -448,8 +449,11 @@ test(
 
 		await expect(editUserPage.membershipsNoUserGroupsMessage).toBeVisible();
 
-		await editUserPage.selectUserGroupsButton.click();
-		await editUserPage.selectUserGroupTable.changeView('table');
+		await expect(async () => {
+			await editUserPage.selectUserGroupsButton.click();
+			await editUserPage.selectUserGroupTable.changeView('table');
+		}).toPass();
+
 		await editUserPage.selectUserGroupTable.cell(userGroup.name).click();
 
 		await expect(

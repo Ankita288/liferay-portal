@@ -5,29 +5,28 @@
 
 package com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.document;
 
-import com.liferay.portal.search.engine.adapter.document.BulkableDocumentRequestTranslator;
+import co.elastic.clients.elasticsearch.core.bulk.DeleteOperation;
+import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
+import co.elastic.clients.elasticsearch.core.bulk.UpdateOperation;
+
 import com.liferay.portal.search.engine.adapter.document.DeleteDocumentRequest;
 import com.liferay.portal.search.engine.adapter.document.GetDocumentRequest;
 import com.liferay.portal.search.engine.adapter.document.IndexDocumentRequest;
 import com.liferay.portal.search.engine.adapter.document.UpdateDocumentRequest;
 
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.update.UpdateRequest;
-
 /**
  * @author Adam Brandizzi
  */
-public interface ElasticsearchBulkableDocumentRequestTranslator
-	extends BulkableDocumentRequestTranslator {
+public interface ElasticsearchBulkableDocumentRequestTranslator {
 
-	public DeleteRequest translate(DeleteDocumentRequest deleteDocumentRequest);
+	public DeleteOperation translate(
+		DeleteDocumentRequest deleteDocumentRequest);
 
-	public GetRequest translate(GetDocumentRequest getDocumentRequest);
+	public Object translate(GetDocumentRequest getDocumentRequest);
 
-	public IndexRequest translate(IndexDocumentRequest indexDocumentRequest);
+	public IndexOperation translate(IndexDocumentRequest indexDocumentRequest);
 
-	public UpdateRequest translate(UpdateDocumentRequest updateDocumentRequest);
+	public UpdateOperation translate(
+		UpdateDocumentRequest updateDocumentRequest);
 
 }

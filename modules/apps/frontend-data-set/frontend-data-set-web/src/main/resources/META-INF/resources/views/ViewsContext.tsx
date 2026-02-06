@@ -5,44 +5,49 @@
 
 import {createContext} from 'react';
 
-import {IFilter} from '../management_bar/controls/filters/Filter';
-
 export interface IViewsContext {
-	activeCustomViewId: null | string;
+	activeSnapshotERC: null | string;
 	activeView: any;
-	customViews: any;
-	customViewsEnabled: boolean;
-	filters: IFilter[];
+	defaultSnapshot?: any;
 	filtersGroups: Array<any>;
 	modifiedFields: any;
 	paginationDelta: any;
+	snapshotUpdated: boolean;
+	snapshots: Array<ISnapshot>;
+	snapshotsEnabled: boolean;
 	sorts: Array<any>;
 	views: Array<any>;
 	visibleFieldNames: any;
 }
 
-export type TViewsContextDispatch = (
-	params:
-		| {type: string; value: any}
-		| ((dispatch: TViewsContextDispatch) => void)
-) => void;
+export interface ISnapshot {
+	configuration?: any;
+	erc: string;
+	label: string;
+}
 
-const initialState: IViewsContext = {
-	activeCustomViewId: null,
-	activeView: null,
-	customViews: {},
-	customViewsEnabled: false,
-	filters: [],
-	filtersGroups: [],
-	modifiedFields: {},
-	paginationDelta: null,
-	sorts: [],
-	views: [],
-	visibleFieldNames: {},
-};
+export type TViewsContextDispatch = ({
+	type,
+	value,
+}: {
+	type: string;
+	value: any;
+}) => void;
 
-const ViewsContext = createContext<[IViewsContext, TViewsContextDispatch]>([
-	initialState,
+const ViewsContext = createContext<[IViewsContext, any]>([
+	{
+		activeSnapshotERC: null,
+		activeView: null,
+		filtersGroups: [],
+		modifiedFields: {},
+		paginationDelta: null,
+		snapshotUpdated: false,
+		snapshots: [],
+		snapshotsEnabled: false,
+		sorts: [],
+		views: [],
+		visibleFieldNames: {},
+	},
 	() => {},
 ]);
 

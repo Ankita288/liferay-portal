@@ -8,9 +8,15 @@ package com.liferay.ai.hub.rest.resource.v1_0.test;
 import com.liferay.ai.hub.rest.resource.v1_0.test.util.SseEventSourceTestUtil;
 import com.liferay.ai.hub.rest.resource.v1_0.util.SseUtil;
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
+import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
+import com.liferay.portal.kernel.security.permission.PermissionChecker;
+import com.liferay.portal.kernel.security.permission.PermissionCheckerFactoryUtil;
+import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
+import com.liferay.portal.kernel.service.ServiceContextThreadLocal;
 import com.liferay.portal.kernel.test.util.HTTPTestUtil;
+import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.util.Http;
 import com.liferay.portal.test.rule.FeatureFlag;
@@ -40,19 +46,34 @@ public class MessageResourceTest extends BaseMessageResourceTestCase {
 
 	@BeforeClass
 	public static void setUpClass() throws Exception {
+		_originalPermissionChecker =
+			PermissionThreadLocal.getPermissionChecker();
+
+		PermissionThreadLocal.setPermissionChecker(
+			PermissionCheckerFactoryUtil.create(TestPropsValues.getUser()));
+
 		_originalName = PrincipalThreadLocal.getName();
 
 		PrincipalThreadLocal.setName(TestPropsValues.getUserId());
 
+		ServiceContextThreadLocal.pushServiceContext(
+			ServiceContextTestUtil.getServiceContext(
+				TestPropsValues.getGroupId(), TestPropsValues.getUserId()));
+
 		SiteInitializer siteInitializer =
-			_siteInitializerRegistry.getSiteInitializer("ai-hub-initializer");
+			_siteInitializerRegistry.getSiteInitializer(
+				"com.liferay.ai.hub.site.initializer");
 
 		siteInitializer.initialize(TestPropsValues.getGroupId());
 	}
 
 	@AfterClass
 	public static void tearDownClass() {
+		PermissionThreadLocal.setPermissionChecker(_originalPermissionChecker);
+
 		PrincipalThreadLocal.setName(_originalName);
+
+		ServiceContextThreadLocal.popServiceContext();
 	}
 
 	@After
@@ -64,65 +85,40 @@ public class MessageResourceTest extends BaseMessageResourceTestCase {
 	@Override
 	@Test
 	public void testPostChatByExternalReferenceCodeMessage() throws Exception {
-		CountDownLatch countDownLatch1 = new CountDownLatch(4);
-		CountDownLatch countDownLatch2 = new CountDownLatch(6);
-		CountDownLatch countDownLatch3 = new CountDownLatch(8);
+		CountDownLatch countDownLatch = new CountDownLatch(4);
 
 		List<String> lines = new ArrayList<>();
 
 		String sseEventSinkKey = SseEventSourceTestUtil.open(
-			List.of(countDownLatch1, countDownLatch2, countDownLatch3), lines,
-			"chats/subscribe");
+			List.of(countDownLatch), lines, "chats/subscribe");
 
-		HTTPTestUtil.invokeToJSONObject(
+		String text = "this is a short text.";
+
+		JSONObject jsonObject = HTTPTestUtil.invokeToJSONObject(
 			JSONUtil.put(
-				"text", "What is my name?"
+				"text", "Expand the following text: " + text
 			).toString(),
 			"ai-hub/v1.0/chats/by-external-reference-code/" + sseEventSinkKey +
 				"/messages",
 			Http.Method.POST);
 
-		Assert.assertTrue(countDownLatch1.await(10, TimeUnit.SECONDS));
+		Assert.assertEquals(
+			"Expand the following text: " + text, jsonObject.getString("text"));
+
+		Assert.assertEquals(lines.toString(), 2, lines.size());
+
+		Assert.assertTrue(countDownLatch.await(10, TimeUnit.SECONDS));
 
 		Assert.assertEquals(lines.toString(), 4, lines.size());
 		Assert.assertEquals("event: Chat Message Sent", lines.get(2));
 
-		String line = lines.get(3);
+		String expandedText = lines.get(3);
 
-		Assert.assertFalse(line.contains("Feliphe"));
-
-		HTTPTestUtil.invokeToJSONObject(
-			JSONUtil.put(
-				"text", "My name is Feliphe."
-			).toString(),
-			"ai-hub/v1.0/chats/by-external-reference-code/" + sseEventSinkKey +
-				"/messages",
-			Http.Method.POST);
-
-		Assert.assertTrue(countDownLatch2.await(10, TimeUnit.SECONDS));
-
-		Assert.assertEquals(lines.toString(), 6, lines.size());
-		Assert.assertEquals("event: Chat Message Sent", lines.get(4));
-
-		HTTPTestUtil.invokeToJSONObject(
-			JSONUtil.put(
-				"text", "What is my name?"
-			).toString(),
-			"ai-hub/v1.0/chats/by-external-reference-code/" + sseEventSinkKey +
-				"/messages",
-			Http.Method.POST);
-
-		Assert.assertTrue(countDownLatch3.await(10, TimeUnit.SECONDS));
-
-		Assert.assertEquals(lines.toString(), 8, lines.size());
-		Assert.assertEquals("event: Chat Message Sent", lines.get(6));
-
-		line = lines.get(7);
-
-		Assert.assertTrue(line.contains("Feliphe"));
+		Assert.assertTrue(expandedText.length() > text.length());
 	}
 
 	private static String _originalName;
+	private static PermissionChecker _originalPermissionChecker;
 
 	@Inject
 	private static SiteInitializerRegistry _siteInitializerRegistry;

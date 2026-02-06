@@ -3,15 +3,23 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
-import {openModal} from 'frontend-js-components-web';
+// @ts-ignore
 
-import {DSRInitializer} from '../index';
+import {IInternalRenderer} from '@liferay/frontend-data-set-web';
+import {openModal} from 'frontend-js-components-web';
+import {sub} from 'frontend-js-web';
+
+import DSRRoomSaveAsTemplate from '../components/DSRRoomSaveAsTemplate';
+import {DSRInitializer, DSRRoomNameRenderer} from '../index';
+import deleteDSRAction from './actions/deleteDSRAction';
 
 export default function propsTransformer({
 	creationMenu,
+	itemsActions = [],
 	...otherProps
 }: {
 	creationMenu: any;
+	itemsActions?: any[];
 }) {
 	return {
 		...otherProps,
@@ -24,7 +32,12 @@ export default function propsTransformer({
 						onClick() {
 							const action = item?.data?.action;
 
-							if (action && action === 'addDigitalSalesRoom') {
+							if (
+								action &&
+								(action === 'addDigitalSalesRoom' ||
+									action ===
+										'addDigitalSalesRoomFromTemplate')
+							) {
 								return openModal({
 									containerProps: {
 										className: '',
@@ -36,7 +49,11 @@ export default function propsTransformer({
 									}) =>
 										DSRInitializer({
 											closeModal,
-											numberOfSteps: 3,
+											numberOfSteps:
+												action ===
+												'addDigitalSalesRoomFromTemplate'
+													? 4
+													: 3,
 										}),
 									size: 'md',
 								});
@@ -45,6 +62,75 @@ export default function propsTransformer({
 					};
 				}
 			),
+		},
+		customRenderers: {
+			tableCell: [
+				{
+					component: DSRRoomNameRenderer,
+					name: 'roomName',
+					type: 'internal',
+				} as IInternalRenderer,
+			],
+		},
+		itemsActions,
+		onActionDropdownItemClick: ({
+			action,
+			event,
+			itemData,
+			loadData,
+		}: {
+			action: {
+				data: {
+					id: string;
+					permissionKey: string | null;
+				};
+			};
+			event: Event;
+			itemData: {
+				friendlyUrlPath: string;
+				id: number;
+				name: string;
+			};
+			loadData: () => {};
+		}) => {
+			if (action?.data?.id === 'delete') {
+				event?.preventDefault();
+
+				deleteDSRAction({
+					groupId: itemData.id,
+					loadData,
+					title: sub(
+						Liferay.Language.get(
+							'delete-digital-sales-room-confirmation-title'
+						),
+						itemData.name
+					),
+				});
+			}
+			else if (action?.data?.id === 'edit') {
+				event?.preventDefault();
+
+				window.location.href = `/web${itemData.friendlyUrlPath}`;
+			}
+			else if (action?.data?.id === 'saveAsTemplate') {
+				event?.preventDefault();
+
+				return openModal({
+					containerProps: {
+						className: '',
+					},
+					contentComponent: ({
+						closeModal,
+					}: {
+						closeModal: () => void;
+					}) =>
+						DSRRoomSaveAsTemplate({
+							closeModal,
+							digitalSalesRoomId: itemData.id,
+						}),
+					size: 'md',
+				});
+			}
 		},
 	};
 }

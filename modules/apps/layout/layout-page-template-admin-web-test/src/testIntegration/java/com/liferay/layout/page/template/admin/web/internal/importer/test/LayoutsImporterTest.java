@@ -292,24 +292,24 @@ public class LayoutsImporterTest {
 			},
 			LayoutPageTemplateEntryTypeConstants.DISPLAY_PAGE);
 
-		ZipReader zipReader = _zipReaderFactory.getZipReader(file);
-
 		ZipWriter zipWriter = _zipWriterFactory.getZipWriter();
 
-		for (String entry : zipReader.getEntries()) {
-			zipWriter.addEntry(entry, zipReader.getEntryAsString(entry));
+		try (ZipReader zipReader = _zipReaderFactory.getZipReader(file)) {
+			for (String entry : zipReader.getEntries()) {
+				zipWriter.addEntry(entry, zipReader.getEntryAsString(entry));
+			}
+
+			file = _layoutsExporter.exportLayoutPageTemplateEntries(
+				new long[] {
+					masterLayoutPageTemplateEntry.getLayoutPageTemplateEntryId()
+				},
+				LayoutPageTemplateEntryTypeConstants.MASTER_LAYOUT);
 		}
 
-		file = _layoutsExporter.exportLayoutPageTemplateEntries(
-			new long[] {
-				masterLayoutPageTemplateEntry.getLayoutPageTemplateEntryId()
-			},
-			LayoutPageTemplateEntryTypeConstants.MASTER_LAYOUT);
-
-		zipReader = _zipReaderFactory.getZipReader(file);
-
-		for (String entry : zipReader.getEntries()) {
-			zipWriter.addEntry(entry, zipReader.getEntryAsString(entry));
+		try (ZipReader zipReader = _zipReaderFactory.getZipReader(file)) {
+			for (String entry : zipReader.getEntries()) {
+				zipWriter.addEntry(entry, zipReader.getEntryAsString(entry));
+			}
 		}
 
 		List<LayoutsImporterResultEntry> layoutsImporterResultEntries =
@@ -1599,7 +1599,7 @@ public class LayoutsImporterTest {
 		return _styleBookEntryLocalService.addStyleBookEntry(
 			null, TestPropsValues.getUserId(), serviceContext.getScopeGroupId(),
 			false, StringPool.BLANK, RandomTestUtil.randomString(),
-			styleBookEntryKey, StringPool.BLANK, serviceContext);
+			styleBookEntryKey, RandomTestUtil.randomString(), serviceContext);
 	}
 
 	private void _assertExportedFileItemSelector(

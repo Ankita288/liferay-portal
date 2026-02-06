@@ -39,7 +39,7 @@ export class StructureBuilderPage {
 	readonly dataApiHelpers: DataApiHelpers;
 
 	private readonly clearAllSpacesButton: Locator;
-	private readonly customizeExperienceButton: Locator;
+	private readonly customizeEditorButton: Locator;
 	private readonly labelInput: Locator;
 	private readonly nameInput: Locator;
 
@@ -54,8 +54,8 @@ export class StructureBuilderPage {
 		this.dataApiHelpers = dataApiHelpers;
 
 		this.clearAllSpacesButton = this.page.getByLabel('Clear All');
-		this.customizeExperienceButton = this.page.getByRole('button', {
-			name: 'Customize Experience',
+		this.customizeEditorButton = this.page.getByRole('button', {
+			name: 'Customize Editor',
 		});
 		this.labelInput = this.page.getByLabel('Content Structure Label');
 		this.nameInput = this.page.getByLabel('Content Structure Name');
@@ -364,10 +364,10 @@ export class StructureBuilderPage {
 		return id;
 	}
 
-	async customizeExperience() {
+	async customizeEditor() {
 		await expect(async () => {
-			if (await this.customizeExperienceButton.isVisible()) {
-				await this.customizeExperienceButton.click({timeout: 2000});
+			if (await this.customizeEditorButton.isVisible()) {
+				await this.customizeEditorButton.click({timeout: 2000});
 			}
 
 			await expect(
@@ -376,11 +376,14 @@ export class StructureBuilderPage {
 				timeout: 3500,
 			});
 
-			await this.waitForExperienceCustomizerModal();
+			await this.waitForEditorCustomizerModal();
 		}).toPass();
 	}
 
-	async deleteFields(fields: Field[]) {
+	async deleteFields(
+		fields: Field[],
+		{confirm}: {confirm?: boolean} = {confirm: true}
+	) {
 
 		// Deleting one field
 
@@ -413,6 +416,21 @@ export class StructureBuilderPage {
 				autoClick: true,
 				target: this.page.getByRole('menuitem', {name: 'Delete'}),
 				trigger: this.page.getByLabel('Selection Options'),
+			});
+		}
+
+		// Wait some time in case deletion modal is shown
+
+		await this.page.waitForTimeout(2500);
+
+		const modal = this.page.locator('.modal-content', {
+			hasText: 'Delete Fields',
+		});
+
+		if ((await modal.isVisible()) && confirm) {
+			await clickAndExpectToBeHidden({
+				target: modal,
+				trigger: modal.getByText('Delete', {exact: true}),
 			});
 		}
 	}
@@ -464,7 +482,7 @@ export class StructureBuilderPage {
 			await this.publishButton.click();
 
 			await waitForAlert(this.page, 'published successfully', {
-				timeout: 5000,
+				timeout: 10000,
 			});
 		};
 
@@ -473,7 +491,7 @@ export class StructureBuilderPage {
 				(response) =>
 					response.url().includes('object-definitions') &&
 					response.status() === 200,
-				{timeout: 5000}
+				{timeout: 10000}
 			),
 			await publish(),
 		]);
@@ -593,6 +611,18 @@ export class StructureBuilderPage {
 		}
 	}
 
+	async switchLanguage(languageId: string) {
+		const trigger = this.page.getByLabel('Open Localizations');
+
+		await clickAndExpectToBeVisible({
+			autoClick: true,
+			target: this.page.locator('.dropdown-item', {hasText: languageId}),
+			trigger,
+		});
+
+		await expect(trigger).toHaveAttribute('title', languageId);
+	}
+
 	async switchTab(name: 'General' | 'Search' | 'Workflow') {
 		const target =
 			name === 'General'
@@ -609,7 +639,7 @@ export class StructureBuilderPage {
 		});
 	}
 
-	async waitForExperienceCustomizerModal() {
+	async waitForEditorCustomizerModal() {
 		await this.page.waitForTimeout(4000);
 
 		const gotItButton = this.page.getByText('Got It');

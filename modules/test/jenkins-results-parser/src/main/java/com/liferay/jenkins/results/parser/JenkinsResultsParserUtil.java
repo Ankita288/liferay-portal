@@ -563,6 +563,7 @@ public class JenkinsResultsParserUtil {
 	public static String escapeForBash(String string) {
 		string = string.replaceAll(" ", "\\\\ ");
 		string = string.replaceAll("'", "\\\\\\\'");
+		string = string.replaceAll(";", "\\\\;");
 		string = string.replaceAll("<", "\\\\\\<");
 		string = string.replaceAll(">", "\\\\\\>");
 		string = string.replaceAll("\"", "\\\\\\\"");
@@ -2745,30 +2746,45 @@ public class JenkinsResultsParserUtil {
 	public static int getJobTimeoutMinutes(
 		JenkinsMaster jenkinsMaster, String jobName) {
 
-		Document configDocument;
+		String key = jenkinsMaster.getName() + "_" + jobName;
 
-		try {
-			configDocument = getJobConfigDocument(jenkinsMaster, jobName);
+		synchronized (_jobTimeoutMinutes) {
+			Integer jobTimeoutMinute = _jobTimeoutMinutes.get(key);
 
-			Node timeoutNode = Dom4JUtil.getNodeByXPath(
-				configDocument,
-				combine(
-					"/project/buildWrappers/",
-					"hudson.plugins.build__timeout.BuildTimeoutWrapper/",
-					"strategy[@class=\'hudson.plugins.build_timeout.impl.",
-					"AbsoluteTimeOutStrategy\']/timeoutMinutes"));
+			if (jobTimeoutMinute != null) {
+				return jobTimeoutMinute;
+			}
 
-			return Integer.valueOf(timeoutNode.getText()) + 15;
-		}
-		catch (Exception exception) {
-			System.out.println("Unable to get timeout of job " + jobName);
+			Document configDocument;
 
 			try {
-				return Integer.valueOf(
-					getBuildProperty("build.default.timeout.minutes"));
+				configDocument = getJobConfigDocument(jenkinsMaster, jobName);
+
+				Node timeoutNode = Dom4JUtil.getNodeByXPath(
+					configDocument,
+					combine(
+						"/project/buildWrappers/",
+						"hudson.plugins.build__timeout.BuildTimeoutWrapper/",
+						"strategy[@class=\'hudson.plugins.build_timeout.impl.",
+						"AbsoluteTimeOutStrategy\']/timeoutMinutes"));
+
+				jobTimeoutMinute = Integer.valueOf(timeoutNode.getText()) + 15;
 			}
-			catch (IOException ioException) {
-				return 135;
+			catch (Exception exception) {
+				System.out.println("Unable to get timeout of job " + jobName);
+
+				try {
+					jobTimeoutMinute = Integer.valueOf(
+						getBuildProperty("build.default.timeout.minutes"));
+				}
+				catch (IOException ioException) {
+					jobTimeoutMinute = 135;
+				}
+			}
+			finally {
+				_jobTimeoutMinutes.put(key, jobTimeoutMinute);
+
+				return jobTimeoutMinute;
 			}
 		}
 	}
@@ -2885,39 +2901,43 @@ public class JenkinsResultsParserUtil {
 			localURLQueryString = remoteURL.substring(x);
 		}
 
-		Matcher remoteURLAuthorityMatcher1 =
-			_remoteURLAuthorityPattern1.matcher(localURL);
-		Matcher remoteURLAuthorityMatcher2 =
-			_remoteURLAuthorityPattern2.matcher(localURL);
-		Matcher remoteURLAuthorityMatcher3 =
-			_remoteURLAuthorityPattern3.matcher(localURL);
+		Matcher matcher = _remoteURLAuthorityPattern1.matcher(localURL);
 
-		if (remoteURLAuthorityMatcher1.find()) {
+		if (isCloudCINode() && matcher.find()) {
 			String localURLAuthority = combine(
-				"http://", remoteURLAuthorityMatcher1.group(1), "-",
-				remoteURLAuthorityMatcher1.group(2), "/",
-				remoteURLAuthorityMatcher1.group(2), "/");
-			String remoteURLAuthority = remoteURLAuthorityMatcher1.group(0);
+				"http://", matcher.group(1), "/");
+			String remoteURLAuthority = matcher.group(0);
 
 			localURL = localURL.replaceAll(
 				remoteURLAuthority, localURLAuthority);
+
+			return localURL + localURLQueryString;
 		}
-		else if (remoteURLAuthorityMatcher2.find()) {
+
+		matcher = _remoteURLAuthorityPattern2.matcher(localURL);
+
+		if (matcher.find()) {
 			String localURLAuthority = combine(
-				"http://", remoteURLAuthorityMatcher2.group(1), "/");
-			String remoteURLAuthority = remoteURLAuthorityMatcher2.group(0);
+				"http://", matcher.group(1), "/");
+			String remoteURLAuthority = matcher.group(0);
 
 			localURL = localURL.replaceAll(
 				remoteURLAuthority, localURLAuthority);
+
+			return localURL + localURLQueryString;
 		}
-		else if (remoteURLAuthorityMatcher3.find()) {
+
+		matcher = _remoteURLAuthorityPattern3.matcher(localURL);
+
+		if (matcher.find()) {
 			String localURLAuthority = combine(
-				"http://mirrors.lax.liferay.com/",
-				remoteURLAuthorityMatcher3.group(2));
-			String remoteURLAuthority = remoteURLAuthorityMatcher3.group(0);
+				"http://mirrors.lax.liferay.com/", matcher.group(2));
+			String remoteURLAuthority = matcher.group(0);
 
 			localURL = localURL.replaceAll(
 				remoteURLAuthority, localURLAuthority);
+
+			return localURL + localURLQueryString;
 		}
 
 		return localURL + localURLQueryString;
@@ -3482,38 +3502,42 @@ public class JenkinsResultsParserUtil {
 			remoteURLQueryString = localURL.substring(x);
 		}
 
-		Matcher localURLAuthorityMatcher1 = _localURLAuthorityPattern1.matcher(
-			remoteURL);
-		Matcher localURLAuthorityMatcher2 = _localURLAuthorityPattern2.matcher(
-			remoteURL);
-		Matcher localURLAuthorityMatcher3 = _localURLAuthorityPattern3.matcher(
-			remoteURL);
+		Matcher matcher = _localURLAuthorityPattern1.matcher(remoteURL);
 
-		if (localURLAuthorityMatcher1.find()) {
-			String localURLAuthority = localURLAuthorityMatcher1.group(0);
+		if (isCloudCINode() && matcher.find()) {
+			String localURLAuthority = matcher.group(0);
 			String remoteURLAuthority = combine(
-				"https://", localURLAuthorityMatcher1.group(2), ".liferay.com/",
-				localURLAuthorityMatcher1.group(3), "/");
+				"https://", matcher.group(1), "-aws", ".liferay.com/");
 
 			remoteURL = remoteURL.replaceAll(
 				localURLAuthority, remoteURLAuthority);
+
+			return remoteURL + remoteURLQueryString;
 		}
-		else if (localURLAuthorityMatcher2.find()) {
-			String localURLAuthority = localURLAuthorityMatcher2.group(0);
+
+		matcher = _localURLAuthorityPattern2.matcher(remoteURL);
+
+		if (matcher.find()) {
+			String localURLAuthority = matcher.group(0);
 			String remoteURLAuthority = combine(
-				"https://", localURLAuthorityMatcher2.group(1),
-				".liferay.com/");
+				"https://", matcher.group(1), ".liferay.com/");
 
 			remoteURL = remoteURL.replaceAll(
 				localURLAuthority, remoteURLAuthority);
+
+			return remoteURL + remoteURLQueryString;
 		}
-		else if (localURLAuthorityMatcher3.find()) {
-			String localURLAuthority = localURLAuthorityMatcher3.group(0);
-			String remoteURLAuthority = combine(
-				"https://", localURLAuthorityMatcher3.group(2));
+
+		matcher = _localURLAuthorityPattern3.matcher(remoteURL);
+
+		if (matcher.find()) {
+			String localURLAuthority = matcher.group(0);
+			String remoteURLAuthority = combine("https://", matcher.group(2));
 
 			remoteURL = remoteURL.replaceAll(
 				localURLAuthority, remoteURLAuthority);
+
+			return remoteURL + remoteURLQueryString;
 		}
 
 		return remoteURL + remoteURLQueryString;
@@ -3759,37 +3783,13 @@ public class JenkinsResultsParserUtil {
 	}
 
 	public static boolean isCINode() {
-		if (_ciNode != null) {
-			return _ciNode;
-		}
-
-		if (!isNullOrEmpty(System.getenv("JENKINS_HOME"))) {
-			_ciNode = true;
-
-			return _ciNode;
-		}
-
-		String hostName = getHostName("");
-
-		try {
-			List<String> jenkinsNodes = getJenkinsNodes();
-
-			String hostNameSuffix = ".lax.liferay.com";
-
-			if (hostName.endsWith(hostNameSuffix)) {
-				hostName = hostName.substring(
-					0, hostName.length() - hostNameSuffix.length());
-			}
-
-			if (jenkinsNodes.contains(hostName)) {
-				_ciNode = true;
-			}
-			else {
+		if (_ciNode == null) {
+			if (isNullOrEmpty(System.getenv("JENKINS_URL"))) {
 				_ciNode = false;
 			}
-		}
-		catch (Exception exception) {
-			_ciNode = false;
+			else {
+				_ciNode = true;
+			}
 		}
 
 		return _ciNode;
@@ -7303,8 +7303,10 @@ public class JenkinsResultsParserUtil {
 				"(?<buildNumber>\\d+)/+jenkins-report\\.html");
 	private static final Pattern _jenkinsSlavesPropertyNamePattern =
 		Pattern.compile("master.slaves\\((.+)\\)");
+	private static final Map<String, Integer> _jobTimeoutMinutes =
+		new HashMap<>();
 	private static final Pattern _localURLAuthorityPattern1 = Pattern.compile(
-		"http://((release|test)-[0-9]+)/([0-9]+)/");
+		"http://(test-[0-9]+-[0])/");
 	private static final Pattern _localURLAuthorityPattern2 = Pattern.compile(
 		"http://(test-[0-9]+-[0-9]+)/");
 	private static final Pattern _localURLAuthorityPattern3 = Pattern.compile(
@@ -7316,7 +7318,7 @@ public class JenkinsResultsParserUtil {
 		".*\\.(function|macro|path|prose|testcase)");
 	private static final Set<String> _redactTokens = new HashSet<>();
 	private static final Pattern _remoteURLAuthorityPattern1 = Pattern.compile(
-		"https://(test).liferay.com/([0-9]+)/");
+		"https://(test-[0-9]+-[0])-aws.liferay.com/");
 	private static final Pattern _remoteURLAuthorityPattern2 = Pattern.compile(
 		"https://(test-[0-9]+-[0-9]+).liferay.com/");
 	private static final Pattern _remoteURLAuthorityPattern3 = Pattern.compile(

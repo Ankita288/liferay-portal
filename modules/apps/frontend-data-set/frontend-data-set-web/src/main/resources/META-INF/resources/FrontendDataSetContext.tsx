@@ -9,6 +9,7 @@ import {
 	EConfigInURLKeys,
 	IConfigInURLUpdaterThunk,
 	IDataSetData,
+	IFDSState,
 	IInlineEditingSettings,
 	IItemsActions,
 	TRenderer,
@@ -43,6 +44,7 @@ export interface IFrontendDataSetContext {
 	}) => Promise<void>;
 	formId?: string;
 	formName?: string;
+	globalFDSState: IFDSState;
 	hideManagementBarInEmptyState?: boolean;
 	highlightItems: Function;
 	highlightedItemsValue?: Array<string>;
@@ -63,9 +65,13 @@ export interface IFrontendDataSetContext {
 	nestedItemsReferenceKey?: string;
 	onActionDropdownItemClick: Function;
 	onBulkActionItemClick: Function;
+	onClearResultsBar: () => void;
+	onClearSearch: () => void;
+	onFilterChange: Function;
 	onInfoPanelToggleButtonClick: Function;
 	onItemsChange: ({itemKey, items}: {itemKey: string; items: any}) => void;
 	onSearch: ({query}: {query: string}) => void;
+	onSnapshotChange: Function;
 	openModal: Function;
 	openSidePanel: Function;
 	portletId?: string;
@@ -76,7 +82,6 @@ export interface IFrontendDataSetContext {
 	selectedItemsKey: string;
 	selectedItemsValue?: Array<any>;
 	selectionType?: 'single' | 'multiple';
-	setSearching: (value: boolean) => void;
 	showBulkActionsManagementBar: boolean;
 	showBulkActionsManagementBarActions: boolean;
 	showInfoPanel: boolean;
@@ -110,15 +115,16 @@ const FrontendDataSetContext = React.createContext({
 	loadData: () => {},
 	onActionDropdownItemClick: () => {},
 	onBulkActionItemClick: () => {},
+	onFilterChange: () => {},
 	onInfoPanelToggleButtonClick: () => {},
 	onItemsChange: () => {},
 	onSearch: () => {},
+	onSnapshotChange: () => {},
 	openModal: () => {},
 	openSidePanel: () => {},
 	selectable: false,
 	selectedItems: [],
 	selectedItemsValue: [],
-	setSearching: () => {},
 	toggleItemInlineEdit: () => {},
 	updateDataSetItems: () => {},
 	updateItem: () => {},

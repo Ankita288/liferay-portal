@@ -128,7 +128,8 @@ public class DisplayPageTemplateResourceImpl
 
 			@Override
 			public List<String> getNestedFields() {
-				return List.of("friendlyUrlHistory", "pageSpecifications");
+				return List.of(
+					"friendlyUrlHistory", "pageSpecifications", "thumbnail");
 			}
 
 			@Override
@@ -149,6 +150,11 @@ public class DisplayPageTemplateResourceImpl
 			@Override
 			public boolean isActive(PortletDataContext portletDataContext) {
 				return FeatureFlagManagerUtil.isEnabled("LPD-35443");
+			}
+
+			@Override
+			public boolean isStagingSupported() {
+				return true;
 			}
 
 		};
@@ -399,7 +405,9 @@ public class DisplayPageTemplateResourceImpl
 
 		long classTypeId = _getClassTypeId(contentTypeReference, groupId);
 
-		if (!className.equals(layoutPageTemplateEntry.getClassName()) ||
+		if (!Objects.equals(
+				className.getClassName(),
+				layoutPageTemplateEntry.getClassName()) ||
 			(classTypeId != layoutPageTemplateEntry.getClassTypeId())) {
 
 			_layoutPageTemplateEntryService.updateLayoutPageTemplateEntry(
@@ -407,19 +415,10 @@ public class DisplayPageTemplateResourceImpl
 				className.getClassNameId(), classTypeId);
 		}
 
-		if (!Objects.equals(
-				GetterUtil.getBoolean(displayPageTemplate.getMarkedAsDefault()),
-				layoutPageTemplateEntry.isDefaultTemplate())) {
-
-			layoutPageTemplateEntry =
-				_layoutPageTemplateEntryService.updateLayoutPageTemplateEntry(
-					layoutPageTemplateEntry.getLayoutPageTemplateEntryId(),
-					GetterUtil.getBoolean(
-						displayPageTemplate.getMarkedAsDefault()));
-		}
-
 		long previewFileEntryId = FileEntryUtil.getPreviewFileEntryId(
-			groupId, displayPageTemplate.getThumbnail());
+			groupId, getResourceName(),
+			_getServiceContext(displayPageTemplate, groupId),
+			displayPageTemplate.getThumbnailURLReference());
 
 		if (previewFileEntryId !=
 				layoutPageTemplateEntry.getPreviewFileEntryId()) {
@@ -455,6 +454,17 @@ public class DisplayPageTemplateResourceImpl
 				_layoutPageTemplateEntryService.updateStatus(
 					layoutPageTemplateEntry.getLayoutPageTemplateEntryId(),
 					WorkflowConstants.STATUS_APPROVED);
+		}
+
+		if (!Objects.equals(
+				GetterUtil.getBoolean(displayPageTemplate.getMarkedAsDefault()),
+				layoutPageTemplateEntry.isDefaultTemplate())) {
+
+			layoutPageTemplateEntry =
+				_layoutPageTemplateEntryService.updateLayoutPageTemplateEntry(
+					layoutPageTemplateEntry.getLayoutPageTemplateEntryId(),
+					GetterUtil.getBoolean(
+						displayPageTemplate.getMarkedAsDefault()));
 		}
 
 		return _displayPageTemplateDTOConverter.toDTO(
@@ -515,9 +525,9 @@ public class DisplayPageTemplateResourceImpl
 				displayPageTemplate::getParentFolder);
 		}
 
-		if (displayPageTemplate.getThumbnail() != null) {
-			existingDisplayPageTemplate.setThumbnail(
-				displayPageTemplate::getThumbnail);
+		if (displayPageTemplate.getThumbnailURLReference() != null) {
+			existingDisplayPageTemplate.setThumbnailURLReference(
+				displayPageTemplate::getThumbnailURLReference);
 		}
 	}
 
@@ -570,8 +580,11 @@ public class DisplayPageTemplateResourceImpl
 				displayPageTemplate.getName(),
 				LayoutPageTemplateEntryTypeConstants.DISPLAY_PAGE,
 				FileEntryUtil.getPreviewFileEntryId(
-					groupId, displayPageTemplate.getThumbnail()),
-				false, 0L, layout.getPlid(), 0L,
+					groupId, getResourceName(),
+					_getServiceContext(displayPageTemplate, groupId),
+					displayPageTemplate.getThumbnailURLReference()),
+				GetterUtil.getBoolean(displayPageTemplate.getMarkedAsDefault()),
+				0L, layout.getPlid(), 0L,
 				PageSpecificationUtil.getPublishedStatus(
 					displayPageTemplate.getPageSpecifications()),
 				serviceContext));

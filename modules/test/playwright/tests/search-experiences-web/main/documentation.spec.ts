@@ -19,7 +19,6 @@ export const test = mergeTests(
 	isolatedLayoutTest({type: 'portlet'}),
 	dataApiHelpersTest,
 	featureFlagsTest({
-		'LPS-129412': {enabled: true}, // Collection Providers for Blueprint
 		'LPS-178052': {enabled: true},
 	}),
 	isolatedSiteTest,
@@ -167,7 +166,9 @@ test.describe('Documentation Links', () => {
 
 		await test.step('Open blueprint options configuration modal', async () => {
 			await page
-				.getByRole('link', {name: 'Configure blueprints options'})
+				.getByRole('button', {
+					name: 'Select a blueprint to make it visible.',
+				})
 				.click();
 		});
 

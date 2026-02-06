@@ -5,6 +5,9 @@
 
 package com.liferay.flags.taglib.servlet.taglib.react;
 
+import com.liferay.asset.kernel.exception.NoSuchEntryException;
+import com.liferay.asset.kernel.model.AssetEntry;
+import com.liferay.asset.kernel.service.AssetEntryLocalServiceUtil;
 import com.liferay.flags.taglib.internal.servlet.ServletContextUtil;
 import com.liferay.flags.taglib.servlet.taglib.util.FlagsTagUtil;
 import com.liferay.portal.kernel.exception.PortalException;
@@ -178,7 +181,7 @@ public class FlagsTag extends IncludeTag {
 						WebKeys.THEME_DISPLAY);
 
 				return HashMapBuilder.<String, Object>put(
-					"baseData", _getDataJSONObject(themeDisplay)
+					"baseData", _getDataJSONObject()
 				).put(
 					"captchaURI", FlagsTagUtil.getCaptchaURI(httpServletRequest)
 				).put(
@@ -226,7 +229,7 @@ public class FlagsTag extends IncludeTag {
 		).build();
 	}
 
-	private JSONObject _getDataJSONObject(ThemeDisplay themeDisplay) {
+	private JSONObject _getDataJSONObject() throws Exception {
 		String namespace = PortalUtil.getPortletNamespace(PortletKeys.FLAGS);
 
 		String contentURL = _contentURL;
@@ -244,17 +247,14 @@ public class FlagsTag extends IncludeTag {
 		).put(
 			namespace + "contentURL", contentURL
 		).put(
-			namespace + "reportedUserId", _reportedUserId
+			namespace + "reportedUserId",
+			_getReportedUserId(_className, _classPK)
 		).put(
 			namespace + "reporterEmailAddress",
 			() -> {
-				if (!themeDisplay.isSignedIn()) {
-					return null;
-				}
+				User reporterUser = PortalUtil.getUser(getRequest());
 
-				User user = themeDisplay.getUser();
-
-				return user.getEmailAddress();
+				return reporterUser.getEmailAddress();
 			}
 		);
 	}
@@ -270,6 +270,20 @@ public class FlagsTag extends IncludeTag {
 		}
 
 		return LanguageUtil.get(resourceBundle, "report");
+	}
+
+	private long _getReportedUserId(String className, long classPK)
+		throws Exception {
+
+		AssetEntry assetEntry = AssetEntryLocalServiceUtil.fetchEntry(
+			className, classPK);
+
+		if (assetEntry == null) {
+			throw new NoSuchEntryException(
+				"Unable to find an asset entry for class PK " + classPK);
+		}
+
+		return assetEntry.getUserId();
 	}
 
 	private static final String _PAGE = "/flags/page.jsp";

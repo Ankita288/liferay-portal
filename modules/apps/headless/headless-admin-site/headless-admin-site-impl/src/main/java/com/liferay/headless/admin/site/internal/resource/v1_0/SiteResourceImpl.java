@@ -6,6 +6,9 @@
 package com.liferay.headless.admin.site.internal.resource.v1_0;
 
 import com.liferay.google.places.constants.GooglePlacesWebKeys;
+import com.liferay.headless.admin.site.dto.v1_0.AnalyticsConfiguration;
+import com.liferay.headless.admin.site.dto.v1_0.GoogleAnalyticsConfiguration;
+import com.liferay.headless.admin.site.dto.v1_0.RatingsTypes;
 import com.liferay.headless.admin.site.dto.v1_0.Site;
 import com.liferay.headless.admin.site.resource.v1_0.SiteResource;
 import com.liferay.layout.util.LayoutServiceContextHelper;
@@ -47,7 +50,6 @@ import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
-import com.liferay.portal.kernel.util.UnicodePropertiesBuilder;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.portal.kernel.util.comparator.GroupNameComparator;
@@ -110,20 +112,6 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 	}
 
 	@Override
-	public Site getSite(String externalReferenceCode) throws Exception {
-		if (!FeatureFlagManagerUtil.isEnabled(
-				contextCompany.getCompanyId(), "LPD-41306")) {
-
-			throw new UnsupportedOperationException();
-		}
-
-		Group group = _groupLocalService.getGroupByExternalReferenceCode(
-			externalReferenceCode, contextCompany.getCompanyId());
-
-		return _toSite(group);
-	}
-
-	@Override
 	public Response getSiteSiteInitializer(String externalReferenceCode)
 		throws Exception {
 
@@ -157,75 +145,6 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 	}
 
 	@Override
-	public Page<Site> getSitesPage(
-			Boolean active, String search, Pagination pagination)
-		throws Exception {
-
-		if (!FeatureFlagManagerUtil.isEnabled(
-				contextCompany.getCompanyId(), "LPD-41306")) {
-
-			throw new UnsupportedOperationException();
-		}
-
-		long[] classNameIds = {
-			_portal.getClassNameId(Company.class.getName()),
-			_portal.getClassNameId(Group.class.getName())
-		};
-		LinkedHashMap<String, Object> params =
-			LinkedHashMapBuilder.<String, Object>put(
-				"active",
-				() -> {
-					if (active != null) {
-						return GetterUtil.getBoolean(active);
-					}
-
-					return null;
-				}
-			).put(
-				"site", true
-			).build();
-
-		return Page.of(
-			HashMapBuilder.put(
-				"create",
-				addAction(
-					ActionKeys.UPDATE, "postSite", Group.class.getName(), null)
-			).put(
-				"createBatch",
-				addAction(
-					ActionKeys.UPDATE, "postSiteBatch", Group.class.getName(),
-					null)
-			).put(
-				"deleteBatch",
-				addAction(
-					ActionKeys.DELETE, "deleteSiteBatch", Group.class.getName(),
-					null)
-			).build(),
-			transform(
-				_groupService.search(
-					contextCompany.getCompanyId(), classNameIds, search, null,
-					params, true, pagination.getStartPosition(),
-					pagination.getEndPosition(), new GroupNameComparator()),
-				this::_toSite),
-			pagination,
-			_groupService.searchCount(
-				contextCompany.getCompanyId(), classNameIds, search, params));
-	}
-
-	@Override
-	public Site postSite(Site site) throws Exception {
-		if (!FeatureFlagManagerUtil.isEnabled(
-				contextCompany.getCompanyId(), "LPD-41306")) {
-
-			throw new UnsupportedOperationException();
-		}
-
-		Group group = _addGroup(site.getExternalReferenceCode(), site);
-
-		return _toSite(group);
-	}
-
-	@Override
 	public Site postSiteSiteInitializer(MultipartBody multipartBody)
 		throws Exception {
 
@@ -239,39 +158,6 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 
 		return putSiteSiteInitializer(
 			site.getExternalReferenceCode(), multipartBody);
-	}
-
-	@Override
-	public Site putSite(String siteExternalReferenceCode, Site site)
-		throws Exception {
-
-		if (!FeatureFlagManagerUtil.isEnabled(
-				contextCompany.getCompanyId(), "LPD-41306")) {
-
-			throw new UnsupportedOperationException();
-		}
-
-		if (site.getExternalReferenceCode() == null) {
-			site.setExternalReferenceCode(() -> siteExternalReferenceCode);
-		}
-
-		if (!Objects.equals(
-				siteExternalReferenceCode, site.getExternalReferenceCode())) {
-
-			throw new UnsupportedOperationException();
-		}
-
-		Group group = _groupLocalService.fetchGroupByExternalReferenceCode(
-			siteExternalReferenceCode, contextCompany.getCompanyId());
-
-		if (group == null) {
-			group = _addGroup(siteExternalReferenceCode, site);
-		}
-		else {
-			group = _updateGroup(group, site);
-		}
-
-		return _toSite(group);
 	}
 
 	@Override
@@ -395,6 +281,139 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 		}
 	}
 
+	@Override
+	protected Site doGetSite(String externalReferenceCode) throws Exception {
+		if (!FeatureFlagManagerUtil.isEnabled(
+				contextCompany.getCompanyId(), "LPD-41306")) {
+
+			throw new UnsupportedOperationException();
+		}
+
+		Group group = _groupLocalService.getGroupByExternalReferenceCode(
+			externalReferenceCode, contextCompany.getCompanyId());
+
+		return _toSite(group);
+	}
+
+	@Override
+	protected Page<Site> doGetSitesPage(
+			Boolean active, String search, Pagination pagination)
+		throws Exception {
+
+		if (!FeatureFlagManagerUtil.isEnabled(
+				contextCompany.getCompanyId(), "LPD-41306")) {
+
+			throw new UnsupportedOperationException();
+		}
+
+		long[] classNameIds = {
+			_portal.getClassNameId(Company.class.getName()),
+			_portal.getClassNameId(Group.class.getName())
+		};
+		LinkedHashMap<String, Object> params =
+			LinkedHashMapBuilder.<String, Object>put(
+				"active",
+				() -> {
+					if (active != null) {
+						return GetterUtil.getBoolean(active);
+					}
+
+					return null;
+				}
+			).put(
+				"site", true
+			).build();
+
+		return Page.of(
+			HashMapBuilder.put(
+				"create",
+				addAction(
+					ActionKeys.UPDATE, "postSite", Group.class.getName(), null)
+			).put(
+				"createBatch",
+				addAction(
+					ActionKeys.UPDATE, "postSiteBatch", Group.class.getName(),
+					null)
+			).put(
+				"deleteBatch",
+				addAction(
+					ActionKeys.DELETE, "deleteSiteBatch", Group.class.getName(),
+					null)
+			).build(),
+			transform(
+				_groupService.search(
+					contextCompany.getCompanyId(), classNameIds, search, null,
+					params, true, pagination.getStartPosition(),
+					pagination.getEndPosition(), new GroupNameComparator()),
+				this::_toSite),
+			pagination,
+			_groupService.searchCount(
+				contextCompany.getCompanyId(), classNameIds, search, params));
+	}
+
+	@Override
+	protected Site doPostSite(Site site) throws Exception {
+		if (!FeatureFlagManagerUtil.isEnabled(
+				contextCompany.getCompanyId(), "LPD-41306")) {
+
+			throw new UnsupportedOperationException();
+		}
+
+		Group group = _addGroup(site.getExternalReferenceCode(), site);
+
+		return _toSite(group);
+	}
+
+	@Override
+	protected Site doPutSite(String siteExternalReferenceCode, Site site)
+		throws Exception {
+
+		if (!FeatureFlagManagerUtil.isEnabled(
+				contextCompany.getCompanyId(), "LPD-41306")) {
+
+			throw new UnsupportedOperationException();
+		}
+
+		if (site.getExternalReferenceCode() == null) {
+			site.setExternalReferenceCode(() -> siteExternalReferenceCode);
+		}
+
+		if (!Objects.equals(
+				siteExternalReferenceCode, site.getExternalReferenceCode())) {
+
+			throw new UnsupportedOperationException();
+		}
+
+		Group group = _groupLocalService.fetchGroupByExternalReferenceCode(
+			siteExternalReferenceCode, contextCompany.getCompanyId());
+
+		if (group == null) {
+			group = _addGroup(siteExternalReferenceCode, site);
+		}
+		else {
+			group = _updateGroup(group, site);
+		}
+
+		return _toSite(group);
+	}
+
+	@Override
+	protected Long getPermissionCheckerResourceId(String externalReferenceCode)
+		throws Exception {
+
+		Group group = _groupLocalService.fetchGroupByExternalReferenceCode(
+			externalReferenceCode, contextCompany.getCompanyId());
+
+		return group.getPrimaryKey();
+	}
+
+	@Override
+	protected String getPermissionCheckerResourceName(
+		String externalReferenceCode) {
+
+		return Group.class.getName();
+	}
+
 	private Group _addGroup(String externalReferenceCode, Site site)
 		throws Exception {
 
@@ -482,7 +501,7 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 			_getParentGroupId(null, site.getParentSiteExternalReferenceCode()),
 			GroupConstants.DEFAULT_LIVE_GROUP_ID, _getNameMap(site),
 			_getDescriptionMap(site), _getType(site.getMembershipType()),
-			_getTypeSettings(site.getTypeSettings(), null),
+			_getTypeSettings(site, null),
 			_isManualMembership(site.getManualMembership()),
 			_getMembershipRestriction(site.getMembershipRestriction()),
 			_getFriendlyUrlPath(site), true, false, _isActive(site.getActive()),
@@ -541,6 +560,28 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 		return friendlyUrlPath;
 	}
 
+	private GoogleAnalyticsConfiguration _getGoogleAnalyticsConfiguration(
+		Group group) {
+
+		return new GoogleAnalyticsConfiguration() {
+			{
+				setGoogleAnalytics4CustomConfig(
+					() -> group.getTypeSettingsProperty(
+						"googleAnalytics4CustomConfiguration"));
+				setGoogleAnalytics4Id(
+					() -> group.getTypeSettingsProperty("googleAnalytics4Id"));
+				setGoogleAnalyticsCreateCustomConfig(
+					() -> group.getTypeSettingsProperty(
+						"googleAnalyticsCreateCustomConfiguration"));
+				setGoogleAnalyticsCustomConfig(
+					() -> group.getTypeSettingsProperty(
+						"googleAnalyticsCustomConfiguration"));
+				setGoogleAnalyticsId(
+					() -> group.getTypeSettingsProperty("googleAnalyticsId"));
+			}
+		};
+	}
+
 	private int _getMembershipRestriction(Integer membershipRestriction) {
 		if (membershipRestriction == null) {
 			return GroupConstants.DEFAULT_MEMBERSHIP_RESTRICTION;
@@ -595,6 +636,56 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 		return parentGroup.getGroupId();
 	}
 
+	private RatingsTypes _getRatingsTypes(Group group) {
+		return new RatingsTypes() {
+			{
+				setBlogPosting(
+					() -> RatingsTypes.BlogPosting.create(
+						group.getTypeSettingsProperty(
+							"com.liferay.blogs.model.BlogsEntry_RatingsType")));
+				setBookmarksEntry(
+					() -> RatingsTypes.BookmarksEntry.create(
+						group.getTypeSettingsProperty(
+							"com.liferay.bookmarks.model." +
+								"BookmarksEntry_RatingsType")));
+				setComment(
+					() -> RatingsTypes.Comment.create(
+						group.getTypeSettingsProperty(
+							"com.liferay.message.boards.model." +
+								"MBDiscussion_RatingsType")));
+				setDocument(
+					() -> RatingsTypes.Document.create(
+						group.getTypeSettingsProperty(
+							"com.liferay.document.library.kernel.model." +
+								"DLFileEntry_RatingsType")));
+				setKnowledgeBaseArticle(
+					() -> RatingsTypes.KnowledgeBaseArticle.create(
+						group.getTypeSettingsProperty(
+							"com.liferay.knowledge.base.model." +
+								"KBArticle_RatingsType")));
+				setMessageBoardMessage(
+					() -> RatingsTypes.MessageBoardMessage.create(
+						group.getTypeSettingsProperty(
+							"com.liferay.message.boards.model." +
+								"MBMessage_RatingsType")));
+				setSitePage(
+					() -> RatingsTypes.SitePage.create(
+						group.getTypeSettingsProperty(
+							"com.liferay.portal.kernel.model." +
+								"Layout_RatingsType")));
+				setStructuredContent(
+					() -> RatingsTypes.StructuredContent.create(
+						group.getTypeSettingsProperty(
+							"com.liferay.journal.model." +
+								"JournalArticle_RatingsType")));
+				setWikiPage(
+					() -> RatingsTypes.WikiPage.create(
+						group.getTypeSettingsProperty(
+							"com.liferay.wiki.model.WikiPage_RatingsType")));
+			}
+		};
+	}
+
 	private ServiceContext _getServiceContext() throws PortalException {
 		ServiceContext serviceContext = null;
 
@@ -643,21 +734,159 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 	}
 
 	private String _getTypeSettings(
-			Map<String, String> typeSettings,
-			UnicodeProperties oldUnicodeProperties)
-		throws Exception {
+		Site site, UnicodeProperties oldUnicodeProperties) {
 
-		if (typeSettings == null) {
-			return null;
+		UnicodeProperties unicodeProperties = new UnicodeProperties();
+
+		AnalyticsConfiguration analyticsConfiguration =
+			site.getAnalyticsConfiguration();
+
+		if (analyticsConfiguration != null) {
+			GoogleAnalyticsConfiguration googleAnalyticsConfiguration =
+				analyticsConfiguration.getGoogleAnalyticsConfiguration();
+
+			if (googleAnalyticsConfiguration != null) {
+				unicodeProperties.put(
+					"googleAnalytics4CustomConfiguration",
+					googleAnalyticsConfiguration.
+						getGoogleAnalytics4CustomConfig());
+				unicodeProperties.put(
+					"googleAnalytics4Id",
+					googleAnalyticsConfiguration.getGoogleAnalytics4Id());
+				unicodeProperties.put(
+					"googleAnalyticsCreateCustomConfiguration",
+					googleAnalyticsConfiguration.
+						getGoogleAnalyticsCreateCustomConfig());
+				unicodeProperties.put(
+					"googleAnalyticsCustomConfiguration",
+					googleAnalyticsConfiguration.
+						getGoogleAnalyticsCustomConfig());
+				unicodeProperties.put(
+					"googleAnalyticsId",
+					googleAnalyticsConfiguration.getGoogleAnalyticsId());
+			}
+
+			unicodeProperties.put(
+				"analytics_matomo",
+				analyticsConfiguration.getMatomoAnalyticsScript());
 		}
 
-		UnicodeProperties unicodeProperties = UnicodePropertiesBuilder.putAll(
-			typeSettings
-		).build();
+		unicodeProperties.put(
+			"assetAutoTaggingEnabled",
+			String.valueOf(site.getAssetAutoTaggingEnabled()));
 
-		unicodeProperties.putIfAbsent(
-			GroupConstants.TYPE_SETTINGS_KEY_INHERIT_LOCALES,
-			String.valueOf(!unicodeProperties.containsKey(PropsKeys.LOCALES)));
+		int contentSharingWithChildrenEnabled =
+			Sites.CONTENT_SHARING_WITH_CHILDREN_DEFAULT_VALUE;
+
+		if (site.getContentSharingWithChildrenEnabled() != null) {
+			if (site.getContentSharingWithChildrenEnabled()) {
+				contentSharingWithChildrenEnabled =
+					Sites.CONTENT_SHARING_WITH_CHILDREN_ENABLED;
+			}
+			else {
+				contentSharingWithChildrenEnabled =
+					Sites.CONTENT_SHARING_WITH_CHILDREN_DISABLED;
+			}
+		}
+
+		unicodeProperties.put(
+			"contentSharingWithChildrenEnabled",
+			String.valueOf(contentSharingWithChildrenEnabled));
+		unicodeProperties.put("languageId", site.getDefaultLanguageId());
+		unicodeProperties.put(
+			"directoryIndexingEnabled",
+			String.valueOf(site.getDirectoryIndexingEnabled()));
+
+		if (site.getLocales() != null) {
+			unicodeProperties.put(
+				"locales",
+				StringUtil.merge(
+					LocaleUtil.fromLanguageIds(site.getLocales()),
+					StringPool.COMMA));
+		}
+
+		if (site.getInheritLocales() == null) {
+			unicodeProperties.put(
+				GroupConstants.TYPE_SETTINGS_KEY_INHERIT_LOCALES,
+				String.valueOf(
+					!unicodeProperties.containsKey(PropsKeys.LOCALES)));
+		}
+		else {
+			unicodeProperties.put(
+				GroupConstants.TYPE_SETTINGS_KEY_INHERIT_LOCALES,
+				String.valueOf(site.getInheritLocales()));
+		}
+
+		unicodeProperties.put(
+			"MAP_PROVIDER_KEY", site.getMapProviderKeyAsString());
+		unicodeProperties.put(
+			"mentionsEnabled", String.valueOf(site.getMentionsEnabled()));
+
+		RatingsTypes ratingsTypes = site.getRatingsTypes();
+
+		if (ratingsTypes != null) {
+			if (ratingsTypes.getBlogPosting() != null) {
+				unicodeProperties.put(
+					"com.liferay.blogs.model.BlogsEntry_RatingsType",
+					ratingsTypes.getBlogPostingAsString());
+			}
+
+			if (ratingsTypes.getBookmarksEntry() != null) {
+				unicodeProperties.put(
+					"com.liferay.bookmarks.model.BookmarksEntry_RatingsType",
+					ratingsTypes.getBookmarksEntryAsString());
+			}
+
+			if (ratingsTypes.getComment() != null) {
+				unicodeProperties.put(
+					"com.liferay.message.boards.model.MBDiscussion_RatingsType",
+					ratingsTypes.getCommentAsString());
+			}
+
+			if (ratingsTypes.getDocument() != null) {
+				unicodeProperties.put(
+					"com.liferay.document.library.kernel.model." +
+						"DLFileEntry_RatingsType",
+					ratingsTypes.getDocumentAsString());
+			}
+
+			if (ratingsTypes.getKnowledgeBaseArticle() != null) {
+				unicodeProperties.put(
+					"com.liferay.knowledge.base.model.KBArticle_RatingsType",
+					ratingsTypes.getKnowledgeBaseArticleAsString());
+			}
+
+			if (ratingsTypes.getMessageBoardMessage() != null) {
+				unicodeProperties.put(
+					"com.liferay.message.boards.model.MBMessage_RatingsType",
+					ratingsTypes.getMessageBoardMessageAsString());
+			}
+
+			if (ratingsTypes.getSitePage() != null) {
+				unicodeProperties.put(
+					"com.liferay.portal.kernel.model.Layout_RatingsType",
+					ratingsTypes.getSitePageAsString());
+			}
+
+			if (ratingsTypes.getStructuredContent() != null) {
+				unicodeProperties.put(
+					"com.liferay.journal.model.JournalArticle_RatingsType",
+					ratingsTypes.getStructuredContentAsString());
+			}
+
+			if (ratingsTypes.getWikiPage() != null) {
+				unicodeProperties.put(
+					"com.liferay.wiki.model.WikiPage_RatingsType",
+					ratingsTypes.getWikiPageAsString());
+			}
+		}
+
+		unicodeProperties.put(
+			"sharingEnabled", String.valueOf(site.getSharingEnabled()));
+		unicodeProperties.put(
+			"trashEnabled", String.valueOf(site.getTrashEnabled()));
+		unicodeProperties.put(
+			"trashEntriesMaxAge", String.valueOf(site.getTrashEntriesMaxAge()));
 
 		if (oldUnicodeProperties == null) {
 			return unicodeProperties.toString();
@@ -724,6 +953,23 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 		return new Site() {
 			{
 				setActive(group::getActive);
+				setAnalyticsConfiguration(
+					() -> new AnalyticsConfiguration() {
+						{
+							setGoogleAnalyticsConfiguration(
+								() -> _getGoogleAnalyticsConfiguration(group));
+							setMatomoAnalyticsScript(
+								() -> group.getTypeSettingsProperty(
+									"analytics_matomo"));
+						}
+					});
+				setAssetAutoTaggingEnabled(
+					() -> Boolean.parseBoolean(
+						group.getTypeSettingsProperty(
+							"assetAutoTaggingEnabled")));
+				setContentSharingWithChildrenEnabled(
+					group::isContentSharingWithChildrenEnabled);
+				setDefaultLanguageId(group::getDefaultLanguageId);
 				setDescription(
 					() -> group.getDescription(LocaleUtil.getDefault()));
 				setDescription_i18n(
@@ -734,15 +980,41 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 				setDescriptiveName_i18n(
 					() -> LocalizedMapUtil.getI18nMap(
 						group.getDescriptiveNameMap()));
+				setDirectoryIndexingEnabled(
+					() -> Boolean.parseBoolean(
+						group.getTypeSettingsProperty(
+							"directoryIndexingEnabled")));
 				setExternalReferenceCode(group::getExternalReferenceCode);
 				setFriendlyUrlPath(group::getFriendlyURL);
 				setId(group::getGroupId);
+				setInheritLocales(
+					() -> {
+						if (group.getTypeSettingsProperty("inheritLocales") !=
+								null) {
+
+							return Boolean.parseBoolean(
+								group.getTypeSettingsProperty(
+									"inheritLocales"));
+						}
+
+						return true;
+					});
 				setKey(group::getGroupKey);
+				setLocales(
+					() -> LocaleUtil.toW3cLanguageIds(
+						StringUtil.split(
+							group.getTypeSettingsProperty("locales"))));
 				setManualMembership(group::getManualMembership);
+				setMapProviderKey(
+					() -> MapProviderKey.create(
+						group.getTypeSettingsProperty("MAP_PROVIDER_KEY")));
 				setMembershipRestriction(group::getMembershipRestriction);
 				setMembershipType(
 					() -> MembershipType.create(
 						GroupConstants.getTypeLabel(group.getType())));
+				setMentionsEnabled(
+					() -> Boolean.parseBoolean(
+						group.getTypeSettingsProperty("mentionsEnabled")));
 				setName(() -> group.getName(LocaleUtil.getDefault()));
 				setName_i18n(
 					() -> LocalizedMapUtil.getI18nMap(group.getNameMap()));
@@ -757,21 +1029,16 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 
 						return StringPool.BLANK;
 					});
-				setTypeSettings(
-					() -> {
-						UnicodeProperties unicodeProperties =
-							UnicodePropertiesBuilder.fastLoad(
-								group.getTypeSettings()
-							).build();
-
-						for (String excludedTypeSetting :
-								_EXCLUDED_TYPE_SETTINGS) {
-
-							unicodeProperties.remove(excludedTypeSetting);
-						}
-
-						return unicodeProperties;
-					});
+				setRatingsTypes(() -> _getRatingsTypes(group));
+				setSharingEnabled(
+					() -> Boolean.parseBoolean(
+						group.getTypeSettingsProperty("sharingEnabled")));
+				setTrashEnabled(
+					() -> Boolean.parseBoolean(
+						group.getTypeSettingsProperty("trashEnabled")));
+				setTrashEntriesMaxAge(
+					() -> GetterUtil.getInteger(
+						group.getTypeSettingsProperty("trashEntriesMaxAge")));
 			}
 		};
 	}
@@ -787,8 +1054,7 @@ public class SiteResourceImpl extends BaseSiteResourceImpl {
 					group, site.getParentSiteExternalReferenceCode()),
 				_getNameMap(site), _getDescriptionMap(site),
 				_getType(site.getMembershipType()),
-				_getTypeSettings(
-					site.getTypeSettings(), group.getTypeSettingsProperties()),
+				_getTypeSettings(site, group.getTypeSettingsProperties()),
 				_isManualMembership(site.getManualMembership()),
 				_getMembershipRestriction(site.getMembershipRestriction()),
 				_getFriendlyUrlPath(site), false, _isActive(site.getActive()),

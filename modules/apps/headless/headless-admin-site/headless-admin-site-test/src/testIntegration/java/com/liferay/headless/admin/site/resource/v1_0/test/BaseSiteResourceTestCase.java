@@ -17,6 +17,7 @@ import com.liferay.headless.admin.site.client.dto.v1_0.Site;
 import com.liferay.headless.admin.site.client.http.HttpInvoker;
 import com.liferay.headless.admin.site.client.pagination.Page;
 import com.liferay.headless.admin.site.client.pagination.Pagination;
+import com.liferay.headless.admin.site.client.permission.Permission;
 import com.liferay.headless.admin.site.client.resource.v1_0.SiteResource;
 import com.liferay.headless.admin.site.client.serdes.v1_0.SiteSerDes;
 import com.liferay.headless.batch.engine.client.dto.v1_0.ImportTask;
@@ -29,9 +30,11 @@ import com.liferay.portal.kernel.json.JSONFactoryUtil;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.RoleConstants;
 import com.liferay.portal.kernel.service.CompanyLocalServiceUtil;
 import com.liferay.portal.kernel.test.util.GroupTestUtil;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
+import com.liferay.portal.kernel.test.util.RoleTestUtil;
 import com.liferay.portal.kernel.test.util.UserTestUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.FastDateFormatFactoryUtil;
@@ -124,6 +127,18 @@ public abstract class BaseSiteResourceTestCase {
 		).locale(
 			LocaleUtil.getDefault()
 		).build();
+
+		permissionsSiteResource = SiteResource.builder(
+		).authentication(
+			_testCompanyAdminUser.getEmailAddress(),
+			PropsValues.DEFAULT_ADMIN_PASSWORD
+		).endpoint(
+			testCompany.getVirtualHostname(), 8080, "http"
+		).locale(
+			LocaleUtil.getDefault()
+		).parameter(
+			"nestedFields", "permissions"
+		).build();
 	}
 
 	@After
@@ -182,6 +197,7 @@ public abstract class BaseSiteResourceTestCase {
 
 		Site site = randomSite();
 
+		site.setDefaultLanguageId(regex);
 		site.setDescription(regex);
 		site.setDescriptiveName(regex);
 		site.setExternalReferenceCode(regex);
@@ -197,6 +213,7 @@ public abstract class BaseSiteResourceTestCase {
 
 		site = SiteSerDes.toDTO(json);
 
+		Assert.assertEquals(regex, site.getDefaultLanguageId());
 		Assert.assertEquals(regex, site.getDescription());
 		Assert.assertEquals(regex, site.getDescriptiveName());
 		Assert.assertEquals(regex, site.getExternalReferenceCode());
@@ -275,9 +292,32 @@ public abstract class BaseSiteResourceTestCase {
 
 		assertEquals(postSite, getSite);
 		assertValid(getSite);
+
+		Assert.assertNull(getSite.getPermissions());
+
+		getSite = permissionsSiteResource.getSite(
+			postSite.getExternalReferenceCode());
+
+		Assert.assertNotNull(getSite.getPermissions());
 	}
 
 	protected Site testGetSite_addSite() throws Exception {
+		throw new UnsupportedOperationException(
+			"This method needs to be implemented");
+	}
+
+	@Test
+	public void testGetSitePermissionsPage() throws Exception {
+		@SuppressWarnings("PMD.UnusedLocalVariable")
+		Site postSite = testGetSitePermissionsPage_addSite();
+
+		Page<Permission> page = siteResource.getSitePermissionsPage(
+			postSite.getExternalReferenceCode(), RoleConstants.GUEST);
+
+		Assert.assertNotNull(page);
+	}
+
+	protected Site testGetSitePermissionsPage_addSite() throws Exception {
 		throw new UnsupportedOperationException(
 			"This method needs to be implemented");
 	}
@@ -305,6 +345,17 @@ public abstract class BaseSiteResourceTestCase {
 		assertContains(site1, (List<Site>)page.getItems());
 		assertContains(site2, (List<Site>)page.getItems());
 		assertValid(page, testGetSitesPage_getExpectedActions());
+
+		for (Site site : page.getItems()) {
+			Assert.assertNull(site.getPermissions());
+		}
+
+		page = permissionsSiteResource.getSitesPage(
+			null, null, Pagination.of(1, 10));
+
+		for (Site site : page.getItems()) {
+			Assert.assertNotNull(site.getPermissions());
+		}
 
 		siteResource.deleteSite(site1.getExternalReferenceCode());
 
@@ -403,9 +454,28 @@ public abstract class BaseSiteResourceTestCase {
 
 		assertEquals(randomSite, postSite);
 		assertValid(postSite);
+
+		Site randomPermissionsSite1 = randomPermissionsSite();
+
+		Site postPermissionsSite1 = testPostSite_addSite(
+			randomPermissionsSite1);
+
+		Assert.assertNull(postPermissionsSite1.getPermissions());
+
+		Site randomPermissionsSite2 = randomPermissionsSite();
+
+		Site postPermissionsSite2 = testPostSite_addPermissionsSite(
+			randomPermissionsSite2);
+
+		Assert.assertNotNull(postPermissionsSite2.getPermissions());
 	}
 
 	protected Site testPostSite_addSite(Site site) throws Exception {
+		throw new UnsupportedOperationException(
+			"This method needs to be implemented");
+	}
+
+	protected Site testPostSite_addPermissionsSite(Site site) throws Exception {
 		throw new UnsupportedOperationException(
 			"This method needs to be implemented");
 	}
@@ -445,13 +515,71 @@ public abstract class BaseSiteResourceTestCase {
 		assertEquals(randomSite, putSite);
 		assertValid(putSite);
 
+		Assert.assertNull(putSite.getPermissions());
+
 		Site getSite = siteResource.getSite(putSite.getExternalReferenceCode());
 
 		assertEquals(randomSite, getSite);
 		assertValid(getSite);
+
+		Site randomPermissionsSite = randomPermissionsSite();
+
+		putSite = siteResource.putSite(
+			postSite.getExternalReferenceCode(), randomPermissionsSite);
+
+		assertEquals(randomPermissionsSite, putSite);
+		assertValid(putSite);
+
+		Assert.assertNull(putSite.getPermissions());
+
+		putSite = permissionsSiteResource.putSite(
+			postSite.getExternalReferenceCode(), randomPermissionsSite);
+
+		Assert.assertNotNull(putSite.getPermissions());
 	}
 
 	protected Site testPutSite_addSite() throws Exception {
+		throw new UnsupportedOperationException(
+			"This method needs to be implemented");
+	}
+
+	@Test
+	public void testPutSitePermissionsPage() throws Exception {
+		@SuppressWarnings("PMD.UnusedLocalVariable")
+		Site site = testPutSitePermissionsPage_addSite();
+
+		@SuppressWarnings("PMD.UnusedLocalVariable")
+		com.liferay.portal.kernel.model.Role role = RoleTestUtil.addRole(
+			RoleConstants.TYPE_REGULAR);
+
+		assertHttpResponseStatusCode(
+			200,
+			siteResource.putSitePermissionsPageHttpResponse(
+				site.getExternalReferenceCode(),
+				new Permission[] {
+					new Permission() {
+						{
+							setActionIds(new String[] {"PERMISSIONS"});
+							setRoleName(role.getName());
+						}
+					}
+				}));
+
+		assertHttpResponseStatusCode(
+			404,
+			siteResource.putSitePermissionsPageHttpResponse(
+				site.getExternalReferenceCode(),
+				new Permission[] {
+					new Permission() {
+						{
+							setActionIds(new String[] {"-"});
+							setRoleName("-");
+						}
+					}
+				}));
+	}
+
+	protected Site testPutSitePermissionsPage_addSite() throws Exception {
 		throw new UnsupportedOperationException(
 			"This method needs to be implemented");
 	}
@@ -615,6 +743,47 @@ public abstract class BaseSiteResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals(
+					"analyticsConfiguration", additionalAssertFieldName)) {
+
+				if (site.getAnalyticsConfiguration() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"assetAutoTaggingEnabled", additionalAssertFieldName)) {
+
+				if (site.getAssetAutoTaggingEnabled() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"contentSharingWithChildrenEnabled",
+					additionalAssertFieldName)) {
+
+				if (site.getContentSharingWithChildrenEnabled() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"defaultLanguageId", additionalAssertFieldName)) {
+
+				if (site.getDefaultLanguageId() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals("description", additionalAssertFieldName)) {
 				if (site.getDescription() == null) {
 					valid = false;
@@ -650,6 +819,16 @@ public abstract class BaseSiteResourceTestCase {
 			}
 
 			if (Objects.equals(
+					"directoryIndexingEnabled", additionalAssertFieldName)) {
+
+				if (site.getDirectoryIndexingEnabled() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
 					"externalReferenceCode", additionalAssertFieldName)) {
 
 				if (site.getExternalReferenceCode() == null) {
@@ -667,6 +846,14 @@ public abstract class BaseSiteResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals("inheritLocales", additionalAssertFieldName)) {
+				if (site.getInheritLocales() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals("key", additionalAssertFieldName)) {
 				if (site.getKey() == null) {
 					valid = false;
@@ -675,8 +862,24 @@ public abstract class BaseSiteResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals("locales", additionalAssertFieldName)) {
+				if (site.getLocales() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals("manualMembership", additionalAssertFieldName)) {
 				if (site.getManualMembership() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("mapProviderKey", additionalAssertFieldName)) {
+				if (site.getMapProviderKey() == null) {
 					valid = false;
 				}
 
@@ -695,6 +898,14 @@ public abstract class BaseSiteResourceTestCase {
 
 			if (Objects.equals("membershipType", additionalAssertFieldName)) {
 				if (site.getMembershipType() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("mentionsEnabled", additionalAssertFieldName)) {
+				if (site.getMentionsEnabled() == null) {
 					valid = false;
 				}
 
@@ -728,6 +939,30 @@ public abstract class BaseSiteResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals("permissions", additionalAssertFieldName)) {
+				if (site.getPermissions() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("ratingsTypes", additionalAssertFieldName)) {
+				if (site.getRatingsTypes() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("sharingEnabled", additionalAssertFieldName)) {
+				if (site.getSharingEnabled() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals("templateKey", additionalAssertFieldName)) {
 				if (site.getTemplateKey() == null) {
 					valid = false;
@@ -744,8 +979,18 @@ public abstract class BaseSiteResourceTestCase {
 				continue;
 			}
 
-			if (Objects.equals("typeSettings", additionalAssertFieldName)) {
-				if (site.getTypeSettings() == null) {
+			if (Objects.equals("trashEnabled", additionalAssertFieldName)) {
+				if (site.getTrashEnabled() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"trashEntriesMaxAge", additionalAssertFieldName)) {
+
+				if (site.getTrashEntriesMaxAge() == null) {
 					valid = false;
 				}
 
@@ -886,6 +1131,59 @@ public abstract class BaseSiteResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals(
+					"analyticsConfiguration", additionalAssertFieldName)) {
+
+				if (!Objects.deepEquals(
+						site1.getAnalyticsConfiguration(),
+						site2.getAnalyticsConfiguration())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"assetAutoTaggingEnabled", additionalAssertFieldName)) {
+
+				if (!Objects.deepEquals(
+						site1.getAssetAutoTaggingEnabled(),
+						site2.getAssetAutoTaggingEnabled())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"contentSharingWithChildrenEnabled",
+					additionalAssertFieldName)) {
+
+				if (!Objects.deepEquals(
+						site1.getContentSharingWithChildrenEnabled(),
+						site2.getContentSharingWithChildrenEnabled())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"defaultLanguageId", additionalAssertFieldName)) {
+
+				if (!Objects.deepEquals(
+						site1.getDefaultLanguageId(),
+						site2.getDefaultLanguageId())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals("description", additionalAssertFieldName)) {
 				if (!Objects.deepEquals(
 						site1.getDescription(), site2.getDescription())) {
@@ -932,6 +1230,19 @@ public abstract class BaseSiteResourceTestCase {
 			}
 
 			if (Objects.equals(
+					"directoryIndexingEnabled", additionalAssertFieldName)) {
+
+				if (!Objects.deepEquals(
+						site1.getDirectoryIndexingEnabled(),
+						site2.getDirectoryIndexingEnabled())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
 					"externalReferenceCode", additionalAssertFieldName)) {
 
 				if (!Objects.deepEquals(
@@ -963,8 +1274,28 @@ public abstract class BaseSiteResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals("inheritLocales", additionalAssertFieldName)) {
+				if (!Objects.deepEquals(
+						site1.getInheritLocales(), site2.getInheritLocales())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals("key", additionalAssertFieldName)) {
 				if (!Objects.deepEquals(site1.getKey(), site2.getKey())) {
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("locales", additionalAssertFieldName)) {
+				if (!Objects.deepEquals(
+						site1.getLocales(), site2.getLocales())) {
+
 					return false;
 				}
 
@@ -975,6 +1306,16 @@ public abstract class BaseSiteResourceTestCase {
 				if (!Objects.deepEquals(
 						site1.getManualMembership(),
 						site2.getManualMembership())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("mapProviderKey", additionalAssertFieldName)) {
+				if (!Objects.deepEquals(
+						site1.getMapProviderKey(), site2.getMapProviderKey())) {
 
 					return false;
 				}
@@ -998,6 +1339,17 @@ public abstract class BaseSiteResourceTestCase {
 			if (Objects.equals("membershipType", additionalAssertFieldName)) {
 				if (!Objects.deepEquals(
 						site1.getMembershipType(), site2.getMembershipType())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("mentionsEnabled", additionalAssertFieldName)) {
+				if (!Objects.deepEquals(
+						site1.getMentionsEnabled(),
+						site2.getMentionsEnabled())) {
 
 					return false;
 				}
@@ -1037,6 +1389,36 @@ public abstract class BaseSiteResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals("permissions", additionalAssertFieldName)) {
+				if (!Objects.deepEquals(
+						site1.getPermissions(), site2.getPermissions())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("ratingsTypes", additionalAssertFieldName)) {
+				if (!Objects.deepEquals(
+						site1.getRatingsTypes(), site2.getRatingsTypes())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("sharingEnabled", additionalAssertFieldName)) {
+				if (!Objects.deepEquals(
+						site1.getSharingEnabled(), site2.getSharingEnabled())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals("templateKey", additionalAssertFieldName)) {
 				if (!Objects.deepEquals(
 						site1.getTemplateKey(), site2.getTemplateKey())) {
@@ -1057,10 +1439,22 @@ public abstract class BaseSiteResourceTestCase {
 				continue;
 			}
 
-			if (Objects.equals("typeSettings", additionalAssertFieldName)) {
-				if (!equals(
-						(Map)site1.getTypeSettings(),
-						(Map)site2.getTypeSettings())) {
+			if (Objects.equals("trashEnabled", additionalAssertFieldName)) {
+				if (!Objects.deepEquals(
+						site1.getTrashEnabled(), site2.getTrashEnabled())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"trashEntriesMaxAge", additionalAssertFieldName)) {
+
+				if (!Objects.deepEquals(
+						site1.getTrashEntriesMaxAge(),
+						site2.getTrashEntriesMaxAge())) {
 
 					return false;
 				}
@@ -1180,6 +1574,67 @@ public abstract class BaseSiteResourceTestCase {
 				"Invalid entity field " + entityFieldName);
 		}
 
+		if (entityFieldName.equals("analyticsConfiguration")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
+		if (entityFieldName.equals("assetAutoTaggingEnabled")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
+		if (entityFieldName.equals("contentSharingWithChildrenEnabled")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
+		if (entityFieldName.equals("defaultLanguageId")) {
+			Object object = site.getDefaultLanguageId();
+
+			String value = String.valueOf(object);
+
+			if (operator.equals("contains")) {
+				sb = new StringBundler();
+
+				sb.append("contains(");
+				sb.append(entityFieldName);
+				sb.append(",'");
+
+				if ((object != null) && (value.length() > 2)) {
+					sb.append(value.substring(1, value.length() - 1));
+				}
+				else {
+					sb.append(value);
+				}
+
+				sb.append("')");
+			}
+			else if (operator.equals("startswith")) {
+				sb = new StringBundler();
+
+				sb.append("startswith(");
+				sb.append(entityFieldName);
+				sb.append(",'");
+
+				if ((object != null) && (value.length() > 1)) {
+					sb.append(value.substring(0, value.length() - 1));
+				}
+				else {
+					sb.append(value);
+				}
+
+				sb.append("')");
+			}
+			else {
+				sb.append("'");
+				sb.append(value);
+				sb.append("'");
+			}
+
+			return sb.toString();
+		}
+
 		if (entityFieldName.equals("description")) {
 			Object object = site.getDescription();
 
@@ -1282,6 +1737,11 @@ public abstract class BaseSiteResourceTestCase {
 				"Invalid entity field " + entityFieldName);
 		}
 
+		if (entityFieldName.equals("directoryIndexingEnabled")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
 		if (entityFieldName.equals("externalReferenceCode")) {
 			Object object = site.getExternalReferenceCode();
 
@@ -1379,6 +1839,11 @@ public abstract class BaseSiteResourceTestCase {
 				"Invalid entity field " + entityFieldName);
 		}
 
+		if (entityFieldName.equals("inheritLocales")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
 		if (entityFieldName.equals("key")) {
 			Object object = site.getKey();
 
@@ -1425,7 +1890,17 @@ public abstract class BaseSiteResourceTestCase {
 			return sb.toString();
 		}
 
+		if (entityFieldName.equals("locales")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
 		if (entityFieldName.equals("manualMembership")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
+		if (entityFieldName.equals("mapProviderKey")) {
 			throw new IllegalArgumentException(
 				"Invalid entity field " + entityFieldName);
 		}
@@ -1437,6 +1912,11 @@ public abstract class BaseSiteResourceTestCase {
 		}
 
 		if (entityFieldName.equals("membershipType")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
+		if (entityFieldName.equals("mentionsEnabled")) {
 			throw new IllegalArgumentException(
 				"Invalid entity field " + entityFieldName);
 		}
@@ -1538,6 +2018,21 @@ public abstract class BaseSiteResourceTestCase {
 			return sb.toString();
 		}
 
+		if (entityFieldName.equals("permissions")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
+		if (entityFieldName.equals("ratingsTypes")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
+		if (entityFieldName.equals("sharingEnabled")) {
+			throw new IllegalArgumentException(
+				"Invalid entity field " + entityFieldName);
+		}
+
 		if (entityFieldName.equals("templateKey")) {
 			Object object = site.getTemplateKey();
 
@@ -1589,9 +2084,15 @@ public abstract class BaseSiteResourceTestCase {
 				"Invalid entity field " + entityFieldName);
 		}
 
-		if (entityFieldName.equals("typeSettings")) {
+		if (entityFieldName.equals("trashEnabled")) {
 			throw new IllegalArgumentException(
 				"Invalid entity field " + entityFieldName);
+		}
+
+		if (entityFieldName.equals("trashEntriesMaxAge")) {
+			sb.append(String.valueOf(site.getTrashEntriesMaxAge()));
+
+			return sb.toString();
 		}
 
 		throw new IllegalArgumentException(
@@ -1645,23 +2146,34 @@ public abstract class BaseSiteResourceTestCase {
 		return new Site() {
 			{
 				active = RandomTestUtil.randomBoolean();
+				assetAutoTaggingEnabled = RandomTestUtil.randomBoolean();
+				contentSharingWithChildrenEnabled =
+					RandomTestUtil.randomBoolean();
+				defaultLanguageId = StringUtil.toLowerCase(
+					RandomTestUtil.randomString());
 				description = StringUtil.toLowerCase(
 					RandomTestUtil.randomString());
 				descriptiveName = StringUtil.toLowerCase(
 					RandomTestUtil.randomString());
+				directoryIndexingEnabled = RandomTestUtil.randomBoolean();
 				externalReferenceCode = StringUtil.toLowerCase(
 					RandomTestUtil.randomString());
 				friendlyUrlPath = StringUtil.toLowerCase(
 					RandomTestUtil.randomString());
 				id = RandomTestUtil.randomLong();
+				inheritLocales = RandomTestUtil.randomBoolean();
 				key = StringUtil.toLowerCase(RandomTestUtil.randomString());
 				manualMembership = RandomTestUtil.randomBoolean();
 				membershipRestriction = RandomTestUtil.randomInt();
+				mentionsEnabled = RandomTestUtil.randomBoolean();
 				name = StringUtil.toLowerCase(RandomTestUtil.randomString());
 				parentSiteExternalReferenceCode = StringUtil.toLowerCase(
 					RandomTestUtil.randomString());
+				sharingEnabled = RandomTestUtil.randomBoolean();
 				templateKey = StringUtil.toLowerCase(
 					RandomTestUtil.randomString());
+				trashEnabled = RandomTestUtil.randomBoolean();
+				trashEntriesMaxAge = RandomTestUtil.randomInt();
 			}
 		};
 	}
@@ -1674,6 +2186,25 @@ public abstract class BaseSiteResourceTestCase {
 
 	protected Site randomPatchSite() throws Exception {
 		return randomSite();
+	}
+
+	protected Site randomPermissionsSite() throws Exception {
+		Site site = randomSite();
+
+		com.liferay.portal.kernel.model.Role role = RoleTestUtil.addRole(
+			RoleConstants.TYPE_REGULAR);
+
+		site.setPermissions(
+			new Permission[] {
+				new Permission() {
+					{
+						setActionIds(new String[] {"VIEW"});
+						setRoleName(role.getName());
+					}
+				}
+			});
+
+		return site;
 	}
 
 	protected final JSONObject waitForFinish(
@@ -1701,6 +2232,7 @@ public abstract class BaseSiteResourceTestCase {
 	protected SiteResource siteResource;
 	protected ImportTaskResource importTaskResource;
 	protected com.liferay.portal.kernel.model.Group irrelevantGroup;
+	protected SiteResource permissionsSiteResource;
 	protected com.liferay.portal.kernel.model.Company testCompany;
 	protected com.liferay.portal.kernel.model.Group testGroup;
 

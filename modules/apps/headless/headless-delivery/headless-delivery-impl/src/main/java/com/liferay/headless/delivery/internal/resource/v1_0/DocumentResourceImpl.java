@@ -81,7 +81,6 @@ import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.portal.odata.entity.EntityModel;
 import com.liferay.portal.repository.liferayrepository.model.LiferayFileEntry;
 import com.liferay.portal.search.aggregation.Aggregations;
-import com.liferay.portal.search.expando.ExpandoBridgeIndexer;
 import com.liferay.portal.search.legacy.searcher.SearchRequestBuilderFactory;
 import com.liferay.portal.search.query.Queries;
 import com.liferay.portal.search.searcher.SearchRequestBuilder;
@@ -242,19 +241,19 @@ public class DocumentResourceImpl extends BaseDocumentResourceImpl {
 				addAction(
 					ActionKeys.ADD_DOCUMENT, folder.getFolderId(),
 					"postDocumentFolderDocument", folder.getUserId(),
-					DLConstants.RESOURCE_NAME, folder.getGroupId())
+					DLFolderConstants.getClassName(), folder.getGroupId())
 			).put(
 				"createBatch",
 				addAction(
 					ActionKeys.ADD_DOCUMENT, folder.getFolderId(),
 					"postDocumentFolderDocumentBatch", folder.getUserId(),
-					DLConstants.RESOURCE_NAME, folder.getGroupId())
+					DLFolderConstants.getClassName(), folder.getGroupId())
 			).put(
 				"get",
 				addAction(
 					ActionKeys.VIEW, folder.getFolderId(),
 					"getDocumentFolderDocumentsPage", folder.getUserId(),
-					DLConstants.RESOURCE_NAME, folder.getGroupId())
+					DLFolderConstants.getClassName(), folder.getGroupId())
 			).build(),
 			booleanQuery -> {
 				BooleanFilter booleanFilter =
@@ -300,8 +299,8 @@ public class DocumentResourceImpl extends BaseDocumentResourceImpl {
 		return new DocumentEntityModel(
 			EntityFieldsUtil.getEntityFields(
 				_portal.getClassNameId(DLFileEntry.class.getName()),
-				contextCompany.getCompanyId(), _expandoBridgeIndexer,
-				_expandoColumnLocalService, _expandoTableLocalService));
+				contextCompany.getCompanyId(), _expandoColumnLocalService,
+				_expandoTableLocalService));
 	}
 
 	@Override
@@ -1181,9 +1180,6 @@ public class DocumentResourceImpl extends BaseDocumentResourceImpl {
 
 	@Reference
 	private DTOConverterRegistry _dtoConverterRegistry;
-
-	@Reference
-	private ExpandoBridgeIndexer _expandoBridgeIndexer;
 
 	@Reference
 	private ExpandoColumnLocalService _expandoColumnLocalService;

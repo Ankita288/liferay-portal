@@ -51,6 +51,18 @@ components:
             description:
                 A fragment editable element value of type action.
             type: object
+        AnalyticsConfiguration:
+            description:
+                Contains all analytics configuration properties.
+            properties:
+                googleAnalyticsConfiguration:
+                    $ref: "#/components/schemas/GoogleAnalyticsConfiguration"
+                matomoAnalyticsScript:
+                    description:
+                        Set the script for Matomo that is used for this set of pages. Enter the full script code
+                        including the script start and end tags.
+                    type: string
+            type: object
         BackgroundImageFragmentEditableElementValue:
             allOf:
                 -   $ref: "#/components/schemas/FragmentEditableElementValue"
@@ -64,6 +76,19 @@ components:
             description:
                 A fragment editable element value of type background image.
             type: object
+        BasicFragmentInstancePageElementDefinition:
+            allOf:
+                -   $ref: "#/components/schemas/PageElementDefinition"                               
+                -   properties:
+                        fragmentInstance:
+                            $ref: "#/components/schemas/FragmentInstance"
+                            # @review
+                            description:
+                                The fragment instance of the basic fragment page element definition.
+            # @review
+            description:
+                The page element definition of a basic fragment instance.
+            type: object  
         BasicLayout:
             properties:
                 align:
@@ -75,6 +100,13 @@ components:
                 justify:
                     enum: [Center, End, None, SpaceAround, SpaceBetween, Start]
                     type: string
+        BasicWidgetPageWidgetInstance:
+            allOf:
+                -   $ref: "#/components/schemas/WidgetPageWidgetInstance"
+            # @review
+            description:
+                A basic (non nested applications) widget instance in a widget page.
+            type: object
         CategoryFragmentConfigurationFieldValue:
             allOf:
                 -   $ref: "#/components/schemas/FragmentConfigurationFieldValue"
@@ -188,17 +220,7 @@ components:
                                 $ref: "#/components/schemas/CollectionDisplayViewport"
                             type: array
                         collectionSettings:
-                            properties:
-                                collectionConfig:
-                                    additionalProperties:
-                                        type: object
-                                    # @review
-                                    description:
-                                        The configuration keys and values of the collection.
-                                    type: object
-                                collectionReference:
-                                    $ref: "#/components/schemas/CollectionReference"
-                            type: object
+                            $ref: "#/components/schemas/CollectionSettings"
                         displayAllItems:
                             # @review
                             description:
@@ -336,6 +358,18 @@ components:
                     enum: [Collection, CollectionProvider]
                     type: string
             type: object
+        CollectionSettings:
+            properties:
+                collectionConfig:
+                    additionalProperties:
+                        type: object
+                    # @review
+                    description:
+                        The configuration keys and values of the collection.
+                    type: object
+                collectionReference:
+                    $ref: "#/components/schemas/CollectionReference"
+            type: object
         ColorPaletteFragmentConfigurationFieldValue:
             allOf:
                 -   $ref: "#/components/schemas/FragmentConfigurationFieldValue"
@@ -446,6 +480,24 @@ components:
         ContentPageSettings:
             allOf:
                 -   $ref: "#/components/schemas/PageSettings"
+                -   properties:
+                        customMetaTags:
+                            # @review
+                            description:
+                                A list of custom meta tags this page has.
+                            items:
+                                $ref: "#/components/schemas/CustomMetaTag"
+                            type: array
+                        openGraphSettings:
+                            $ref: "#/components/schemas/OpenGraphSettings"
+                            # @review
+                            description:
+                                The page's Open Graph settings.
+                        seoSettings:
+                            $ref: "#/components/schemas/SEOSettings"
+                            # @review
+                            description:
+                                The page's SEO settings.
             # @review
             description:
                 The settings of a content page.
@@ -464,6 +516,13 @@ components:
                             items:
                                 $ref: "#/components/schemas/PageExperience"
                             type: array
+                        settings:
+                            $ref: "#/components/schemas/Settings"
+                        siteTemplatePageSpecificationExternalReferenceCode:
+                            # @review
+                            description:
+                                The site template page specification's external reference code.
+                            type: string
             # @review
             description:
                 A page specification of a content page. A content page will contain 1 page specification for its draft
@@ -592,6 +651,33 @@ components:
             description:
                 The definition of a submission result of type page.
             type: object
+        DisplayPageNavigationMenuItemSettings:
+            description:
+                Type-specific settings for "Blogs Entry", "Document", "Knowledge Base Article", "Product", "Web Content"
+                navigation menu item types.
+            properties:
+                className:
+                    description:
+                        The class name of the entity that this navigation menu item is set to.
+                    type: string
+                externalReferenceCode:
+                    description:
+                        The external reference code of the entity that this navigation menu item is set to.
+                    type: string
+                scopeExternalReferenceCode:
+                    description:
+                        The external reference code of the site associated with the entity that this navigation menu
+                        item is set to.
+                    type: string
+                title:
+                    description:
+                        The title or name of the entity that this navigation menu item is set to.
+                    type: string
+                type:
+                    description:
+                        The type of the underlying entity that this navigation menu item is set to.
+                    type: string
+            type: object
         DisplayPageTemplate:
             # @review
             description:
@@ -682,8 +768,8 @@ components:
                     items:
                         type: permission
                     type: array
-                thumbnail:
-                    $ref: "#/components/schemas/ItemExternalReference"
+                thumbnailURLReference:
+                    $ref: "#/components/schemas/ThumbnailURLReference"
                     # @review
                     description:
                         The display page template's thumbnail.
@@ -1023,6 +1109,58 @@ components:
                     enum: [FormContainerClassSubtypeReference, FormContainerContextReference]
                     type: string
             type: object
+        FormFragmentInstancePageElementDefinition:
+            allOf:
+                -   $ref: "#/components/schemas/PageElementDefinition"                                  
+                -   properties:
+                        fieldKey:
+                            # @review
+                            description:
+                                The mapped field key.
+                            type: string                     
+                        fragmentInstance:
+                            $ref: "#/components/schemas/FragmentInstance"
+                            # @review
+                            description:
+                                The fragment instance of the form fragment page element definition.
+                        helpText_i18n:
+                            additionalProperties:
+                                type: string
+                            # @review
+                            description:
+                                The localized help texts of the form fragment.
+                            type: object                                
+                        label_i18n:
+                            additionalProperties:
+                                type: string
+                            # @review
+                            description:
+                                The localized labels of the form fragment.
+                            type: object                   
+                        markAsRequired:
+                            # @review
+                            description:
+                                Whether to mark as required.
+                            type: boolean              
+                        readOnlyField:
+                            # @review
+                            description:
+                                Whether to render as read-only field.
+                            type: boolean                        
+                        showHelpText:
+                            # @review
+                            description:
+                                Whether to show the help text.
+                            type: boolean                        
+                        showLabel:
+                            # @review
+                            description:
+                                Whether to show the label.
+                            type: boolean   
+            # @review
+            description:
+                The page element definition of a form fragment instance.
+            type: object          
         FormStepContainerPageElementDefinition:
             allOf:
                 -   $ref: "#/components/schemas/PageElementDefinition"
@@ -1201,6 +1339,8 @@ components:
                     BackgroundImage: "#/components/schemas/BackgroundImageFragmentEditableElementValue"
                     HTML: "#/components/schemas/HTMLFragmentEditableElementValue"
                     Image: "#/components/schemas/ImageFragmentEditableElementValue"
+                    Link: "#/components/schemas/LinkFragmentEditableElementValue"
+                    RichText: "#/components/schemas/HTMLFragmentEditableElementValue"
                     Text: "#/components/schemas/TextFragmentEditableElementValue"
                 propertyName: type
             properties:
@@ -1213,6 +1353,8 @@ components:
                         -   BackgroundImage
                         -   HTML
                         -   Image
+                        -   Link
+                        -   RichText
                         -   Text
                     type: string
             type: object
@@ -1258,12 +1400,6 @@ components:
                     type: array
                 lazyLoading:
                     type: boolean
-                resolution:
-                    # @review
-                    description:
-                        The fragment image's resolution.
-                    enum: [Auto, Preview, Thumbnail]
-                    type: string
             type: object
         FragmentImageValue:
             # @review
@@ -1290,13 +1426,12 @@ components:
                     # @review
                     description:
                         The fragment image viewport's ID.
-                    enum: [LandscapeMobile, PortraitMobile, Tablet]
+                    enum: [Desktop, LandscapeMobile, PortraitMobile, Tablet]
                     type: string
                 resolution:
                     # @review
                     description:
                         The resolution of the fragment image viewport.
-                    enum: [Auto, Preview, Thumbnail]
                     type: string
             required:
                 -   id
@@ -1315,121 +1450,113 @@ components:
                         The localized fragment's inline values.
                     type: object
             type: object
-        FragmentInstancePageElementDefinition:
-            allOf:
-                -   $ref: "#/components/schemas/PageElementDefinition"
-                -   properties:
-                        backgroundFragmentImage:
-                            $ref: "#/components/schemas/FragmentImage"
-                            # @review
-                            description:
-                                The fragment's background image.
-                        configuration:
-                            # @review
-                            description:
-                                The fragment instance's configuration.
-                            type: string
-                        css:
-                            # @review
-                            description:
-                                The fragment instance's CSS.
-                            type: string
-                        cssClasses:
-                            # @review
-                            description:
-                                A list of CSS classes that are applied to the fragment instance.
-                            items:
-                                type: string
-                            type: array
-                        datePropagated:
-                            description:
-                                The fragment instance's most recent propagation date.
-                            format: date-time
-                            type: string
-                        draftFragmentInstanceExternalReferenceCode:
-                            # @review
-                            description:
-                                The external reference code of the corresponding fragment instance in the draft of the
-                                page. Available only in the published page specification.
-                            type: string
-                        fragmentConfigurationFieldValues:
-                            additionalProperties:
-                                $ref: "#/components/schemas/FragmentConfigurationFieldValue"
-                            # @review
-                            description:
-                                The fragment configuration field values of the fragment instance.
-                            type: object
-                        fragmentEditableElements:
-                            # @review
-                            description:
-                                The fragment editable elements of the the fragment instance.
-                            items:
-                                $ref: "#/components/schemas/FragmentEditableElement"
-                            type: array
-                        fragmentInstanceExternalReferenceCode:
-                            # @review
-                            description:
-                                The fragment instance's external reference code.
-                            type: string
-                        fragmentReference:
-                            $ref: "#/components/schemas/FragmentReference"
-                            # @review
-                            description:
-                                The fragment reference of the fragment instance.
-                            type: object
-                        fragmentType:
-                            # @review
-                            description:
-                                The fragment instance's type (basic, form).
-                            enum: [Basic, Form]
-                            type: string
-                        fragmentViewports:
-                            # @review
-                            description:
-                                A list of fragment viewports of the fragment instance page element.
-                            items:
-                                $ref: "#/components/schemas/FragmentViewport"
-                            type: array
-                        html:
-                            # @review
-                            description:
-                                The fragment instance's HTML.
-                            type: string
-                        indexed:
-                            # @review
-                            description:
-                                A flag that indicates whether the fragment instance page element is indexed or not.
-                            type: boolean
-                        js:
-                            # @review
-                            description:
-                                The fragment instance's JS.
-                            type: string
-                        name:
-                            # @review
-                            description:
-                                The custom name of a fragment instance page element.
-                            type: string
-                        namespace:
-                            # @review
-                            description:
-                                The fragment instance page element's namespace.
-                            type: string
-                        uuid:
-                            # @review
-                            description:
-                                A valid external identifier to reference this fragment instance page element.
-                            type: string
-                        widgetInstances:
-                            # @review
-                            description:
-                                A list of widget instances within the fragment instance page element.
-                            items:
-                                $ref: "#/components/schemas/WidgetInstance"
-                            type: array
+        FragmentInstance:
             # @review
             description:
-                A page element definition of a fragment instance.
+                A fragment instance.
+            properties:
+                backgroundFragmentImage:
+                    $ref: "#/components/schemas/FragmentImage"
+                    # @review
+                    description:
+                        The fragment's background image.
+                configuration:
+                    # @review
+                    description:
+                        The fragment instance's configuration.
+                    type: string
+                css:
+                    # @review
+                    description:
+                        The fragment instance's CSS.
+                    type: string
+                cssClasses:
+                    # @review
+                    description:
+                        A list of CSS classes that are applied to the fragment instance.
+                    items:
+                        type: string
+                    type: array
+                datePropagated:
+                    description:
+                        The fragment instance's most recent propagation date.
+                    format: date-time
+                    type: string
+                draftFragmentInstanceExternalReferenceCode:
+                    # @review
+                    description:
+                        The external reference code of the corresponding fragment instance in the draft of the page.
+                        Available only in the published page specification.
+                    type: string
+                fragmentConfigurationFieldValues:
+                    additionalProperties:
+                        $ref: "#/components/schemas/FragmentConfigurationFieldValue"
+                    # @review
+                    description:
+                        The fragment configuration field values of the fragment instance.
+                    type: object
+                fragmentEditableElements:
+                    # @review
+                    description:
+                        The fragment editable elements of the the fragment instance.
+                    items:
+                        $ref: "#/components/schemas/FragmentEditableElement"
+                    type: array
+                fragmentInstanceExternalReferenceCode:
+                    # @review
+                    description:
+                        The fragment instance's external reference code.
+                    type: string
+                fragmentReference:
+                    $ref: "#/components/schemas/FragmentReference"
+                    # @review
+                    description:
+                        The fragment reference of the fragment instance.
+                    type: object
+                fragmentViewports:
+                    # @review
+                    description:
+                        A list of fragment viewports of the fragment instance.
+                    items:
+                        $ref: "#/components/schemas/FragmentViewport"
+                    type: array
+                html:
+                    # @review
+                    description:
+                        The fragment instance's HTML.
+                    type: string
+                indexed:
+                    # @review
+                    description:
+                        A flag that indicates whether the fragment instance is indexed or not.
+                    type: boolean
+                js:
+                    # @review
+                    description:
+                        The fragment instance's JS.
+                    type: string
+                name:
+                    # @review
+                    description:
+                        The custom name of a fragment instance.
+                    type: string
+                namespace:
+                    # @review
+                    description:
+                        The fragment instance's namespace.
+                    type: string
+                uuid:
+                    # @review
+                    description:
+                        A valid external identifier to reference this fragment instance.
+                    type: string
+                widgetInstances:
+                    # @review
+                    description:
+                        A list of widget instances within the fragment instance.
+                    items:
+                        $ref: "#/components/schemas/WidgetInstance"
+                    type: array
             type: object
         FragmentItemExternalReference:
             allOf:
@@ -1471,6 +1598,22 @@ components:
             description:
                 A unique reference to a FragmentLinkValue of type FragmentMappedValue which remains constant across
                 environments.
+            type: object
+        FragmentLinkTextValue:
+            # @review
+            description:
+                The link text value for an editable fragment field.
+            properties:
+                fragmentEditableElementValueFragmentLink:
+                    $ref: "#/components/schemas/FragmentEditableElementValueFragmentLink"
+                    # @review
+                    description:
+                        The fragment link of a fragment editable element value.
+                textFragmentValue:
+                    $ref: "#/components/schemas/TextFragmentValue"
+                    # @review
+                    description:
+                        The fragment editable element's text value.
             type: object
         FragmentLinkValue:
             # @review
@@ -1739,6 +1882,33 @@ components:
                         The old localized relative URLs to the page's rendered content.
                     type: object
             type: object
+        GoogleAnalyticsConfiguration:
+            description:
+                Contains the configuration properties for Google Analytics (UA/GA3 and GA4).
+            properties:
+                googleAnalytics4CustomConfig:
+                    description:
+                        Set the Google Analytics 4 (GA4) custom options that are used for this set of pages. This is a
+                        JSON configuration for gtag().
+                    type: string
+                googleAnalytics4Id:
+                    description:
+                        Set the Google Analytics 4 ID (GA4) that is used for this set of pages.
+                    type: string
+                googleAnalyticsCreateCustomConfig:
+                    description:
+                        Set the Google Analytics (UA/GA3) create method's custom options that are used for this set of
+                        pages.
+                    type: string
+                googleAnalyticsCustomConfig:
+                    description:
+                        Set the Google Analytics (UA/GA3) custom options that are used for this set of pages.
+                    type: string
+                googleAnalyticsId:
+                    description:
+                        Set the Google Analytics ID (UA/GA3) that is used for this set of pages.
+                    type: string
+            type: object
         GridPageElementDefinition:
             allOf:
                 -   $ref: "#/components/schemas/PageElementDefinition"
@@ -1907,16 +2077,16 @@ components:
             allOf:
                 -   $ref: "#/components/schemas/FragmentEditableElementValue"
                 -   properties:
+                        fragmentEditableElementValueFragmentLink:
+                            $ref: "#/components/schemas/FragmentEditableElementValueFragmentLink"
+                            # @review
+                            description:
+                                The fragment link of an image fragment editable element value.
                         fragmentImage:
                             $ref: "#/components/schemas/FragmentImage"
                             # @review
                             description:
                                 The fragment editable element's image.
-                        fragmentLink:
-                            $ref: "#/components/schemas/FragmentLink"
-                            # @review
-                            description:
-                                A link to a fragment.
             # @review
             description:
                 A fragment editable element value of type image.
@@ -2022,6 +2192,39 @@ components:
             # @review
             description:
                 The value of a fragment configuration field of type length.
+            type: object
+        LinkFragmentEditableElementValue:
+            allOf:
+                -   $ref: "#/components/schemas/FragmentEditableElementValue"
+                -   properties:
+                        fragmentLinkTextValue:
+                            $ref: "#/components/schemas/FragmentLinkTextValue"
+                            # @review
+                            description:
+                                The link text value for the link fragment editable element value.
+            # @review
+            description:
+                A fragment editable element of type link.
+            type: object
+        LinkToURLPageSettings:
+            allOf:
+                -   $ref: "#/components/schemas/PageSettings"
+                -   properties:
+                        pageURL:
+                            # @review
+                            description:
+                                The URL of the page to redirect to.
+                            type: string
+            # @review
+            description:
+                The settings of a link to URL page.
+            type: object
+        LinkToURLPageSpecification:
+            allOf:
+                -   $ref: "#/components/schemas/PageSpecification"
+            # @review
+            description:
+                A page specification of a link to URL page.
             type: object
         ListStyle:
             # @review
@@ -2135,8 +2338,8 @@ components:
                     items:
                         $ref: "#/components/schemas/ItemExternalReference"
                     type: array
-                thumbnail:
-                    $ref: "#/components/schemas/ItemExternalReference"
+                thumbnailURLReference:
+                    $ref: "#/components/schemas/ThumbnailURLReference"
                     # @review
                     description:
                         The master page's thumbnail.
@@ -2319,6 +2522,13 @@ components:
                     format: date-time
                     readOnly: true
                     type: string
+                defaultLanguageId:
+                    example: en_US
+                    type: string
+                displayIcon:
+                    description:
+                        The icon that will be displayed next to this navigation menu item.
+                    type: string
                 externalReferenceCode:
                     description:
                         The navigation menu item's external reference code.
@@ -2341,6 +2551,15 @@ components:
                     description:
                         The localized navigation menu item's names.
                     type: object
+                navigationMenuItemSettings:
+                    description:
+                        The type-specific settings (i.e. typeSettings) for the navigation menu item.
+                    oneOf:
+                        -   $ref: "#/components/schemas/DisplayPageNavigationMenuItemSettings"
+                        -   $ref: "#/components/schemas/PageNavigationMenuItemSettings"
+                        -   $ref: "#/components/schemas/SubmenuNavigationMenuItemSettings"
+                        -   $ref: "#/components/schemas/URLNavigationMenuItemSettings"
+                        -   $ref: "#/components/schemas/VocabularyNavigationMenuItemSettings"
                 navigationMenuItems:
                     # @review
                     description:
@@ -2360,16 +2579,8 @@ components:
                     description:
                         The navigation menu item's type.
                     type: string
-                typeSettings:
-                    additionalProperties:
-                        type: string
-                    description:
-                        The navigation menu item's type settings.
-                    type: object
                 useCustomName:
                     type: boolean
-            required:
-                -   typeSettings
         NavigationMenuValue:
             # @review
             description:
@@ -2403,6 +2614,37 @@ components:
                     enum: [SpecificFrame, NewTab]
                     type: string
             type: object
+        NestedApplicationsWidgetPageWidgetInstance:
+            allOf:
+                -   $ref: "#/components/schemas/WidgetPageWidgetInstance"
+                -   properties:
+                        nestedWidgetSections:
+                            # @review
+                            description:
+                                The sections of a nested applications widget instance.
+                            items:
+                                $ref: "#/components/schemas/NestedWidgetSection"
+                            type: array
+            # @review
+            description:
+                A nested applications widget instance in a widget page.
+            type: object
+        NestedWidgetSection:
+            # @review
+            description:
+                A section within a Nested Applications widget instance.
+            properties:
+                id:
+                    description:
+                        The nested widget section's id.
+                    type: string
+                widgetPageWidgetInstances:
+                    # @review
+                    description:
+                        A list of the widget instances within this nested widget section.
+                    items:
+                        $ref: "#/components/schemas/WidgetPageWidgetInstance"
+                    type: array
         NoneActionExecutionResult:
             # @review
             description:
@@ -2500,14 +2742,15 @@ components:
                 The page element definition.
             discriminator:
                 mapping:
+                    BasicFragment: "#/components/schemas/BasicFragmentInstancePageElementDefinition"
                     CollectionDisplay: "#/components/schemas/CollectionDisplayPageElementDefinition"
                     CollectionItem: "#/components/schemas/CollectionItemPageElementDefinition"
                     Container: "#/components/schemas/ContainerPageElementDefinition"
                     DropZone: "#/components/schemas/DropZonePageElementDefinition"
                     FormContainer: "#/components/schemas/FormContainerPageElementDefinition"
+                    FormFragment: "#/components/schemas/FormFragmentInstancePageElementDefinition"
                     FormStep: "#/components/schemas/FormStepPageElementDefinition"
                     FormStepContainer: "#/components/schemas/FormStepContainerPageElementDefinition"
-                    Fragment: "#/components/schemas/FragmentInstancePageElementDefinition"
                     FragmentComposition: "#/components/schemas/FragmentCompositionInstancePageElementDefinition"
                     FragmentDropZone: "#/components/schemas/FragmentDropZonePageElementDefinition"
                     Grid: "#/components/schemas/GridPageElementDefinition"
@@ -2518,18 +2761,19 @@ components:
                 type:
                     # @review
                     description:
-                        The page element definition's type (collection display, collection item, container, drop zone,
-                        form container, form step, form step container, fragment, fragment composition, fragment drop
-                        zone, grid,  module or widget).
+                        The page element definition's type (basic fragment, collection display, collection item,
+                        container, drop zone, form container, form fragment, form step, form step container, fragment
+                        composition, fragment drop zone, grid,  module or widget).
                     enum:
+                        -   BasicFragment
                         -   CollectionDisplay
                         -   CollectionItem
                         -   Container
                         -   DropZone
                         -   FormContainer
+                        -   FormFragment
                         -   FormStep
                         -   FormStepContainer
-                        -   Fragment
                         -   FragmentComposition
                         -   FragmentDropZone
                         -   Grid
@@ -2584,11 +2828,29 @@ components:
                         experience will always be assigned priority 0. A priority higher than 0 will result in an
                         experience being active and a priority lower than 0 will result in an experience being inactive.
                     type: integer
-                segmentExternalReferenceCode:
+                segmentItemExternalReference:
+                    $ref: "#/components/schemas/ItemExternalReference"
                     # @review
                     description:
-                        The segment's external reference code.
+                        The segment's item external reference.
+                uuid:
+                    # @review
+                    description:
+                        A valid external identifier to reference this page experience.
                     type: string
+            type: object
+        PageNavigationMenuItemSettings:
+            description:
+                Type-specific settings for a "Page" navigation menu item type.
+            properties:
+                externalReferenceCode:
+                    description:
+                        The external reference code of the entity that this navigation menu item is set to.
+                    type: string
+                privatePage:
+                    description:
+                        Whether the Page is private.
+                    type: boolean
             type: object
         PageRule:
             # @review
@@ -2678,20 +2940,29 @@ components:
                         The page rule condition's value.
                     type: string
             type: object
+        PageSetPageSettings:
+            allOf:
+                -   $ref: "#/components/schemas/PageSettings"
+            # @review
+            description:
+                The settings of a page set page.
+            type: object
+        PageSetPageSpecification:
+            allOf:
+                -   $ref: "#/components/schemas/PageSpecification"
+            # @review
+            description:
+                A page specification of a page set page.
+            type: object
         PageSettings:
             discriminator:
                 mapping:
                     ContentPageSettings: "#/components/schemas/ContentPageSettings"
+                    LinkToURLPageSettings: "#/components/schemas/LinkToURLPageSettings"
+                    PageSetPageSettings: "#/components/schemas/PageSetPageSettings"
                     WidgetPageSettings: "#/components/schemas/WidgetPageSettings"
                 propertyName: type
             properties:
-                customMetaTags:
-                    # @review
-                    description:
-                        A list of custom meta tags this page has.
-                    items:
-                        $ref: "#/components/schemas/CustomMetaTag"
-                    type: array
                 hiddenFromNavigation:
                     # @review
                     description:
@@ -2702,11 +2973,6 @@ components:
                     # @review
                     description:
                         The page's navigation settings.
-                openGraphSettings:
-                    $ref: "#/components/schemas/OpenGraphSettings"
-                    # @review
-                    description:
-                        The page's Open Graph settings.
                 priority:
                     # @review
                     description:
@@ -2716,14 +2982,11 @@ components:
                     maximum: 2147483647
                     minimum: 0
                     type: integer
-                seoSettings:
-                    $ref: "#/components/schemas/SEOSettings"
-                    # @review
-                    description:
-                        The page's SEO settings.
                 type:
                     enum:
                         -   ContentPageSettings
+                        -   LinkToURLPageSettings
+                        -   PageSetPageSettings
                         -   WidgetPageSettings
                     type: string
             type: object
@@ -2736,6 +2999,8 @@ components:
             discriminator:
                 mapping:
                     ContentPageSpecification: "#/components/schemas/ContentPageSpecification"
+                    LinkToURLPageSpecification: "#/components/schemas/LinkToURLPageSpecification"
+                    PageSetPageSpecification: "#/components/schemas/PageSetPageSpecification"
                     WidgetPageSpecification: "#/components/schemas/WidgetPageSpecification"
                 propertyName: type
             properties:
@@ -2751,13 +3016,6 @@ components:
                     description:
                         The page specification's external reference code, unique per site.
                     type: string
-                settings:
-                    $ref: "#/components/schemas/Settings"
-                siteTemplatePageSpecificationExternalReferenceCode:
-                    # @review
-                    description:
-                        The site template page specification's external reference code.
-                    type: string
                 status:
                     # @review
                     description:
@@ -2772,6 +3030,8 @@ components:
                         The type of the page specification.
                     enum:
                         -   ContentPageSpecification
+                        -   LinkToURLPageSpecification
+                        -   PageSetPageSpecification
                         -   WidgetPageSpecification
                     type: string
             type: object
@@ -2858,6 +3118,11 @@ components:
                     items:
                         $ref: "#/components/schemas/ItemExternalReference"
                     type: array
+                thumbnailURLReference:
+                    $ref: "#/components/schemas/ThumbnailURLReference"
+                    # @review
+                    description:
+                        The display page template's thumbnail.
                 type:
                     # @review
                     description:
@@ -2939,6 +3204,56 @@ components:
                     enum:
                         -   ContentPageTemplateSettings
                         -   WidgetPageTemplateSettings
+                    type: string
+            type: object
+        RatingsTypes:
+            description:
+                Site applications where the default rating system can be modified to a desired ratings type.
+            properties:
+                blogPosting:
+                    description:
+                        The type of rating system to use
+                    enum: [like, stacked-stars, stars, thumbs]
+                    type: string
+                bookmarksEntry:
+                    description:
+                        The type of rating system to use
+                    enum: [like, stacked-stars, stars, thumbs]
+                    type: string
+                comment:
+                    description:
+                        The type of rating system to use
+                    enum: [like, stacked-stars, stars, thumbs]
+                    type: string
+                document:
+                    description:
+                        The type of rating system to use
+                    enum: [like, stacked-stars, stars, thumbs]
+                    type: string
+                knowledgeBaseArticle:
+                    description:
+                        The type of rating system to use
+                    enum: [like, stacked-stars, stars, thumbs]
+                    type: string
+                messageBoardMessage:
+                    description:
+                        The type of rating system to use
+                    enum: [like, stacked-stars, stars, thumbs]
+                    type: string
+                sitePage:
+                    description:
+                        The type of rating system to use
+                    enum: [like, stacked-stars, stars, thumbs]
+                    type: string
+                structuredContent:
+                    description:
+                        The type of rating system to use
+                    enum: [like, stacked-stars, stars, thumbs]
+                    type: string
+                wikiPage:
+                    description:
+                        The type of rating system to use
+                    enum: [like, stacked-stars, stars, thumbs]
                     type: string
             type: object
         SEOSettings:
@@ -3084,6 +3399,19 @@ components:
             properties:
                 active:
                     type: boolean
+                analyticsConfiguration:
+                    $ref: "#/components/schemas/AnalyticsConfiguration"
+                assetAutoTaggingEnabled:
+                    description:
+                        Whether to enable auto tagging of assets on this site.
+                    type: boolean
+                contentSharingWithChildrenEnabled:
+                    description:
+                        Whether to allow subsites to display content from this site.
+                    type: boolean
+                defaultLanguageId:
+                    example: en_US
+                    type: string
                 description:
                     type: string
                 description_i18n:
@@ -3098,6 +3426,10 @@ components:
                         type: string
                     readOnly: true
                     type: object
+                directoryIndexingEnabled:
+                    description:
+                        Whether directory indexing is enabled.
+                    type: boolean
                 externalReferenceCode:
                     description:
                         The site's external reference code.
@@ -3108,11 +3440,26 @@ components:
                     format: int64
                     readOnly: true
                     type: integer
+                inheritLocales:
+                    description:
+                        Whether to use the default language set by defaultLanguageId.
+                    type: boolean
                 key:
                     readOnly: true
                     type: string
+                locales:
+                    description:
+                        A list of languages for which the role has a translation.
+                    items:
+                        type: string
+                    type: array
                 manualMembership:
                     type: boolean
+                mapProviderKey:
+                    description:
+                        Sets the maps API provider to use when displaying geolocalized assets.
+                    enum: [GoogleMaps, OpenStreetMap]
+                    type: string
                 membershipRestriction:
                     format: int32
                     type: integer
@@ -3124,6 +3471,10 @@ components:
                         -   private
                         -   restricted
                     type: string
+                mentionsEnabled:
+                    description:
+                        Whether to allow users to mention other users.
+                    type: boolean
                 name:
                     type: string
                 name_i18n:
@@ -3132,6 +3483,16 @@ components:
                     type: object
                 parentSiteExternalReferenceCode:
                     type: string
+                permissions:
+                    items:
+                        type: permission
+                    type: array
+                ratingsTypes:
+                    $ref: "#/components/schemas/RatingsTypes"
+                sharingEnabled:
+                    description:
+                        Whether to allow users to share items with other users.
+                    type: boolean
                 templateKey:
                     type: string
                     writeOnly: true
@@ -3141,10 +3502,16 @@ components:
                         -   site-template
                     type: string
                     writeOnly: true
-                typeSettings:
-                    additionalProperties:
-                        type: string
-                    type: object
+                trashEnabled:
+                    description:
+                        Whether to enable the Recycle Bin.
+                    type: boolean
+                trashEntriesMaxAge:
+                    description:
+                        The time, in minutes, that entries are kept in the Recycle Bin. Entries that have been in the
+                        Recycle Bin for more than this time are automatically deleted.
+                    format: int32
+                    type: integer
             required:
                 -   name
             type: object
@@ -3258,6 +3625,8 @@ components:
                 type:
                     enum:
                         -   ContentPage
+                        -   LinkToURLPage
+                        -   PageSetPage
                         -   WidgetPage
                     type: string
                 uuid:
@@ -3525,16 +3894,11 @@ components:
             allOf:
                 -   $ref: "#/components/schemas/FragmentEditableElementValue"
                 -   properties:
-                        fragmentEditableElementValueFragmentLink:
-                            $ref: "#/components/schemas/FragmentEditableElementValueFragmentLink"
+                        fragmentLinkTextValue:
+                            $ref: "#/components/schemas/FragmentLinkTextValue"
                             # @review
                             description:
-                                The fragment link of a text fragment editable element value.
-                        textFragmentValue:
-                            $ref: "#/components/schemas/TextFragmentValue"
-                            # @review
-                            description:
-                                The fragment editable element's text.
+                                The link text value for the text fragment editable element value.
             # @review
             description:
                 A fragment editable element of type text.
@@ -3582,6 +3946,16 @@ components:
                     description:
                         Whether the value is set inline or mapped.
                     enum: [Inline, Mapped]
+                    type: string
+            type: object
+        ThumbnailURLReference:
+            # @review
+            description:
+                A unique reference to a URL which remains constant across environments.
+            properties:
+                externalReferenceCode:
+                    type: string
+                url:
                     type: string
             type: object
         URLActionExecutionResult:
@@ -3637,6 +4011,19 @@ components:
             # @review
             description:
                 A URL image value.
+            type: object
+        URLNavigationMenuItemSettings:
+            description:
+                Type-specific settings for a "URL" navigation menu item type.
+            properties:
+                url:
+                    description:
+                        The URL that this navigation menu item will take the user to.
+                    type: string
+                useNewTab:
+                    description:
+                        Whether the target URL will open in a new tab instead of the same tab.
+                    type: boolean
             type: object
         URLValue:
             # @review
@@ -3722,8 +4109,8 @@ components:
                     items:
                         type: permission
                     type: array
-                thumbnail:
-                    $ref: "#/components/schemas/ItemExternalReference"
+                thumbnailURLReference:
+                    $ref: "#/components/schemas/ThumbnailURLReference"
                     # @review
                     description:
                         The utility page's thumbnail.
@@ -3802,6 +4189,37 @@ components:
                 html:
                     type: string
                 title:
+                    type: string
+            type: object
+        VocabularyNavigationMenuItemSettings:
+            description:
+                Type-specific settings for "Category" and "Vocabulary" navigation menu item types.
+            properties:
+                className:
+                    description:
+                        The class name of the entity that this navigation menu item is set to.
+                    type: string
+                externalReferenceCode:
+                    description:
+                        The external reference code of the entity that this navigation menu item is set to.
+                    type: string
+                scopeExternalReferenceCode:
+                    description:
+                        The external reference code of the site associated with the entity that this navigation menu
+                        item is set to.
+                    type: string
+                showAssetVocabularyLevel:
+                    description:
+                        Whether to display the vocabulary's name as the first level with children nested a level deeper.
+                        If false, only vocabulary's children are displayed at the top level.
+                    type: boolean
+                title:
+                    description:
+                        The title or name of the entity that this navigation menu item is set to.
+                    type: string
+                type:
+                    description:
+                        The type of the underlying entity that this navigation menu item is set to.
                     type: string
             type: object
         WidgetInstance:
@@ -4207,11 +4625,18 @@ components:
                         A list of the widget instances within this page section.
                     items:
                         $ref: "#/components/schemas/WidgetPageWidgetInstance"
-                    type: array                    
+                    type: array
         WidgetPageSettings:
             allOf:
                 -   $ref: "#/components/schemas/PageSettings"
                 -   properties:
+                        customMetaTags:
+                            # @review
+                            description:
+                                A list of custom meta tags this page has.
+                            items:
+                                $ref: "#/components/schemas/CustomMetaTag"
+                            type: array
                         customizable:
                             # @review
                             description:
@@ -4235,6 +4660,16 @@ components:
                             description:
                                 The ID of the layout template.
                             type: string
+                        openGraphSettings:
+                            $ref: "#/components/schemas/OpenGraphSettings"
+                            # @review
+                            description:
+                                The page's Open Graph settings.
+                        seoSettings:
+                            $ref: "#/components/schemas/SEOSettings"
+                            # @review
+                            description:
+                                The page's SEO settings.
                         widgetPageTemplateReference:
                             $ref: "#/components/schemas/ItemExternalReference"
                     required:
@@ -4247,6 +4682,13 @@ components:
             allOf:
                 -   $ref: "#/components/schemas/PageSpecification"
                 -   properties:
+                        settings:
+                            $ref: "#/components/schemas/Settings"
+                        siteTemplatePageSpecificationExternalReferenceCode:
+                            # @review
+                            description:
+                                The site template page specification's external reference code.
+                            type: string
                         widgetPageSections:
                             # @review
                             description:
@@ -4342,6 +4784,11 @@ components:
                                 the widget instance will be added at the last valid position.
                             minimum: 0
                             type: integer
+                        type:
+                            enum:
+                                -   BasicWidgetPageWidgetInstance
+                                -   NestedApplicationsWidgetPageWidgetInstance
+                            type: string
                         widgetLookAndFeelConfig:
                             $ref: "#/components/schemas/WidgetLookAndFeelConfig"
                             # @review
@@ -4350,11 +4797,16 @@ components:
             # @review
             description:
                 A widget instance in a widget page.
+            discriminator:
+                mapping:
+                    BasicWidgetPageWidgetInstance: "#/components/schemas/BasicWidgetPageWidgetInstance"
+                    NestedApplicationsWidgetPageWidgetInstance: "#/components/schemas/NestedApplicationsWidgetPageWidgetInstance"
+                propertyName: type
             type: object
 info:
     description:
         "A Java client JAR is available for use with the group ID 'com.liferay', artifact ID
-        'com.liferay.headless.admin.site.client', and version '1.0.21'."
+        'com.liferay.headless.admin.site.client', and version '1.0.23'."
     license:
         name: Apache 2.0
         url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -8556,6 +9008,51 @@ paths:
                         application/json: {}
                         application/xml: {}
             tags: ["PageTemplate"]
+    "/sites/{siteExternalReferenceCode}/permissions":
+        get:
+            operationId: getSitePermissionsPage
+            parameters:
+                -   in: path
+                    name: siteExternalReferenceCode
+                    required: true
+                    schema:
+                        type: string
+                -   in: query
+                    name: fields
+                    schema:
+                        type: string
+                -   in: query
+                    name: restrictFields
+                    schema:
+                        type: string
+                -   in: query
+                    name: roleNames
+                    schema:
+                        type: string
+            responses:
+                204:
+                    content:
+                        application/json: {}
+                        application/xml: {}
+            tags: ["Site"]
+        put:
+            operationId: putSitePermissionsPage
+            parameters:
+                -   in: path
+                    name: siteExternalReferenceCode
+                    required: true
+                    schema:
+                        type: string
+            requestBody:
+                content:
+                    application/json: {}
+                    application/xml: {}
+            responses:
+                204:
+                    content:
+                        application/json: {}
+                        application/xml: {}
+            tags: ["Site"]
     "/sites/{siteExternalReferenceCode}/site-pages":
         get:
             # @review

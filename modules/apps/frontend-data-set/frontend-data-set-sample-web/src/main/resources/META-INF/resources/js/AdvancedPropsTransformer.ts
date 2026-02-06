@@ -11,6 +11,7 @@ import {fetch} from 'frontend-js-web';
 import CustomAuthorTableCell from './CustomAuthorTableCell';
 import SampleInfoPanel from './SampleInfoPanel';
 import dummyUploader from './dummyUploader';
+import {advancedFDSAtom} from './utils/atoms';
 
 import type {
 	ICardSchema,
@@ -107,7 +108,9 @@ export default function propsTransformer({
 		return props;
 	};
 
-	const tableView = views.find((view) => view.name === 'customizedTable')!;
+	const tableView = views.find((view) =>
+		view.name?.toLowerCase().includes('table')
+	)!;
 
 	tableView.setItemComponentProps = ({
 		item,
@@ -128,12 +131,13 @@ export default function propsTransformer({
 
 	const filtersGroups = [
 		{filters: ['date', 'color'], label: 'Group 1'},
-		{filters: ['invalid', 'size'], label: 'Group 2'},
+		{filters: ['clientExtension', 'invalid', 'size'], label: 'Group 2'},
 		{filters: ['status', 'title'], label: 'Group 3'},
 	];
 
 	return {
 		...otherProps,
+		atom: advancedFDSAtom,
 		customRenderers: {
 			tableCell: [customAuthorTableCellRenderer],
 		},

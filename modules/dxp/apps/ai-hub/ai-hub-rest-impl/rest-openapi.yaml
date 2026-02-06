@@ -34,13 +34,38 @@ components:
                     type: string
                 scope:
                     $ref: "#/components/schemas/Scope"
+                sseEventSinkKey:
+                    type: string
                 type:
+                    type: string
+            type: object
+        TaskDefinition:
+            properties:
+                active:
+                    type: boolean
+                description:
+                    type: string
+                name:
+                    type: string
+                version:
+                    type: integer
+            type: object
+        Token:
+            properties:
+                accessToken:
+                    readOnly: true
+                    type: string
+                scope:
+                    readOnly: true
+                    type: string
+                userToken:
+                    readOnly: true
                     type: string
             type: object
 info:
     description:
         "A Java client JAR is available for use with the group ID 'com.liferay', artifact ID
-        'com.liferay.ai.hub.rest.client', and version '1.0.3'."
+        'com.liferay.ai.hub.rest.client', and version '1.0.4'."
     license:
         name: Apache 2.0
         url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -48,33 +73,6 @@ info:
     version: v1.0
 openapi: 3.0.1
 paths:
-    "/by-external-reference-code/{externalReferenceCode}/tasks":
-        post:
-            operationId: postByExternalReferenceCodeTask
-            parameters:
-                -   in: path
-                    name: externalReferenceCode
-                    required: true
-                    schema:
-                        type: string
-            requestBody:
-                content:
-                    application/json:
-                        schema:
-                            $ref: "#/components/schemas/Task"
-                    application/xml:
-                        schema:
-                            $ref: "#/components/schemas/Task"
-            responses:
-                200:
-                    content:
-                        application/json:
-                            schema:
-                                $ref: "#/components/schemas/Task"
-                        application/xml:
-                            schema:
-                                $ref: "#/components/schemas/Task"
-            tags: ["Task"]
     "/chats/by-external-reference-code/{externalReferenceCode}/messages":
         post:
             operationId: postChatByExternalReferenceCodeMessage
@@ -115,6 +113,65 @@ paths:
                     content:
                         text/event-stream: {}
             tags: ["Chat"]
+    "/task-definitions":
+        get:
+            operationId: getTaskDefinitionsPage
+            parameters:
+                -   in: query
+                    name: filter
+                    schema:
+                        type: string
+                -   in: query
+                    name: page
+                    schema:
+                        type: integer
+                -   in: query
+                    name: pageSize
+                    schema:
+                        type: integer
+                -   in: query
+                    name: search
+                    schema:
+                        type: string
+                -   in: query
+                    name: sort
+                    schema:
+                        type: string
+            responses:
+                200:
+                    content:
+                        application/json:
+                            schema:
+                                items:
+                                    $ref: "#/components/schemas/TaskDefinition"
+                                type: array
+                        application/xml:
+                            schema:
+                                items:
+                                    $ref: "#/components/schemas/TaskDefinition"
+                                type: array
+            tags: ["TaskDefinition"]
+    "/tasks":
+        post:
+            operationId: postTask
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/Task"
+                    application/xml:
+                        schema:
+                            $ref: "#/components/schemas/Task"
+            responses:
+                200:
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Task"
+                        application/xml:
+                            schema:
+                                $ref: "#/components/schemas/Task"
+            tags: ["Task"]
     "/tasks/subscribe":
         get:
             operationId: getTaskSubscribe
@@ -128,3 +185,16 @@ paths:
                     content:
                         text/event-stream: {}
             tags: ["Task"]
+    "/tokens":
+        post:
+            operationId: postToken
+            responses:
+                200:
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Token"
+                        application/xml:
+                            schema:
+                                $ref: "#/components/schemas/Token"
+            tags: ["Token"]

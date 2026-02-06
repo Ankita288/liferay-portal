@@ -185,6 +185,8 @@ public class BaseNotificationTypeTest {
 		).put(
 			"integerObjectField", "12345"
 		).put(
+			"localizedPicklistObjectField", ""
+		).put(
 			"localizedTextObjectField", "localizedTextObjectFieldValue"
 		).put(
 			"longIntegerObjectField", "123456789"
@@ -392,6 +394,17 @@ public class BaseNotificationTypeTest {
 					).labelMap(
 						LocalizedMapUtil.getLocalizedMap(
 							RandomTestUtil.randomString())
+					).listTypeDefinitionId(
+						_listTypeDefinition.getListTypeDefinitionId()
+					).localized(
+						true
+					).name(
+						"localizedPicklistObjectField"
+					).build(),
+					new PicklistObjectFieldBuilder(
+					).labelMap(
+						LocalizedMapUtil.getLocalizedMap(
+							RandomTestUtil.randomString())
 					).name(
 						"picklistObjectField"
 					).listTypeDefinitionId(
@@ -427,7 +440,7 @@ public class BaseNotificationTypeTest {
 					).name(
 						"textObjectField"
 					).build()),
-				Collections.emptyList());
+				Collections.emptyList(), new ServiceContext());
 
 		childObjectDefinition =
 			objectDefinitionLocalService.publishCustomObjectDefinition(
@@ -520,7 +533,7 @@ public class BaseNotificationTypeTest {
 					).objectFieldSettings(
 						Collections.emptyList()
 					).build()),
-				Collections.emptyList());
+				Collections.emptyList(), new ServiceContext());
 
 		parentObjectDefinition =
 			objectDefinitionLocalService.publishCustomObjectDefinition(
@@ -776,6 +789,7 @@ public class BaseNotificationTypeTest {
 				getTermName("dateTimeObjectField"),
 				getTermName("emailTextObjectField"),
 				getTermName("integerObjectField"),
+				getTermName("localizedPicklistObjectField"),
 				getTermName("localizedTextObjectField"),
 				getTermName("longIntegerObjectField"),
 				getTermName("multipleRecipientsLongTextObjectField"),

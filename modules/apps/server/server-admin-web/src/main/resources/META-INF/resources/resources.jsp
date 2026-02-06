@@ -203,24 +203,40 @@ long usedMemory = totalMemory - runtime.freeMemory();
 
 		<aui:fieldset collapsed="<%= false %>" collapsible="<%= true %>" label="system-cleanup-actions">
 			<ul class="list-group system-action-group">
+				<li class="list-group-item list-group-item-flex">
+					<div class="autofit-col autofit-col-expand">
+						<p class="list-group-title text-truncate">
+							<liferay-ui:message key="clean-up-all-system-data" />
+						</p>
+					</div>
+
+					<div class="autofit-col">
+						<aui:button cssClass="save-server-button" data-cmd="cleanUpAllSystemData" value="execute" />
+					</div>
+				</li>
 
 				<%
 				for (DataCleanup systemDataCleanup : DataCleanupUtil.getSystemDataCleanups()) {
-
-				if (ReleaseLocalServiceUtil.fetchRelease(systemDataCleanup.getServletContextName()) == null) {
-					continue;
-				}
+					if (systemDataCleanup.isEnabled() && (ReleaseLocalServiceUtil.fetchRelease(systemDataCleanup.getServletContextName()) == null)) {
+						continue;
+					}
 				%>
 
 					<li class="list-group-item list-group-item-flex">
 						<div class="autofit-col autofit-col-expand">
 							<p class="list-group-title text-truncate">
 								<liferay-ui:message key="<%= systemDataCleanup.getLabel() %>" />
+
+								<span aria-label="<%= LanguageUtil.get(request, systemDataCleanup.getHelpLabel()) %>" class="lfr-portal-tooltip" tabindex="0" title="<%= LanguageUtil.get(request, systemDataCleanup.getHelpLabel()) %>">
+									<clay:icon
+										symbol="question-circle-full"
+									/>
+								</span>
 							</p>
 						</div>
 
 						<div class="autofit-col">
-							<aui:button cssClass="save-server-button" data-cmd="<%= systemDataCleanup.getLabel() %>" value="execute" />
+							<aui:button cssClass="save-server-button" data-cmd="<%= systemDataCleanup.getLabel() %>" disabled="<%= !systemDataCleanup.isEnabled() %>" value="execute" />
 						</div>
 					</li>
 
@@ -300,30 +316,51 @@ long usedMemory = totalMemory - runtime.freeMemory();
 		</aui:fieldset>
 
 		<%
-		List<DataCleanup> moduleDataCleanups = DataCleanupUtil.getModuleDataCleanups();
+		List<DataCleanup> moduleDataCleanups = TransformUtil.transform(
+			DataCleanupUtil.getModuleDataCleanups(),
+			moduleDataCleanup -> {
+				if (!moduleDataCleanup.isEnabled() || (ReleaseLocalServiceUtil.fetchRelease(moduleDataCleanup.getServletContextName()) != null)) {
+					return moduleDataCleanup;
+				}
+
+				return null;
+			});
 		%>
 
 		<c:if test="<%= ListUtil.isNotEmpty(moduleDataCleanups) %>">
 			<aui:fieldset collapsed="<%= false %>" collapsible="<%= true %>" label="module-cleanup-actions">
 				<ul class="list-group system-action-group">
+					<li class="list-group-item list-group-item-flex">
+						<div class="autofit-col autofit-col-expand">
+							<p class="list-group-title text-truncate">
+								<liferay-ui:message key="clean-up-all-module-data" />
+							</p>
+						</div>
+
+						<div class="autofit-col">
+							<aui:button cssClass="save-server-button" data-cmd="cleanUpAllModuleData" value="execute" />
+						</div>
+					</li>
 
 					<%
 					for (DataCleanup moduleDataCleanup : moduleDataCleanups) {
-
-					if (ReleaseLocalServiceUtil.fetchRelease(moduleDataCleanup.getServletContextName()) == null) {
-						continue;
-					}
 					%>
 
 						<li class="list-group-item list-group-item-flex">
 							<div class="autofit-col autofit-col-expand">
 								<p class="list-group-title text-truncate">
 									<liferay-ui:message key="<%= moduleDataCleanup.getLabel() %>" />
+
+									<span aria-label="<%= LanguageUtil.get(request, moduleDataCleanup.getHelpLabel()) %>" class="lfr-portal-tooltip" tabindex="0" title="<%= LanguageUtil.get(request, moduleDataCleanup.getHelpLabel()) %>">
+										<clay:icon
+											symbol="question-circle-full"
+										/>
+									</span>
 								</p>
 							</div>
 
 							<div class="autofit-col">
-								<aui:button cssClass="save-server-button" data-cmd="<%= moduleDataCleanup.getLabel() %>" value="execute" />
+								<aui:button cssClass="save-server-button" data-cmd="<%= moduleDataCleanup.getLabel() %>" disabled="<%= !moduleDataCleanup.isEnabled() %>" value="execute" />
 							</div>
 						</li>
 

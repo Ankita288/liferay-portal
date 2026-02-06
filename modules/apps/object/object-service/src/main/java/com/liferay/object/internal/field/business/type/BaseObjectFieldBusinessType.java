@@ -6,6 +6,7 @@
 package com.liferay.object.internal.field.business.type;
 
 import com.liferay.document.library.kernel.util.DLValidatorUtil;
+import com.liferay.dynamic.data.mapping.expression.DDMExpressionFactory;
 import com.liferay.dynamic.data.mapping.model.LocalizedValue;
 import com.liferay.object.constants.ObjectFieldConstants;
 import com.liferay.object.constants.ObjectFieldSettingConstants;
@@ -70,7 +71,7 @@ public abstract class BaseObjectFieldBusinessType
 				Locale defaultLocale = objectFieldRenderingContext.getLocale();
 				String defaultValue = Objects.toString(
 					ObjectFieldSettingUtil.getDefaultValue(
-						null, objectField, null),
+						ddmExpressionFactory, objectField, null),
 					StringPool.BLANK);
 
 				if (objectField.isLocalized() &&
@@ -93,8 +94,7 @@ public abstract class BaseObjectFieldBusinessType
 		).putAll(
 			getObjectFieldSettingsValues(
 				objectFieldSettingLocalService.
-					getObjectFieldObjectFieldSettings(
-						objectField.getObjectFieldId()))
+					getObjectFieldObjectFieldSettings(objectField))
 		).putAll(
 			ObjectFieldBusinessType.super.getProperties(
 				objectField, objectFieldRenderingContext)
@@ -194,6 +194,9 @@ public abstract class BaseObjectFieldBusinessType
 				objectField.getName(), objectFieldSettingsValues);
 		}
 	}
+
+	@Reference
+	protected DDMExpressionFactory ddmExpressionFactory;
 
 	@Reference
 	protected JSONFactory jsonFactory;

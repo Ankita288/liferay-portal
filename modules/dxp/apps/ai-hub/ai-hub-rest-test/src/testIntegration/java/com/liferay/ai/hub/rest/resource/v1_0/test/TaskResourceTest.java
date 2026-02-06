@@ -8,20 +8,28 @@ package com.liferay.ai.hub.rest.resource.v1_0.test;
 import com.liferay.ai.hub.rest.resource.v1_0.test.util.SseEventSourceTestUtil;
 import com.liferay.ai.hub.rest.resource.v1_0.util.SseUtil;
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
+import com.liferay.object.field.builder.LongTextObjectFieldBuilder;
+import com.liferay.object.field.builder.TextObjectFieldBuilder;
 import com.liferay.object.model.ObjectDefinition;
 import com.liferay.object.service.ObjectDefinitionLocalService;
 import com.liferay.object.service.ObjectEntryLocalService;
+import com.liferay.object.test.util.ObjectDefinitionTestUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
+import com.liferay.portal.kernel.security.permission.PermissionChecker;
+import com.liferay.portal.kernel.security.permission.PermissionCheckerFactoryUtil;
+import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
+import com.liferay.portal.kernel.service.ServiceContextThreadLocal;
 import com.liferay.portal.kernel.test.util.GroupTestUtil;
 import com.liferay.portal.kernel.test.util.HTTPTestUtil;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
+import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.Http;
 import com.liferay.portal.kernel.util.LocaleUtil;
@@ -44,6 +52,7 @@ import java.io.Serializable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -70,25 +79,55 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 	public static void setUpClass() throws Exception {
 		_classNameLocalService.invalidate();
 
+		_originalPermissionChecker =
+			PermissionThreadLocal.getPermissionChecker();
+
+		PermissionThreadLocal.setPermissionChecker(
+			PermissionCheckerFactoryUtil.create(TestPropsValues.getUser()));
+
 		_originalName = PrincipalThreadLocal.getName();
 
 		PrincipalThreadLocal.setName(TestPropsValues.getUserId());
 
+		ServiceContextThreadLocal.pushServiceContext(
+			ServiceContextTestUtil.getServiceContext(
+				TestPropsValues.getGroupId(), TestPropsValues.getUserId()));
+
 		SiteInitializer siteInitializer =
-			_siteInitializerRegistry.getSiteInitializer("ai-hub-initializer");
+			_siteInitializerRegistry.getSiteInitializer(
+				"com.liferay.ai.hub.site.initializer");
 
 		siteInitializer.initialize(TestPropsValues.getGroupId());
 
 		_group = GroupTestUtil.addGroup();
-
-		_objectDefinition =
+		_mcpServerObjectDefinition =
 			_objectDefinitionLocalService.
 				getObjectDefinitionByExternalReferenceCode(
 					"L_MCP_SERVER", TestPropsValues.getCompanyId());
+		_objectDefinition = ObjectDefinitionTestUtil.publishObjectDefinition(
+			List.of(
+				new LongTextObjectFieldBuilder(
+				).labelMap(
+					RandomTestUtil.randomLocaleStringMap()
+				).name(
+					"description"
+				).indexed(
+					true
+				).build(),
+				new TextObjectFieldBuilder(
+				).labelMap(
+					RandomTestUtil.randomLocaleStringMap()
+				).name(
+					"name"
+				).indexed(
+					true
+				).indexedAsKeyword(
+					true
+				).build()));
 
 		_objectEntryLocalService.addObjectEntry(
 			_group.getGroupId(), TestPropsValues.getUserId(),
-			_objectDefinition.getObjectDefinitionId(), 0,
+			_mcpServerObjectDefinition.getObjectDefinitionId(), 0,
 			LocaleUtil.toLanguageId(LocaleUtil.getDefault()),
 			HashMapBuilder.<String, Serializable>put(
 				"authArguments",
@@ -117,6 +156,10 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 				"ai-decision-node-with-tool-workflow-definition.json"));
 		_workflowDefinitionManager.deployWorkflowDefinition(
 			null, TestPropsValues.getCompanyId(), TestPropsValues.getUserId(),
+			StringUtil.randomId(), "LLM Node With RAG Workflow Definition",
+			_getContentBytes("llm-node-with-rag-workflow-definition.json"));
+		_workflowDefinitionManager.deployWorkflowDefinition(
+			null, TestPropsValues.getCompanyId(), TestPropsValues.getUserId(),
 			StringUtil.randomId(), "LLM Node With Tool Workflow Definition",
 			_getContentBytes("llm-node-with-tool-workflow-definition.json"));
 		_workflowDefinitionManager.deployWorkflowDefinition(
@@ -127,6 +170,10 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 
 	@AfterClass
 	public static void tearDownClass() throws PortalException {
+		PermissionThreadLocal.setPermissionChecker(_originalPermissionChecker);
+
+		_objectDefinitionLocalService.deleteObjectDefinition(
+			_mcpServerObjectDefinition.getObjectDefinitionId());
 		_objectDefinitionLocalService.deleteObjectDefinition(
 			_objectDefinition.getObjectDefinitionId());
 
@@ -135,6 +182,8 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 
 	@After
 	public void tearDown() {
+		ServiceContextThreadLocal.popServiceContext();
+
 		SseUtil.closeAll();
 	}
 
@@ -149,13 +198,14 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 	@Ignore
 	@Override
 	@Test
-	public void testPostByExternalReferenceCodeTask() throws Exception {
-		_testPostByExternalReferenceCodeTask();
-		_testPostByExternalReferenceCodeTaskWithScope();
-		_testPostByExternalReferenceCodeTaskWithTypeAIDecisionNodeWithToolWorkflowDefinition();
-		_testPostByExternalReferenceCodeTaskWithTypeAIDecisionNodeWorkflowDefinition();
-		_testPostByExternalReferenceCodeTaskWithTypeFixSpellingAndGrammar();
-		_testPostByExternalReferenceCodeTaskWithTypeLLMNodeWithToolWorkflowDefinition();
+	public void testPostTask() throws Exception {
+		_testPostTask();
+		_testPostTaskWithScope();
+		_testPostTaskWithTypeAIDecisionNodeWithToolWorkflowDefinition();
+		_testPostTaskWithTypeAIDecisionNodeWorkflowDefinition();
+		_testPostTaskWithTypeFixSpellingAndGrammar();
+		_testPostTaskWithTypeLLMNodeWithRAGWorkflowDefinition();
+		_testPostTaskWithTypeLLMNodeWithToolWorkflowDefinition();
 	}
 
 	private static byte[] _getContentBytes(String fileName) throws Exception {
@@ -167,16 +217,16 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 		return content.getBytes();
 	}
 
-	private void _testPostByExternalReferenceCodeTask() throws Exception {
+	private void _testPostTask() throws Exception {
 		JSONObject jsonObject = HTTPTestUtil.invokeToJSONObject(
 			JSONUtil.put(
 				"context", JSONUtil.put("text", RandomTestUtil.randomString())
 			).put(
+				"sseEventSinkKey", RandomTestUtil.randomString()
+			).put(
 				"type", "Workflow Definition"
 			).toString(),
-			"ai-hub/v1.0/by-external-reference-code/" +
-				RandomTestUtil.randomString() + "/tasks",
-			Http.Method.POST);
+			"ai-hub/v1.0/tasks", Http.Method.POST);
 
 		WorkflowInstance workflowInstance =
 			_workflowInstanceManager.getWorkflowInstance(
@@ -186,11 +236,32 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 		Assert.assertEquals(
 			"Workflow Definition",
 			workflowInstance.getWorkflowDefinitionName());
+
+		Assert.assertEquals(1, workflowInstance.getWorkflowDefinitionVersion());
+
+		_workflowDefinitionManager.deployWorkflowDefinition(
+			null, TestPropsValues.getCompanyId(), TestPropsValues.getUserId(),
+			StringUtil.randomId(), "Workflow Definition",
+			_getContentBytes("workflow-definition.json"));
+
+		jsonObject = HTTPTestUtil.invokeToJSONObject(
+			JSONUtil.put(
+				"context", JSONUtil.put("text", RandomTestUtil.randomString())
+			).put(
+				"sseEventSinkKey", RandomTestUtil.randomString()
+			).put(
+				"type", "Workflow Definition"
+			).toString(),
+			"ai-hub/v1.0/tasks", Http.Method.POST);
+
+		workflowInstance = _workflowInstanceManager.getWorkflowInstance(
+			TestPropsValues.getCompanyId(),
+			jsonObject.getLong("externalReferenceCode"));
+
+		Assert.assertEquals(2, workflowInstance.getWorkflowDefinitionVersion());
 	}
 
-	private void _testPostByExternalReferenceCodeTaskWithScope()
-		throws Exception {
-
+	private void _testPostTaskWithScope() throws Exception {
 		JSONObject jsonObject = HTTPTestUtil.invokeToJSONObject(
 			JSONUtil.put(
 				"context", JSONUtil.put("text", RandomTestUtil.randomString())
@@ -199,11 +270,11 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 				JSONUtil.put(
 					"externalReferenceCode", _group.getExternalReferenceCode())
 			).put(
+				"sseEventSinkKey", RandomTestUtil.randomString()
+			).put(
 				"type", "Workflow Definition"
 			).toString(),
-			"ai-hub/v1.0/by-external-reference-code/" +
-				RandomTestUtil.randomString() + "/tasks",
-			Http.Method.POST);
+			"ai-hub/v1.0/tasks", Http.Method.POST);
 
 		WorkflowInstance workflowInstance =
 			_workflowInstanceManager.getWorkflowInstance(
@@ -216,7 +287,7 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 			workflowInstance.getWorkflowDefinitionName());
 	}
 
-	private void _testPostByExternalReferenceCodeTaskWithTypeAIDecisionNodeWithToolWorkflowDefinition()
+	private void _testPostTaskWithTypeAIDecisionNodeWithToolWorkflowDefinition()
 		throws Exception {
 
 		JSONObject jsonObject = HTTPTestUtil.invokeToJSONObject(
@@ -231,9 +302,7 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 			).put(
 				"type", "AI Decision Node With Tool Workflow Definition"
 			).toString(),
-			"ai-hub/v1.0/by-external-reference-code/" +
-				RandomTestUtil.randomString() + "/tasks",
-			Http.Method.POST);
+			"ai-hub/v1.0/tasks", Http.Method.POST);
 
 		IdempotentRetryAssert.retryAssert(
 			5, TimeUnit.SECONDS, 1, TimeUnit.SECONDS,
@@ -254,22 +323,21 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 			});
 	}
 
-	private void _testPostByExternalReferenceCodeTaskWithTypeAIDecisionNodeWorkflowDefinition()
+	private void _testPostTaskWithTypeAIDecisionNodeWorkflowDefinition()
 		throws Exception {
 
-		_testPostByExternalReferenceCodeTaskWithTypeAIDecisionNodeWorkflowDefinition(
+		_testPostTaskWithTypeAIDecisionNodeWorkflowDefinition(
 			"Blue banana, or Blue Java, is a variety of a banana that grows " +
 				"in Brazil.",
 			"approved");
-		_testPostByExternalReferenceCodeTaskWithTypeAIDecisionNodeWorkflowDefinition(
+		_testPostTaskWithTypeAIDecisionNodeWorkflowDefinition(
 			"Innovative technology transforms everyday life with smarter " +
 				"digital solutions.",
 			"rejected");
 	}
 
-	private void
-			_testPostByExternalReferenceCodeTaskWithTypeAIDecisionNodeWorkflowDefinition(
-				String content, String workflowNodeName)
+	private void _testPostTaskWithTypeAIDecisionNodeWorkflowDefinition(
+			String content, String workflowNodeName)
 		throws Exception {
 
 		JSONObject jsonObject = HTTPTestUtil.invokeToJSONObject(
@@ -280,11 +348,11 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 				JSONUtil.put(
 					"externalReferenceCode", _group.getExternalReferenceCode())
 			).put(
+				"sseEventSinkKey", RandomTestUtil.randomString()
+			).put(
 				"type", "AI Decision Node Workflow Definition"
 			).toString(),
-			"ai-hub/v1.0/by-external-reference-code/" +
-				RandomTestUtil.randomString() + "/tasks",
-			Http.Method.POST);
+			"ai-hub/v1.0/tasks", Http.Method.POST);
 
 		IdempotentRetryAssert.retryAssert(
 			5, TimeUnit.SECONDS, 1, TimeUnit.SECONDS,
@@ -305,25 +373,23 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 			});
 	}
 
-	private void _testPostByExternalReferenceCodeTaskWithTypeFixSpellingAndGrammar()
-		throws Exception {
-
+	private void _testPostTaskWithTypeFixSpellingAndGrammar() throws Exception {
 		CountDownLatch countDownLatch = new CountDownLatch(4);
 		List<String> lines = new ArrayList<>();
 
 		String sseEventSinkKey = SseEventSourceTestUtil.open(
 			List.of(countDownLatch), lines, "tasks/subscribe");
 
-		HTTPTestUtil.invokeToJSONObject(
+		JSONObject jsonObject = HTTPTestUtil.invokeToJSONObject(
 			JSONUtil.put(
 				"context", JSONUtil.put("text", "Thi text ix wrong.")
+			).put(
+				"sseEventSinkKey", sseEventSinkKey
 			).put(
 				"type",
 				WorkflowDefinitionConstants.NAME_FIX_SPELLING_AND_GRAMMAR
 			).toString(),
-			"ai-hub/v1.0/by-external-reference-code/" + sseEventSinkKey +
-				"/tasks",
-			Http.Method.POST);
+			"ai-hub/v1.0/tasks", Http.Method.POST);
 
 		Assert.assertTrue(countDownLatch.await(10, TimeUnit.SECONDS));
 
@@ -331,9 +397,101 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 		Assert.assertEquals("event: Fix Spelling and Grammar", lines.get(2));
 		Assert.assertEquals(
 			"data: {\"data\":\"This text is wrong.\"}", lines.get(3));
+
+		IdempotentRetryAssert.retryAssert(
+			5, TimeUnit.SECONDS, 1, TimeUnit.SECONDS,
+			() -> {
+				WorkflowInstance workflowInstance =
+					_workflowInstanceManager.getWorkflowInstance(
+						TestPropsValues.getCompanyId(),
+						jsonObject.getLong("externalReferenceCode"));
+
+				Map<String, Serializable> workflowContext =
+					workflowInstance.getWorkflowContext();
+
+				String rewrittenText = GetterUtil.getString(
+					workflowContext.get("rewrittenText"));
+
+				Assert.assertEquals("This text is wrong.", rewrittenText);
+
+				return null;
+			});
+
+		SseUtil.closeAll();
 	}
 
-	private void _testPostByExternalReferenceCodeTaskWithTypeLLMNodeWithToolWorkflowDefinition()
+	private void _testPostTaskWithTypeLLMNodeWithRAGWorkflowDefinition()
+		throws Exception {
+
+		CountDownLatch countDownLatch1 = new CountDownLatch(4);
+		CountDownLatch countDownLatch2 = new CountDownLatch(6);
+		List<String> lines = new ArrayList<>();
+
+		String sseEventSinkKey = SseEventSourceTestUtil.open(
+			List.of(countDownLatch1, countDownLatch2), lines,
+			"tasks/subscribe");
+
+		HTTPTestUtil.invokeToJSONObject(
+			JSONUtil.put(
+				"context",
+				JSONUtil.put("userMessage", "What is Feliphe's favorite food?")
+			).put(
+				"scope",
+				JSONUtil.put(
+					"externalReferenceCode", _group.getExternalReferenceCode())
+			).put(
+				"sseEventSinkKey", sseEventSinkKey
+			).put(
+				"type", "LLM Node With RAG Workflow Definition"
+			).toString(),
+			"ai-hub/v1.0/tasks", Http.Method.POST);
+
+		Assert.assertTrue(countDownLatch1.await(10, TimeUnit.SECONDS));
+
+		Assert.assertEquals(lines.toString(), 4, lines.size());
+
+		String response = StringUtil.toLowerCase(lines.get(3));
+
+		Assert.assertFalse(response, response.contains("brazilian barbecue"));
+
+		_objectEntryLocalService.addObjectEntry(
+			0L, TestPropsValues.getUserId(),
+			_objectDefinition.getObjectDefinitionId(), 0,
+			LocaleUtil.toLanguageId(LocaleUtil.getDefault()),
+			HashMapBuilder.<String, Serializable>put(
+				"description", "His favorite food is Brazilian barbecue."
+			).put(
+				"name", "Feliphe"
+			).build(),
+			ServiceContextTestUtil.getServiceContext());
+
+		HTTPTestUtil.invokeToJSONObject(
+			JSONUtil.put(
+				"context",
+				JSONUtil.put("userMessage", "What is Feliphe's favorite food?")
+			).put(
+				"scope",
+				JSONUtil.put(
+					"externalReferenceCode", _group.getExternalReferenceCode())
+			).put(
+				"sseEventSinkKey", sseEventSinkKey
+			).put(
+				"type", "LLM Node With RAG Workflow Definition"
+			).toString(),
+			"ai-hub/v1.0/tasks", Http.Method.POST);
+
+		Assert.assertTrue(countDownLatch2.await(10, TimeUnit.SECONDS));
+
+		Assert.assertEquals(lines.toString(), 6, lines.size());
+
+		response = StringUtil.toLowerCase(lines.get(5));
+
+		Assert.assertTrue(response, response.contains("brazilian barbecue"));
+
+		SseUtil.closeAll();
+	}
+
+	private void _testPostTaskWithTypeLLMNodeWithToolWorkflowDefinition()
 		throws Exception {
 
 		CountDownLatch countDownLatch = new CountDownLatch(4);
@@ -352,11 +510,11 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 				JSONUtil.put(
 					"externalReferenceCode", _group.getExternalReferenceCode())
 			).put(
+				"sseEventSinkKey", sseEventSinkKey
+			).put(
 				"type", "LLM Node With Tool Workflow Definition"
 			).toString(),
-			"ai-hub/v1.0/by-external-reference-code/" + sseEventSinkKey +
-				"/tasks",
-			Http.Method.POST);
+			"ai-hub/v1.0/tasks", Http.Method.POST);
 
 		Assert.assertTrue(countDownLatch.await(10, TimeUnit.SECONDS));
 
@@ -365,12 +523,15 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 		String response = StringUtil.toLowerCase(lines.get(3));
 
 		Assert.assertTrue(response, response.contains("yes"));
+
+		SseUtil.closeAll();
 	}
 
 	@Inject
 	private static ClassNameLocalService _classNameLocalService;
 
 	private static Group _group;
+	private static ObjectDefinition _mcpServerObjectDefinition;
 	private static ObjectDefinition _objectDefinition;
 
 	@Inject
@@ -380,6 +541,7 @@ public class TaskResourceTest extends BaseTaskResourceTestCase {
 	private static ObjectEntryLocalService _objectEntryLocalService;
 
 	private static String _originalName;
+	private static PermissionChecker _originalPermissionChecker;
 
 	@Inject
 	private static SiteInitializerRegistry _siteInitializerRegistry;

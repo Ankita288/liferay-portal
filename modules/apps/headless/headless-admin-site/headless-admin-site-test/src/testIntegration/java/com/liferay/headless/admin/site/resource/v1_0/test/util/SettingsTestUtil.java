@@ -14,11 +14,14 @@ import com.liferay.document.library.kernel.model.DLFolder;
 import com.liferay.document.library.kernel.service.DLFileEntryLocalServiceUtil;
 import com.liferay.document.library.test.util.DLTestUtil;
 import com.liferay.headless.admin.site.client.dto.v1_0.ClientExtension;
+import com.liferay.headless.admin.site.client.dto.v1_0.ContentPageSpecification;
 import com.liferay.headless.admin.site.client.dto.v1_0.FavIcon;
 import com.liferay.headless.admin.site.client.dto.v1_0.FavIconClientExtension;
 import com.liferay.headless.admin.site.client.dto.v1_0.FavIconItemExternalReference;
 import com.liferay.headless.admin.site.client.dto.v1_0.ItemExternalReference;
+import com.liferay.headless.admin.site.client.dto.v1_0.PageSpecification;
 import com.liferay.headless.admin.site.client.dto.v1_0.Settings;
+import com.liferay.headless.admin.site.client.dto.v1_0.WidgetPageSpecification;
 import com.liferay.headless.admin.site.client.scope.Scope;
 import com.liferay.layout.page.template.model.LayoutPageTemplateEntry;
 import com.liferay.layout.page.template.service.LayoutPageTemplateEntryLocalServiceUtil;
@@ -84,7 +87,10 @@ public class SettingsTestUtil {
 		FavIcon favIcon = settings.getFavIcon();
 
 		if (favIcon == null) {
-			Assert.assertEquals(0, layout.getFaviconFileEntryId());
+			Assert.assertTrue(
+				Validator.isNull(layout.getFaviconFileEntryERC()));
+			Assert.assertTrue(
+				Validator.isNull(layout.getFaviconFileEntryScopeERC()));
 		}
 		else if (favIcon instanceof FavIconClientExtension) {
 			favIconClientExtension = (FavIconClientExtension)favIcon;
@@ -97,13 +103,15 @@ public class SettingsTestUtil {
 			Assert.fail("Unexpected class: " + favIcon.getClass());
 		}
 
-		if (layout.getFaviconFileEntryId() == 0) {
+		if (Validator.isNull(layout.getFaviconFileEntryERC())) {
 			Assert.assertNull(favIconItemExternalReference);
 		}
 		else {
 			DLFileEntry dlFileEntry =
-				DLFileEntryLocalServiceUtil.fetchDLFileEntry(
-					layout.getFaviconFileEntryId());
+				DLFileEntryLocalServiceUtil.
+					fetchDLFileEntryByExternalReferenceCode(
+						layout.getFaviconFileEntryERC(),
+						layout.getFaviconFileEntryGroupId());
 
 			Assert.assertEquals(
 				dlFileEntry.getExternalReferenceCode(),
@@ -362,6 +370,28 @@ public class SettingsTestUtil {
 		FavIcon.FavIconType favIconType, ServiceContext serviceContext) {
 
 		return getSettings(favIconType, false, serviceContext);
+	}
+
+	public static Settings getSettings(PageSpecification pageSpecification) {
+		if (pageSpecification == null) {
+			return null;
+		}
+
+		if (pageSpecification instanceof ContentPageSpecification) {
+			ContentPageSpecification contentPageSpecification =
+				(ContentPageSpecification)pageSpecification;
+
+			return contentPageSpecification.getSettings();
+		}
+
+		if (pageSpecification instanceof WidgetPageSpecification) {
+			WidgetPageSpecification widgetPageSpecification =
+				(WidgetPageSpecification)pageSpecification;
+
+			return widgetPageSpecification.getSettings();
+		}
+
+		return null;
 	}
 
 	public static ItemExternalReference getStyleBookItemExternalReference(

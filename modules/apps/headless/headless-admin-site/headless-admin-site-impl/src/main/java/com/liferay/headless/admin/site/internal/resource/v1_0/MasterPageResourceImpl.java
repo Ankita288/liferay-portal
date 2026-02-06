@@ -106,7 +106,8 @@ public class MasterPageResourceImpl
 
 			@Override
 			public List<String> getNestedFields() {
-				return List.of("friendlyUrlHistory", "pageSpecifications");
+				return List.of(
+					"friendlyUrlHistory", "pageSpecifications", "thumbnail");
 			}
 
 			@Override
@@ -127,6 +128,11 @@ public class MasterPageResourceImpl
 			@Override
 			public boolean isActive(PortletDataContext portletDataContext) {
 				return FeatureFlagManagerUtil.isEnabled("LPD-35443");
+			}
+
+			@Override
+			public boolean isStagingSupported() {
+				return true;
 			}
 
 		};
@@ -272,8 +278,11 @@ public class MasterPageResourceImpl
 			return _addMasterPage(groupId, masterPage);
 		}
 
+		ServiceContext serviceContext = _getServiceContext(groupId, masterPage);
+
 		long previewFileEntryId = FileEntryUtil.getPreviewFileEntryId(
-			groupId, masterPage.getThumbnail());
+			groupId, getResourceName(), serviceContext,
+			masterPage.getThumbnailURLReference());
 
 		if (previewFileEntryId !=
 				layoutPageTemplateEntry.getPreviewFileEntryId()) {
@@ -286,8 +295,6 @@ public class MasterPageResourceImpl
 
 		Layout layout = _layoutLocalService.getLayout(
 			layoutPageTemplateEntry.getPlid());
-
-		ServiceContext serviceContext = _getServiceContext(groupId, masterPage);
 
 		layout = LayoutUtil.updateContentLayout(
 			_cetManager, _fragmentEntryProcessorRegistry,
@@ -367,8 +374,9 @@ public class MasterPageResourceImpl
 				masterPage::getTaxonomyCategoryItemExternalReferences);
 		}
 
-		if (masterPage.getThumbnail() != null) {
-			existingMasterPage.setThumbnail(masterPage::getThumbnail);
+		if (masterPage.getThumbnailURLReference() != null) {
+			existingMasterPage.setThumbnailURLReference(
+				masterPage::getThumbnailURLReference);
 		}
 	}
 
@@ -391,7 +399,8 @@ public class MasterPageResourceImpl
 				masterPage.getKey(), 0, 0, masterPage.getName(),
 				LayoutPageTemplateEntryTypeConstants.MASTER_LAYOUT,
 				FileEntryUtil.getPreviewFileEntryId(
-					groupId, masterPage.getThumbnail()),
+					groupId, getResourceName(), serviceContext,
+					masterPage.getThumbnailURLReference()),
 				defaultTemplate, 0,
 				_getLayoutPlid(groupId, masterPage, serviceContext), 0,
 				PageSpecificationUtil.getPublishedStatus(
@@ -432,7 +441,7 @@ public class MasterPageResourceImpl
 			contextCompany.getCompanyId(), masterPage.getDateCreated(), groupId,
 			contextHttpServletRequest, masterPage.getKeywords(),
 			masterPage.getDateModified(), contextUser.getUserId(),
-			masterPage.getUuid(), null);
+			masterPage.getUuid());
 	}
 
 	private static final EntityModel _entityModel = new MasterPageEntityModel();

@@ -135,6 +135,7 @@
 				}
 			},
 			"Comment": {
+				"description": "Optional field with the comments associated with this object entry, can be embedded with nestedFields",
 				"properties": {
 					"actions": {
 						"additionalProperties": {
@@ -180,6 +181,10 @@
 						"readOnly": true,
 						"type": "integer"
 					},
+					"parentCommentExternalReferenceCode": {
+						"description": "The parent comment's external reference code.",
+						"type": "string"
+					},
 					"parentCommentId": {
 						"description": "The ID of the comment's parent, if it exists.",
 						"format": "int64",
@@ -212,6 +217,7 @@
 				}
 			},
 			"Creator": {
+				"description": "The comment's author.",
 				"properties": {
 					"additionalName": {
 						"description": "The author's additional name (e.g., middle name).",
@@ -330,6 +336,13 @@
 						"readOnly": true,
 						"type": "array",
 						"x-batch-unsupported-formats": "CSV"
+					},
+					"comments": {
+						"description": "Optional field with the comments associated with this object entry, can be embedded with nestedFields",
+						"items": {
+							"$ref": "#/components/schemas/Comment"
+						},
+						"type": "array"
 					},
 					"creator": {
 						"readOnly": true,
@@ -526,6 +539,12 @@
 			},
 			"ObjectDefinitionBrief": {
 				"properties": {
+					"classNameId": {
+						"description": "The object definition's class name ID.",
+						"format": "int64",
+						"readOnly": true,
+						"type": "integer"
+					},
 					"externalReferenceCode": {
 						"description": "The object definition's external reference code.",
 						"readOnly": true,
@@ -574,6 +593,50 @@
 					"items": {
 						"items": {
 							"$ref": "#/components/schemas/Collaborator"
+						},
+						"type": "array"
+					},
+					"lastPage": {
+						"format": "int64",
+						"type": "integer"
+					},
+					"page": {
+						"format": "int64",
+						"type": "integer"
+					},
+					"pageSize": {
+						"format": "int64",
+						"type": "integer"
+					},
+					"totalCount": {
+						"format": "int64",
+						"type": "integer"
+					}
+				},
+				"type": "object",
+				"x-filterable": {
+				}
+			},
+			"PageComment": {
+				"properties": {
+					"actions": {
+						"additionalProperties": {
+							"additionalProperties": {
+								"type": "string"
+							},
+							"type": "object"
+						},
+						"type": "object"
+					},
+					"facets": {
+						"items": {
+							"$ref": "#/components/schemas/Facet"
+						},
+						"type": "array"
+					},
+					"items": {
+						"items": {
+							"$ref": "#/components/schemas/Comment"
 						},
 						"type": "array"
 					},
@@ -692,6 +755,7 @@
 				}
 			},
 			"ParentTaxonomyCategory": {
+				"description": "The category's parent category.",
 				"properties": {
 					"externalReferenceCode": {
 						"description": "The parent taxonomy category's external reference code.",
@@ -711,6 +775,7 @@
 				}
 			},
 			"ParentTaxonomyVocabulary": {
+				"description": "The parent category's `TaxonomyVocabulary`.",
 				"properties": {
 					"externalReferenceCode": {
 						"description": "The parent category's `TaxonomyVocabulary` external reference code.",
@@ -2133,6 +2198,103 @@
 			}
 		},
 		"/scopes/{scopeKey}/by-external-reference-code/{externalReferenceCode}/comments": {
+			"get": {
+				"operationId": "getScopeScopeKeyByExternalReferenceCodeCommentsPage",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "scopeKey",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "externalReferenceCode",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "aggregationTerms",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "fields",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "nestedFields",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "pageSize",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "restrictFields",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "search",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "sort",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PageComment"
+								}
+							},
+							"application/xml": {
+								"schema": {
+									"$ref": "#/components/schemas/PageComment"
+								}
+							}
+						},
+						"description": "default response"
+					}
+				},
+				"tags": [
+					"Comment"
+				]
+			},
 			"post": {
 				"operationId": "postScopeScopeKeyByExternalReferenceCodeComment",
 				"parameters": [
@@ -2185,7 +2347,7 @@
 					}
 				},
 				"tags": [
-					"Object8"
+					"Comment"
 				]
 			}
 		},
@@ -2230,7 +2392,56 @@
 					}
 				},
 				"tags": [
-					"Object8"
+					"Comment"
+				]
+			},
+			"get": {
+				"operationId": "getScopeScopeKeyByExternalReferenceCodeComment",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "scopeKey",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "externalReferenceCode",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "commentExternalReferenceCode",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Comment"
+								}
+							},
+							"application/xml": {
+								"schema": {
+									"$ref": "#/components/schemas/Comment"
+								}
+							}
+						},
+						"description": "default response"
+					}
+				},
+				"tags": [
+					"Comment"
 				]
 			},
 			"put": {
@@ -2293,13 +2504,118 @@
 					}
 				},
 				"tags": [
-					"Object8"
+					"Comment"
 				]
 			}
 		},
-		"/scopes/{scopeKey}/by-external-reference-code/{externalReferenceCode}/comments/{commentExternalReferenceCode}/reply-comments": {
+		"/scopes/{scopeKey}/by-external-reference-code/{externalReferenceCode}/comments/{commentExternalReferenceCode}/child-comments": {
+			"get": {
+				"operationId": "getScopeScopeKeyByExternalReferenceCodeCommentChildCommentsPage",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "scopeKey",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "externalReferenceCode",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "commentExternalReferenceCode",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "aggregationTerms",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "fields",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "nestedFields",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "pageSize",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "restrictFields",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "search",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "sort",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PageComment"
+								}
+							},
+							"application/xml": {
+								"schema": {
+									"$ref": "#/components/schemas/PageComment"
+								}
+							}
+						},
+						"description": "default response"
+					}
+				},
+				"tags": [
+					"Comment"
+				]
+			},
 			"post": {
-				"operationId": "postScopeScopeKeyByExternalReferenceCodeCommentReplyComment",
+				"operationId": "postScopeScopeKeyByExternalReferenceCodeCommentChildComment",
 				"parameters": [
 					{
 						"in": "path",
@@ -2358,7 +2674,7 @@
 					}
 				},
 				"tags": [
-					"Object8"
+					"Comment"
 				]
 			}
 		},
@@ -2475,6 +2791,114 @@
 							"application/json": {
 							},
 							"application/xml": {
+							}
+						},
+						"description": "default response"
+					}
+				},
+				"tags": [
+					"Object8"
+				]
+			}
+		},
+		"/scopes/{scopeKey}/by-external-reference-code/{externalReferenceCode}/translations": {
+			"get": {
+				"operationId": "getScopeScopeKeyByExternalReferenceCodeTranslation",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "scopeKey",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "externalReferenceCode",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "sourceLanguageId",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "targetLanguageIds",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "version",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"default": {
+						"content": {
+							"application/zip": {
+							}
+						},
+						"description": "default response"
+					}
+				},
+				"tags": [
+					"Object8"
+				]
+			}
+		},
+		"/scopes/{scopeKey}/by-external-reference-code/{externalReferenceCode}/translations/{languageId}": {
+			"get": {
+				"operationId": "getScopeScopeKeyByExternalReferenceCodeTranslationLanguage",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "scopeKey",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "externalReferenceCode",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "languageId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "targetLanguageId",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"default": {
+						"content": {
+							"application/x-xliff+xml": {
+							},
+							"application/xliff+xml": {
 							}
 						},
 						"description": "default response"
@@ -2991,213 +3415,6 @@
 				]
 			}
 		},
-		"/{object8Id}/by-version/{version}": {
-			"delete": {
-				"operationId": "deleteObject8ByVersion",
-				"parameters": [
-					{
-						"in": "path",
-						"name": "object8Id",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"in": "path",
-						"name": "version",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"responses": {
-					"default": {
-						"content": {
-							"application/json": {
-							},
-							"application/xml": {
-							}
-						},
-						"description": "default response"
-					}
-				},
-				"tags": [
-					"Object8"
-				]
-			},
-			"get": {
-				"operationId": "getObject8ByVersion",
-				"parameters": [
-					{
-						"in": "path",
-						"name": "object8Id",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"in": "path",
-						"name": "version",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"responses": {
-					"default": {
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							},
-							"application/xml": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							}
-						},
-						"description": "default response"
-					}
-				},
-				"tags": [
-					"Object8"
-				]
-			}
-		},
-		"/{object8Id}/by-version/{version}/copy": {
-			"post": {
-				"operationId": "postObject8ByVersionCopy",
-				"parameters": [
-					{
-						"in": "path",
-						"name": "object8Id",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"in": "path",
-						"name": "version",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"responses": {
-					"default": {
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							},
-							"application/xml": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							}
-						},
-						"description": "default response"
-					}
-				},
-				"tags": [
-					"Object8"
-				]
-			}
-		},
-		"/{object8Id}/by-version/{version}/expire": {
-			"post": {
-				"operationId": "postObject8ByVersionExpire",
-				"parameters": [
-					{
-						"in": "path",
-						"name": "object8Id",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"in": "path",
-						"name": "version",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"responses": {
-					"default": {
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							},
-							"application/xml": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							}
-						},
-						"description": "default response"
-					}
-				},
-				"tags": [
-					"Object8"
-				]
-			}
-		},
-		"/{object8Id}/by-version/{version}/restore": {
-			"put": {
-				"operationId": "putObject8ByVersionRestore",
-				"parameters": [
-					{
-						"in": "path",
-						"name": "object8Id",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"in": "path",
-						"name": "version",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"responses": {
-					"default": {
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							},
-							"application/xml": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							}
-						},
-						"description": "default response"
-					}
-				},
-				"tags": [
-					"Object8"
-				]
-			}
-		},
 		"/{object8Id}/collaborators": {
 			"get": {
 				"description": "Retrieves the collaborators of an object entry.",
@@ -3552,41 +3769,6 @@
 				]
 			}
 		},
-		"/{object8Id}/expire": {
-			"post": {
-				"operationId": "postObject8Expire",
-				"parameters": [
-					{
-						"in": "path",
-						"name": "object8Id",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"responses": {
-					"default": {
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							},
-							"application/xml": {
-								"schema": {
-									"$ref": "#/components/schemas/Object8"
-								}
-							}
-						},
-						"description": "default response"
-					}
-				},
-				"tags": [
-					"Object8"
-				]
-			}
-		},
 		"/{object8Id}/permissions": {
 			"get": {
 				"operationId": "getObject8PermissionsPage",
@@ -3703,9 +3885,9 @@
 				]
 			}
 		},
-		"/{object8Id}/versions": {
+		"/{object8Id}/translations": {
 			"get": {
-				"operationId": "getObject8sVersionsPage",
+				"operationId": "getObject8Translation",
 				"parameters": [
 					{
 						"in": "path",
@@ -3717,28 +3899,21 @@
 					},
 					{
 						"in": "query",
-						"name": "nestedFields",
+						"name": "sourceLanguageId",
 						"schema": {
 							"type": "string"
 						}
 					},
 					{
 						"in": "query",
-						"name": "page",
+						"name": "targetLanguageIds",
 						"schema": {
 							"type": "string"
 						}
 					},
 					{
 						"in": "query",
-						"name": "pageSize",
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"in": "query",
-						"name": "sort",
+						"name": "version",
 						"schema": {
 							"type": "string"
 						}
@@ -3747,15 +3922,51 @@
 				"responses": {
 					"default": {
 						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/PageObject8"
-								}
+							"application/zip": {
+							}
+						},
+						"description": "default response"
+					}
+				},
+				"tags": [
+					"Object8"
+				]
+			}
+		},
+		"/{object8Id}/translations/{languageId}": {
+			"get": {
+				"operationId": "getObject8TranslationLanguage",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "object8Id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "languageId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "targetLanguageId",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"default": {
+						"content": {
+							"application/x-xliff+xml": {
 							},
-							"application/xml": {
-								"schema": {
-									"$ref": "#/components/schemas/PageObject8"
-								}
+							"application/xliff+xml": {
 							}
 						},
 						"description": "default response"

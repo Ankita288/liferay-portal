@@ -9,17 +9,33 @@ import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.petra.process.local.LocalProcessLauncher;
 import com.liferay.petra.string.CharPool;
 import com.liferay.petra.string.StringUtil;
+import com.liferay.portal.kernel.cache.PortalCache;
+import com.liferay.portal.kernel.cache.PortalCacheListener;
+import com.liferay.portal.kernel.cache.PortalCacheManager;
+import com.liferay.portal.kernel.cache.PortalCacheManagerNames;
+import com.liferay.portal.kernel.cache.PortalCacheManagerProvider;
 import com.liferay.portal.kernel.cluster.ClusterExecutorUtil;
 import com.liferay.portal.kernel.cluster.ClusterMasterExecutorUtil;
 import com.liferay.portal.kernel.cluster.ClusterMasterTokenTransitionListener;
 import com.liferay.portal.kernel.cluster.ClusterNode;
+import com.liferay.portal.kernel.cluster.ClusterableInvokerUtil;
+import com.liferay.portal.kernel.dao.orm.EntityCache;
+import com.liferay.portal.kernel.feature.flag.FeatureFlagListener;
+import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.log4j.Log4JUtil;
+import com.liferay.portal.kernel.model.CacheModel;
+import com.liferay.portal.kernel.model.Company;
 import com.liferay.portal.kernel.module.util.SystemBundleUtil;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
+import com.liferay.portal.kernel.service.CompanyLocalServiceUtil;
 import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.kernel.test.rule.TomcatClusterTestRule;
+import com.liferay.portal.kernel.test.util.CompanyTestUtil;
+import com.liferay.portal.kernel.util.MapUtil;
+import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.PropsUtil;
+import com.liferay.portal.model.impl.CompanyImpl;
 import com.liferay.portal.test.cluster.tomcat.TomcatCluster;
 import com.liferay.portal.test.cluster.tomcat.TomcatNode;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
@@ -90,6 +106,12 @@ public class ClusterGeneralTest implements Serializable {
 	}
 
 	@Test
+	public void testCanCreateVirtualInstanceWithClustering() throws Exception {
+		_testCanCreateVirtualInstanceWithClustering(_tomcatNode1, _tomcatNode2);
+		_testCanCreateVirtualInstanceWithClustering(_tomcatNode2, _tomcatNode1);
+	}
+
+	@Test
 	public void testCanUpdateLogLevelsForAllNodesFromMaster() throws Exception {
 		_testCanUpdateLogLevelsForAllNodes(_tomcatNode2, _tomcatNode1, true);
 	}
@@ -108,6 +130,12 @@ public class ClusterGeneralTest implements Serializable {
 			true,
 			PropsKeys.CLUSTER_LINK_CHANNEL_PROPERTIES_CONTROL + "=udp.xml",
 			"cluster.link.channel.properties.transport.0=udp.xml");
+	}
+
+	@Test
+	public void testEnableAndDisableFeatureFlag() throws Exception {
+		_testEnableAndDisableFeatureFlag(_tomcatNode1, _tomcatNode2);
+		_testEnableAndDisableFeatureFlag(_tomcatNode2, _tomcatNode1);
 	}
 
 	@Test
@@ -260,6 +288,21 @@ public class ClusterGeneralTest implements Serializable {
 				}));
 	}
 
+	private AutoCloseable _disableClusterableAdviceCallMasterTimeout(
+			TomcatNode tomcatNode)
+		throws Exception {
+
+		long originaTimeout = tomcatNode.syncExecute(
+			() -> ReflectionTestUtil.getAndSetFieldValue(
+				ClusterableInvokerUtil.class,
+				"_CLUSTERABLE_ADVICE_CALL_MASTER_TIMEOUT", 0L));
+
+		return () -> tomcatNode.syncExecute(
+			() -> ReflectionTestUtil.getAndSetFieldValue(
+				ClusterableInvokerUtil.class,
+				"_CLUSTERABLE_ADVICE_CALL_MASTER_TIMEOUT", originaTimeout));
+	}
+
 	private MVCActionCommand _getEditServerMVCActionCommand()
 		throws InvalidSyntaxException {
 
@@ -339,6 +382,68 @@ public class ClusterGeneralTest implements Serializable {
 		// Assert mutual visibility with the new restart node
 
 		_assertNodesVisibleToEachOther(restartTomcatNode, verifierTomcatNode);
+	}
+
+	private void _setEnabledForFeatureFlags(
+			long companyId, String key, boolean enabled)
+		throws Exception {
+
+		SystemBundleUtil.callService(
+			"com.liferay.feature.flag.web.internal.feature.flag." +
+				"FeatureFlagsBagProvider",
+			featureFlagsBagProvider -> {
+				ReflectionTestUtil.invoke(
+					featureFlagsBagProvider, "setEnabled",
+					new Class<?>[] {long.class, String.class, boolean.class},
+					companyId, key, enabled);
+
+				return null;
+			});
+	}
+
+	private void _testCanCreateVirtualInstanceWithClustering(
+			TomcatNode mutatorTomcatNode, TomcatNode observerTomcatNode)
+		throws Exception {
+
+		try (AutoCloseable autoCloseable1 =
+				_disableClusterableAdviceCallMasterTimeout(mutatorTomcatNode);
+			AutoCloseable autoCloseable2 =
+				_disableClusterableAdviceCallMasterTimeout(
+					observerTomcatNode)) {
+
+			long companyId = mutatorTomcatNode.syncExecute(
+				() -> {
+					Company company = CompanyTestUtil.addCompany();
+
+					return company.getCompanyId();
+				});
+
+			Assert.assertNotNull(
+				observerTomcatNode.syncExecute(
+					() -> CompanyLocalServiceUtil.fetchCompany(companyId)));
+
+			observerTomcatNode.syncExecute(
+				() -> {
+					TestPortalCacheListener.register(companyId);
+
+					return null;
+				});
+
+			Assert.assertNull(
+				mutatorTomcatNode.syncExecute(
+					() -> {
+						CompanyLocalServiceUtil.deleteCompany(companyId);
+
+						return CompanyLocalServiceUtil.fetchCompany(companyId);
+					}));
+			Assert.assertNull(
+				observerTomcatNode.syncExecute(
+					() -> {
+						TestPortalCacheListener.await();
+
+						return CompanyLocalServiceUtil.fetchCompany(companyId);
+					}));
+		}
 	}
 
 	private void _testCanUpdateLogLevelsForAllNodes(
@@ -477,6 +582,67 @@ public class ClusterGeneralTest implements Serializable {
 		}
 	}
 
+	private void _testEnableAndDisableFeatureFlag(
+			TomcatNode mutatorTomcatNode, TomcatNode observerTomcatNode)
+		throws Exception {
+
+		String key = "LPS-170670";
+
+		observerTomcatNode.syncExecute(
+			() -> {
+				TestFeatureFlagListener.register(
+					PortalUtil.getDefaultCompanyId(), key);
+
+				return null;
+			});
+
+		Assert.assertTrue(
+			mutatorTomcatNode.syncExecute(
+				() -> {
+					_setEnabledForFeatureFlags(
+						PortalUtil.getDefaultCompanyId(), key, true);
+
+					return FeatureFlagManagerUtil.isEnabled(
+						PortalUtil.getDefaultCompanyId(), key);
+				}));
+
+		Assert.assertTrue(
+			observerTomcatNode.syncExecute(
+				() -> {
+					TestFeatureFlagListener.await();
+
+					return FeatureFlagManagerUtil.isEnabled(
+						PortalUtil.getDefaultCompanyId(), key);
+				}));
+
+		observerTomcatNode.syncExecute(
+			() -> {
+				TestFeatureFlagListener.register(
+					PortalUtil.getDefaultCompanyId(), key);
+
+				return null;
+			});
+
+		Assert.assertFalse(
+			mutatorTomcatNode.syncExecute(
+				() -> {
+					_setEnabledForFeatureFlags(
+						PortalUtil.getDefaultCompanyId(), key, false);
+
+					return FeatureFlagManagerUtil.isEnabled(
+						PortalUtil.getDefaultCompanyId(), key);
+				}));
+
+		Assert.assertFalse(
+			observerTomcatNode.syncExecute(
+				() -> {
+					TestFeatureFlagListener.await();
+
+					return FeatureFlagManagerUtil.isEnabled(
+						PortalUtil.getDefaultCompanyId(), key);
+				}));
+	}
+
 	private static transient TomcatNode _tomcatNode1;
 	private static transient TomcatNode _tomcatNode2;
 
@@ -535,6 +701,164 @@ public class ClusterGeneralTest implements Serializable {
 
 		private final CountDownLatch _countDownLatch = new CountDownLatch(1);
 		private ServiceRegistration<?> _serviceRegistration;
+
+	}
+
+	private static class TestFeatureFlagListener
+		implements FeatureFlagListener {
+
+		public static void await() throws Exception {
+			Map<String, Object> attributes =
+				LocalProcessLauncher.ProcessContext.getAttributes();
+
+			TestFeatureFlagListener testFeatureFlagListener =
+				(TestFeatureFlagListener)attributes.remove(
+					TestFeatureFlagListener.class.getName());
+
+			CountDownLatch countDownLatch =
+				testFeatureFlagListener._countDownLatch;
+
+			countDownLatch.await();
+
+			ServiceRegistration<?> serviceRegistration =
+				testFeatureFlagListener._serviceRegistration;
+
+			serviceRegistration.unregister();
+		}
+
+		public static void register(long companyId, String featureFlagKey) {
+			BundleContext bundleContext = SystemBundleUtil.getBundleContext();
+
+			TestFeatureFlagListener testFeatureFlagListener =
+				new TestFeatureFlagListener(companyId);
+
+			testFeatureFlagListener._serviceRegistration =
+				bundleContext.registerService(
+					FeatureFlagListener.class, testFeatureFlagListener,
+					MapUtil.singletonDictionary(
+						"feature.flag.key", featureFlagKey));
+
+			Map<String, Object> attributes =
+				LocalProcessLauncher.ProcessContext.getAttributes();
+
+			attributes.put(
+				TestFeatureFlagListener.class.getName(),
+				testFeatureFlagListener);
+		}
+
+		@Override
+		public void onValue(
+			long companyId, String featureFlagKey, boolean enabled) {
+
+			if (companyId == _companyId) {
+				_countDownLatch.countDown();
+			}
+		}
+
+		private TestFeatureFlagListener(long companyId) {
+			_companyId = companyId;
+		}
+
+		private final long _companyId;
+		private final CountDownLatch _countDownLatch = new CountDownLatch(2);
+		private ServiceRegistration<?> _serviceRegistration;
+
+	}
+
+	private static class TestPortalCacheListener
+		implements PortalCacheListener<Long, CacheModel<?>> {
+
+		public static void await() throws Exception {
+			Map<String, Object> attributes =
+				LocalProcessLauncher.ProcessContext.getAttributes();
+
+			AutoCloseable autoCloseable = (AutoCloseable)attributes.remove(
+				TestPortalCacheListener.class.getName());
+
+			autoCloseable.close();
+		}
+
+		public static void register(long companyId) {
+			PortalCacheManager<? extends Serializable, ?> portalCacheManager =
+				PortalCacheManagerProvider.getPortalCacheManager(
+					PortalCacheManagerNames.MULTI_VM);
+
+			PortalCache<Long, CacheModel<?>> portalCache =
+				(PortalCache<Long, CacheModel<?>>)
+					portalCacheManager.fetchPortalCache(
+						EntityCache.class.getName() + "." +
+							CompanyImpl.class.getName());
+
+			TestPortalCacheListener testPortalCacheListener =
+				new TestPortalCacheListener(companyId);
+
+			portalCache.registerPortalCacheListener(testPortalCacheListener);
+
+			CountDownLatch countDownLatch =
+				testPortalCacheListener._countDownLatch;
+
+			Map<String, Object> attributes =
+				LocalProcessLauncher.ProcessContext.getAttributes();
+
+			attributes.put(
+				TestPortalCacheListener.class.getName(),
+				(AutoCloseable)() -> {
+					countDownLatch.await();
+
+					portalCache.unregisterPortalCacheListener(
+						testPortalCacheListener);
+				});
+		}
+
+		@Override
+		public void dispose() {
+		}
+
+		@Override
+		public void notifyEntryEvicted(
+			PortalCache<Long, CacheModel<?>> portalCache, Long key,
+			CacheModel<?> value, int timeToLive) {
+		}
+
+		@Override
+		public void notifyEntryExpired(
+			PortalCache<Long, CacheModel<?>> portalCache, Long key,
+			CacheModel<?> value, int timeToLive) {
+		}
+
+		@Override
+		public void notifyEntryPut(
+			PortalCache<Long, CacheModel<?>> portalCache, Long key,
+			CacheModel<?> value, int timeToLive) {
+		}
+
+		@Override
+		public void notifyEntryRemoved(
+			PortalCache<Long, CacheModel<?>> portalCache, Long key,
+			CacheModel<?> value, int timeToLive) {
+
+			if (key == _companyId) {
+				_countDownLatch.countDown();
+			}
+		}
+
+		@Override
+		public void notifyEntryUpdated(
+			PortalCache<Long, CacheModel<?>> portalCache, Long key,
+			CacheModel<?> value, int timeToLive) {
+		}
+
+		@Override
+		public void notifyRemoveAll(
+			PortalCache<Long, CacheModel<?>> portalCache) {
+		}
+
+		private TestPortalCacheListener(long companyId) {
+			_companyId = companyId;
+		}
+
+		private final long _companyId;
+		private final CountDownLatch _countDownLatch = new CountDownLatch(1);
 
 	}
 

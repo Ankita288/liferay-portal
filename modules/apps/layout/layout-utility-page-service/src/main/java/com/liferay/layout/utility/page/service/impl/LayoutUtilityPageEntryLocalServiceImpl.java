@@ -40,6 +40,7 @@ import com.liferay.portal.kernel.service.ThemeLocalService;
 import com.liferay.portal.kernel.service.UserLocalService;
 import com.liferay.portal.kernel.systemevent.SystemEvent;
 import com.liferay.portal.kernel.util.File;
+import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.OrderByComparator;
 import com.liferay.portal.kernel.util.StringUtil;
@@ -104,6 +105,7 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 
 		if (plid == 0) {
 			Layout layout = _addLayout(
+				layoutUtilityPageEntry.getExternalReferenceCode() + "-layout",
 				userId, groupId, name, masterLayoutPageTemplateEntryERC,
 				defaultLayoutUtilityPageEntry, serviceContext);
 
@@ -391,16 +393,29 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 
 	@Override
 	public LayoutUtilityPageEntry updateLayoutUtilityPageEntry(
-		long layoutUtilityPageEntryId, long previewFileEntryId) {
+			long layoutUtilityPageEntryId, long previewFileEntryId)
+		throws PortalException {
 
 		LayoutUtilityPageEntry layoutUtilityPageEntry =
-			layoutUtilityPageEntryPersistence.fetchByPrimaryKey(
+			layoutUtilityPageEntryPersistence.findByPrimaryKey(
 				layoutUtilityPageEntryId);
 
 		layoutUtilityPageEntry.setModifiedDate(new Date());
+
+		long previousPreviewFileEntryId =
+			layoutUtilityPageEntry.getPreviewFileEntryId();
+
 		layoutUtilityPageEntry.setPreviewFileEntryId(previewFileEntryId);
 
-		return layoutUtilityPageEntryPersistence.update(layoutUtilityPageEntry);
+		layoutUtilityPageEntry = layoutUtilityPageEntryPersistence.update(
+			layoutUtilityPageEntry);
+
+		if ((previewFileEntryId == 0) && (previousPreviewFileEntryId > 0)) {
+			_portletFileRepository.deletePortletFileEntry(
+				previousPreviewFileEntryId);
+		}
+
+		return layoutUtilityPageEntry;
 	}
 
 	@Indexable(type = IndexableType.REINDEX)
@@ -446,7 +461,8 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 			draftLayout.getType(), draftLayout.isHidden(),
 			draftLayout.getFriendlyURLMap(), draftLayout.getIconImage(), null,
 			draftLayout.getStyleBookEntryERC(),
-			draftLayout.getFaviconFileEntryId(),
+			draftLayout.getFaviconFileEntryERC(),
+			draftLayout.getFaviconFileEntryScopeERC(),
 			draftLayout.getMasterLayoutPageTemplateEntryERC(), serviceContext);
 
 		Layout layout = _layoutLocalService.getLayout(
@@ -458,16 +474,17 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 			layout.getDescriptionMap(), layout.getKeywordsMap(),
 			layout.getRobotsMap(), layout.getType(), layout.isHidden(),
 			layout.getFriendlyURLMap(), layout.getIconImage(), null,
-			layout.getStyleBookEntryERC(), layout.getFaviconFileEntryId(),
+			layout.getStyleBookEntryERC(), layout.getFaviconFileEntryERC(),
+			layout.getFaviconFileEntryScopeERC(),
 			layout.getMasterLayoutPageTemplateEntryERC(), serviceContext);
 
 		return layoutUtilityPageEntry;
 	}
 
 	private Layout _addLayout(
-			long userId, long groupId, String name,
-			String masterLayoutPageTemplateEntryERC, boolean published,
-			ServiceContext serviceContext)
+			String externalReferenceCode, long userId, long groupId,
+			String name, String masterLayoutPageTemplateEntryERC,
+			boolean published, ServiceContext serviceContext)
 		throws PortalException {
 
 		Map<Locale, String> titleMap = Collections.singletonMap(
@@ -500,8 +517,11 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 			"layout.instanceable.allowed", Boolean.TRUE);
 
 		Layout layout = _layoutLocalService.addLayout(
-			null, userId, groupId, false, 0, 0, 0, titleMap, titleMap, null,
-			null, null, LayoutConstants.TYPE_UTILITY, typeSettings, true, true,
+			GetterUtil.getString(
+				serviceContext.getAttribute("layoutExternalReferenceCode"),
+				externalReferenceCode),
+			userId, groupId, false, 0, 0, 0, titleMap, titleMap, null, null,
+			null, LayoutConstants.TYPE_UTILITY, typeSettings, true, true,
 			new HashMap<>(), masterLayoutPageTemplateEntryERC, serviceContext);
 
 		Layout draftLayout = layout.fetchDraftLayout();

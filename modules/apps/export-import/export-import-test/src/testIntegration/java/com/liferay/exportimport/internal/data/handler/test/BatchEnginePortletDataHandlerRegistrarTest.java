@@ -151,7 +151,8 @@ public class BatchEnginePortletDataHandlerRegistrarTest {
 									portletId, className2, className2, true,
 									false, null, className2, null)
 							},
-							portletDataHandler.getExportControls()));
+							portletDataHandler.
+								getExportPortletDataHandlerControls()));
 
 				Assert.assertEquals(
 					1, _getRegisteredPortletDataHandlersCount(portletId));
@@ -192,7 +193,8 @@ public class BatchEnginePortletDataHandlerRegistrarTest {
 							portletDataHandler.getClassNames()) &&
 						_hasPortletDataHandlerControls(
 							new PortletDataHandlerControl[0],
-							portletDataHandler.getExportControls()));
+							portletDataHandler.
+								getExportPortletDataHandlerControls()));
 
 				safeCloseable3.close();
 
@@ -283,11 +285,11 @@ public class BatchEnginePortletDataHandlerRegistrarTest {
 					portletDataHandlerControls) {
 
 				if (Objects.equals(
-						expectedPortletDataHandlerControl.getControlName(),
-						portletDataHandlerControl.getControlName()) &&
+						expectedPortletDataHandlerControl.getName(),
+						portletDataHandlerControl.getName()) &&
 					Objects.equals(
-						expectedPortletDataHandlerControl.getControlLabel(),
-						portletDataHandlerControl.getControlLabel()) &&
+						expectedPortletDataHandlerControl.getLabel(),
+						portletDataHandlerControl.getLabel()) &&
 					(expectedPortletDataHandlerControl.isDisabled() ==
 						portletDataHandlerControl.isDisabled())) {
 

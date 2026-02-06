@@ -39,6 +39,7 @@ import {config as commerceInventoryWebConfig} from './tests/commerce/commerce-in
 import {config as commerceOrderContentWebConfig} from './tests/commerce/commerce-order-content-web/main/config';
 import {config as commerceOrderWebConfig} from './tests/commerce/commerce-order-web/main/config';
 import {config as commercePaymentsWebConfig} from './tests/commerce/commerce-payment-web/main/config';
+import {config as commercePricingWebConfig} from './tests/commerce/commerce-pricing-web/main/config';
 import {config as commerceProductAssetCategoriesWebConfig} from './tests/commerce/commerce-product-asset-categories-web/main/config';
 import {config as commerceProductContentSearchWebConfig} from './tests/commerce/commerce-product-content-search-web/main/config';
 import {config as commerceProductContentWebConfig} from './tests/commerce/commerce-product-content-web/main/config';
@@ -50,8 +51,13 @@ import {config as commerceTaxEngineWebConfig} from './tests/commerce/commerce-ta
 import {config as commerceThemeMiniumWebConfig} from './tests/commerce/commerce-theme-minium/main/config';
 import {config as commerceWishListWebConfig} from './tests/commerce/commerce-wish-list-web/main/config';
 import {config as configurationAdminWebConfig} from './tests/configuration-admin-web/main/config';
+import {config as systemSettingsOverrideConfig} from './tests/configuration-admin-web/override-properties-only/config';
+import {config as systemSettingsOverrideOsgiConfig} from './tests/configuration-admin-web/override-with-osgi/config';
+import {config as systemSettingsExportConfig} from './tests/configuration-admin-web/site-settings-export/config';
+import {config as systemSettingsWithUIConfig} from './tests/configuration-admin-web/system-settings-with-ui/config';
 import {config as contentDashboardWebConfig} from './tests/content-dashboard-web/main/config';
 import {config as cookiesBannerWebConfig} from './tests/cookies-banner-web/main/config';
+import {config as dataCleanupConfig} from './tests/data-cleanup/main/config';
 import {config as depotWebConfig} from './tests/depot-web/main/config';
 import {config as digitalSalesRoomWebConfig} from './tests/digital-sales-room-web/main/config';
 import {config as dispatchWebConfig} from './tests/dispatch-web/main/config';
@@ -94,6 +100,7 @@ import {config as layoutLockedLayoutsWebConfig} from './tests/layout-locked-layo
 import {config as layoutPageTemplateAdminWebConfig} from './tests/layout-page-template-admin-web/main/config';
 import {config as layoutSetPrototypeWebConfig} from './tests/layout-set-prototype-web/main/config';
 import {config as lockedItemsWebConfig} from './tests/locked-items-web/main/config';
+import {config as loginWebMainCaptchaEnableConfig} from './tests/login-web/main-captcha-enable/config';
 import {config as loginWebConfig} from './tests/login-web/main/config';
 import {config as loginWebSetupAdminConfig} from './tests/login-web/setup-admin/config';
 import {config as marketplaceAppManagerWebConfig} from './tests/marketplace-app-manager-web/main/config';
@@ -129,6 +136,7 @@ import {config as portalWorkflowMetricsWebConfig} from './tests/portal-workflow-
 import {config as portalWorkflowTaskWebConfig} from './tests/portal-workflow-task-web/main/config';
 import {config as portletConfigurationCssWebConfig} from './tests/portlet-configuration-css-web/main/config';
 import {config as productAnalyticsWebConfig} from './tests/product-analytics-web/main/config';
+import {config as productNavigationApplicationsMenuConfig} from './tests/product-navigation-applications-menu/main/config';
 import {config as productNavigationControlMenuWeb} from './tests/product-navigation-control-menu-web/main/config';
 import {config as productNavigationProductMenuWeb} from './tests/product-navigation-product-menu-web/main/config';
 import {config as productNavigationUserPersonalBarWebConfig} from './tests/product-navigation-user-personal-bar-web/main/config';
@@ -156,6 +164,7 @@ import {config as siteNavigationBreadcrumbWebConfig} from './tests/site-navigati
 import {config as siteNavigationDirectoryWebConfig} from './tests/site-navigation-directory-web/main/config';
 import {config as siteNavigationLanguageWebConfig} from './tests/site-navigation-language-web/main/config';
 import {config as siteNavigationMenuWebConfig} from './tests/site-navigation-menu-web/main/config';
+import {config as siteNavigationSiteMapWebConfig} from './tests/site-navigation-site-map-web/main/config';
 import {config as siteSitemapWebConfig} from './tests/site-sitemap-web/main/config';
 import {config as siteTeamsWebConfig} from './tests/site-teams-web/main/config';
 import {config as smokeConfig} from './tests/smoke/main/config';
@@ -220,6 +229,7 @@ export default defineConfig({
 		commerceOrderWebConfig,
 		commerceOrderContentWebConfig,
 		commercePaymentsWebConfig,
+		commercePricingWebConfig,
 		commerceProductAssetCategoriesWebConfig,
 		commerceProductContentSearchWebConfig,
 		commerceProductContentWebConfig,
@@ -232,6 +242,10 @@ export default defineConfig({
 		commerceWishListWebConfig,
 		commerceWorkspaceConfig,
 		configurationAdminWebConfig,
+		systemSettingsExportConfig,
+		systemSettingsOverrideOsgiConfig,
+		systemSettingsOverrideConfig,
+		systemSettingsWithUIConfig,
 		contentDashboardWebConfig,
 		cookiesBannerWebConfig,
 		customerConfig,
@@ -279,6 +293,7 @@ export default defineConfig({
 		layoutSetPrototypeWebConfig,
 		lockedItemsWebConfig,
 		loginWebConfig,
+		loginWebMainCaptchaEnableConfig,
 		loginWebSetupAdminConfig,
 		marketplaceAppManagerWebConfig,
 		marketplaceConfig,
@@ -314,6 +329,7 @@ export default defineConfig({
 		portalWorkflowTaskWebConfig,
 		portletConfigurationCssWebConfig,
 		productAnalyticsWebConfig,
+		productNavigationApplicationsMenuConfig,
 		productNavigationControlMenuWeb,
 		productNavigationProductMenuWeb,
 		productNavigationUserPersonalBarWebConfig,
@@ -322,6 +338,7 @@ export default defineConfig({
 		rolesAdminWebConfig,
 		rolesSelectorWebConfig,
 		rssWebConfig,
+		dataCleanupConfig,
 		samlWebConfig,
 		scimConfiguraitonWebConfig,
 		searchExperiencesWebConfig,
@@ -337,6 +354,7 @@ export default defineConfig({
 		siteNavigationDirectoryWebConfig,
 		siteNavigationLanguageWebConfig,
 		siteNavigationMenuWebConfig,
+		siteNavigationSiteMapWebConfig,
 		siteSitemapWebConfig,
 		siteTeamsWebConfig,
 		smokeConfig,

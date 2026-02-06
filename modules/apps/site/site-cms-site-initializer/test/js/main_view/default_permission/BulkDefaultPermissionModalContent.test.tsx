@@ -78,11 +78,13 @@ describe('BulkDefaultPermissionModalContent', () => {
 			});
 
 		getSpaceSpy = jest.spyOn(SpaceService, 'getSpace').mockResolvedValue({
+			assetLibraryKey: 'assetLibraryKey',
 			creatorUserId: '20103',
 			description: 'This is a test space',
 			externalReferenceCode: 'ERC2',
 			id: 1,
 			name: 'Test Space',
+			settings: {logoColor: 'outline-0'},
 			siteId: 20203,
 		});
 

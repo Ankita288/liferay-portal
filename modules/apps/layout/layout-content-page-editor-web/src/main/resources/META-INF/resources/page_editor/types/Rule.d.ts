@@ -12,8 +12,26 @@ export interface Action {
 	id: string;
 	itemId?: string;
 	readOnly?: boolean;
-	type: 'show' | 'hide' | 'enable' | 'disable' | undefined;
+	type: 'disable' | 'enable' | 'hide' | 'show' | undefined;
 }
+
+export type AdvancedRule = {
+	actions: Action[];
+	conditionType?: never;
+	conditions?: never;
+	id: string;
+	name: string;
+	script: string;
+};
+
+export type BasicRule = {
+	actions: Action[];
+	conditionType?: ConditionType;
+	conditions?: Condition[];
+	id: string;
+	name: string;
+	script?: never;
+};
 
 export interface Condition {
 	error?: RuleError | null;
@@ -23,18 +41,12 @@ export interface Condition {
 		type: 'equal' | 'not-equal';
 		value?: string;
 	};
-	type: 'user' | 'form' | undefined;
+	type: 'field' | 'form' | 'user' | undefined;
 }
 
-export type Rule = {
-	actions: Action[];
-	conditionType: ConditionType;
-	conditions: Condition[];
-	id?: string;
-	name: string;
-};
+export type Rule = AdvancedRule | BasicRule;
 
 export type RuleError = {
-	element: HTMLButtonElement | HTMLInputElement;
+	element: HTMLButtonElement | HTMLElement | HTMLInputElement;
 	message: string;
 };

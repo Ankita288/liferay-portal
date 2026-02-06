@@ -67,13 +67,21 @@ public class LayoutWrapper
 		attributes.put("styleBookEntryERC", getStyleBookEntryERC());
 		attributes.put("css", getCss());
 		attributes.put("priority", getPriority());
-		attributes.put("faviconFileEntryId", getFaviconFileEntryId());
+		attributes.put("faviconFileEntryERC", getFaviconFileEntryERC());
+		attributes.put(
+			"faviconFileEntryScopeERC", getFaviconFileEntryScopeERC());
 		attributes.put(
 			"masterLayoutPageTemplateEntryERC",
 			getMasterLayoutPageTemplateEntryERC());
-		attributes.put("layoutPrototypeUuid", getLayoutPrototypeUuid());
 		attributes.put(
-			"layoutPrototypeLinkEnabled", isLayoutPrototypeLinkEnabled());
+			"portletLayoutPageTemplateEntryERC",
+			getPortletLayoutPageTemplateEntryERC());
+		attributes.put(
+			"portletLayoutPageTemplateEntryScopeERC",
+			getPortletLayoutPageTemplateEntryScopeERC());
+		attributes.put(
+			"portletLayoutPageTemplateEntryLinkEnabled",
+			isPortletLayoutPageTemplateEntryLinkEnabled());
 		attributes.put(
 			"layoutSetPrototypeLayoutERC", getLayoutSetPrototypeLayoutERC());
 		attributes.put("publishDate", getPublishDate());
@@ -287,10 +295,18 @@ public class LayoutWrapper
 			setPriority(priority);
 		}
 
-		Long faviconFileEntryId = (Long)attributes.get("faviconFileEntryId");
+		String faviconFileEntryERC = (String)attributes.get(
+			"faviconFileEntryERC");
 
-		if (faviconFileEntryId != null) {
-			setFaviconFileEntryId(faviconFileEntryId);
+		if (faviconFileEntryERC != null) {
+			setFaviconFileEntryERC(faviconFileEntryERC);
+		}
+
+		String faviconFileEntryScopeERC = (String)attributes.get(
+			"faviconFileEntryScopeERC");
+
+		if (faviconFileEntryScopeERC != null) {
+			setFaviconFileEntryScopeERC(faviconFileEntryScopeERC);
 		}
 
 		String masterLayoutPageTemplateEntryERC = (String)attributes.get(
@@ -301,18 +317,29 @@ public class LayoutWrapper
 				masterLayoutPageTemplateEntryERC);
 		}
 
-		String layoutPrototypeUuid = (String)attributes.get(
-			"layoutPrototypeUuid");
+		String portletLayoutPageTemplateEntryERC = (String)attributes.get(
+			"portletLayoutPageTemplateEntryERC");
 
-		if (layoutPrototypeUuid != null) {
-			setLayoutPrototypeUuid(layoutPrototypeUuid);
+		if (portletLayoutPageTemplateEntryERC != null) {
+			setPortletLayoutPageTemplateEntryERC(
+				portletLayoutPageTemplateEntryERC);
 		}
 
-		Boolean layoutPrototypeLinkEnabled = (Boolean)attributes.get(
-			"layoutPrototypeLinkEnabled");
+		String portletLayoutPageTemplateEntryScopeERC = (String)attributes.get(
+			"portletLayoutPageTemplateEntryScopeERC");
 
-		if (layoutPrototypeLinkEnabled != null) {
-			setLayoutPrototypeLinkEnabled(layoutPrototypeLinkEnabled);
+		if (portletLayoutPageTemplateEntryScopeERC != null) {
+			setPortletLayoutPageTemplateEntryScopeERC(
+				portletLayoutPageTemplateEntryScopeERC);
+		}
+
+		Boolean portletLayoutPageTemplateEntryLinkEnabled =
+			(Boolean)attributes.get(
+				"portletLayoutPageTemplateEntryLinkEnabled");
+
+		if (portletLayoutPageTemplateEntryLinkEnabled != null) {
+			setPortletLayoutPageTemplateEntryLinkEnabled(
+				portletLayoutPageTemplateEntryLinkEnabled);
 		}
 
 		String layoutSetPrototypeLayoutERC = (String)attributes.get(
@@ -685,13 +712,28 @@ public class LayoutWrapper
 	}
 
 	/**
-	 * Returns the favicon file entry ID of this layout.
+	 * Returns the favicon file entry erc of this layout.
 	 *
-	 * @return the favicon file entry ID of this layout
+	 * @return the favicon file entry erc of this layout
 	 */
 	@Override
-	public long getFaviconFileEntryId() {
-		return model.getFaviconFileEntryId();
+	public String getFaviconFileEntryERC() {
+		return model.getFaviconFileEntryERC();
+	}
+
+	@Override
+	public long getFaviconFileEntryGroupId() {
+		return model.getFaviconFileEntryGroupId();
+	}
+
+	/**
+	 * Returns the favicon file entry scope erc of this layout.
+	 *
+	 * @return the favicon file entry scope erc of this layout
+	 */
+	@Override
+	public String getFaviconFileEntryScopeERC() {
+		return model.getFaviconFileEntryScopeERC();
 	}
 
 	@Override
@@ -920,21 +962,6 @@ public class LayoutWrapper
 		return model.getLayoutId();
 	}
 
-	/**
-	 * Returns the layout prototype link enabled of this layout.
-	 *
-	 * @return the layout prototype link enabled of this layout
-	 */
-	@Override
-	public boolean getLayoutPrototypeLinkEnabled() {
-		return model.getLayoutPrototypeLinkEnabled();
-	}
-
-	/**
-	 * Returns the layout prototype uuid of this layout.
-	 *
-	 * @return the layout prototype uuid of this layout
-	 */
 	@Override
 	public String getLayoutPrototypeUuid() {
 		return model.getLayoutPrototypeUuid();
@@ -1125,6 +1152,36 @@ public class LayoutWrapper
 	@Override
 	public long getPlid() {
 		return model.getPlid();
+	}
+
+	/**
+	 * Returns the portlet layout page template entry erc of this layout.
+	 *
+	 * @return the portlet layout page template entry erc of this layout
+	 */
+	@Override
+	public String getPortletLayoutPageTemplateEntryERC() {
+		return model.getPortletLayoutPageTemplateEntryERC();
+	}
+
+	/**
+	 * Returns the portlet layout page template entry link enabled of this layout.
+	 *
+	 * @return the portlet layout page template entry link enabled of this layout
+	 */
+	@Override
+	public boolean getPortletLayoutPageTemplateEntryLinkEnabled() {
+		return model.getPortletLayoutPageTemplateEntryLinkEnabled();
+	}
+
+	/**
+	 * Returns the portlet layout page template entry scope erc of this layout.
+	 *
+	 * @return the portlet layout page template entry scope erc of this layout
+	 */
+	@Override
+	public String getPortletLayoutPageTemplateEntryScopeERC() {
+		return model.getPortletLayoutPageTemplateEntryScopeERC();
 	}
 
 	/**
@@ -1757,16 +1814,6 @@ public class LayoutWrapper
 		return model.isLayoutPrototypeLinkActive();
 	}
 
-	/**
-	 * Returns <code>true</code> if this layout is layout prototype link enabled.
-	 *
-	 * @return <code>true</code> if this layout is layout prototype link enabled; <code>false</code> otherwise
-	 */
-	@Override
-	public boolean isLayoutPrototypeLinkEnabled() {
-		return model.isLayoutPrototypeLinkEnabled();
-	}
-
 	@Override
 	public boolean isLayoutSortable() {
 		return model.isLayoutSortable();
@@ -1790,6 +1837,21 @@ public class LayoutWrapper
 	@Override
 	public boolean isPortletEmbedded(String portletId, long groupId) {
 		return model.isPortletEmbedded(portletId, groupId);
+	}
+
+	@Override
+	public boolean isPortletLayoutPageTemplateEntryLinkActive() {
+		return model.isPortletLayoutPageTemplateEntryLinkActive();
+	}
+
+	/**
+	 * Returns <code>true</code> if this layout is portlet layout page template entry link enabled.
+	 *
+	 * @return <code>true</code> if this layout is portlet layout page template entry link enabled; <code>false</code> otherwise
+	 */
+	@Override
+	public boolean isPortletLayoutPageTemplateEntryLinkEnabled() {
+		return model.isPortletLayoutPageTemplateEntryLinkEnabled();
 	}
 
 	/**
@@ -2110,13 +2172,23 @@ public class LayoutWrapper
 	}
 
 	/**
-	 * Sets the favicon file entry ID of this layout.
+	 * Sets the favicon file entry erc of this layout.
 	 *
-	 * @param faviconFileEntryId the favicon file entry ID of this layout
+	 * @param faviconFileEntryERC the favicon file entry erc of this layout
 	 */
 	@Override
-	public void setFaviconFileEntryId(long faviconFileEntryId) {
-		model.setFaviconFileEntryId(faviconFileEntryId);
+	public void setFaviconFileEntryERC(String faviconFileEntryERC) {
+		model.setFaviconFileEntryERC(faviconFileEntryERC);
+	}
+
+	/**
+	 * Sets the favicon file entry scope erc of this layout.
+	 *
+	 * @param faviconFileEntryScopeERC the favicon file entry scope erc of this layout
+	 */
+	@Override
+	public void setFaviconFileEntryScopeERC(String faviconFileEntryScopeERC) {
+		model.setFaviconFileEntryScopeERC(faviconFileEntryScopeERC);
 	}
 
 	/**
@@ -2242,28 +2314,6 @@ public class LayoutWrapper
 	@Override
 	public void setLayoutId(long layoutId) {
 		model.setLayoutId(layoutId);
-	}
-
-	/**
-	 * Sets whether this layout is layout prototype link enabled.
-	 *
-	 * @param layoutPrototypeLinkEnabled the layout prototype link enabled of this layout
-	 */
-	@Override
-	public void setLayoutPrototypeLinkEnabled(
-		boolean layoutPrototypeLinkEnabled) {
-
-		model.setLayoutPrototypeLinkEnabled(layoutPrototypeLinkEnabled);
-	}
-
-	/**
-	 * Sets the layout prototype uuid of this layout.
-	 *
-	 * @param layoutPrototypeUuid the layout prototype uuid of this layout
-	 */
-	@Override
-	public void setLayoutPrototypeUuid(String layoutPrototypeUuid) {
-		model.setLayoutPrototypeUuid(layoutPrototypeUuid);
 	}
 
 	@Override
@@ -2407,6 +2457,45 @@ public class LayoutWrapper
 	@Override
 	public void setPlid(long plid) {
 		model.setPlid(plid);
+	}
+
+	/**
+	 * Sets the portlet layout page template entry erc of this layout.
+	 *
+	 * @param portletLayoutPageTemplateEntryERC the portlet layout page template entry erc of this layout
+	 */
+	@Override
+	public void setPortletLayoutPageTemplateEntryERC(
+		String portletLayoutPageTemplateEntryERC) {
+
+		model.setPortletLayoutPageTemplateEntryERC(
+			portletLayoutPageTemplateEntryERC);
+	}
+
+	/**
+	 * Sets whether this layout is portlet layout page template entry link enabled.
+	 *
+	 * @param portletLayoutPageTemplateEntryLinkEnabled the portlet layout page template entry link enabled of this layout
+	 */
+	@Override
+	public void setPortletLayoutPageTemplateEntryLinkEnabled(
+		boolean portletLayoutPageTemplateEntryLinkEnabled) {
+
+		model.setPortletLayoutPageTemplateEntryLinkEnabled(
+			portletLayoutPageTemplateEntryLinkEnabled);
+	}
+
+	/**
+	 * Sets the portlet layout page template entry scope erc of this layout.
+	 *
+	 * @param portletLayoutPageTemplateEntryScopeERC the portlet layout page template entry scope erc of this layout
+	 */
+	@Override
+	public void setPortletLayoutPageTemplateEntryScopeERC(
+		String portletLayoutPageTemplateEntryScopeERC) {
+
+		model.setPortletLayoutPageTemplateEntryScopeERC(
+			portletLayoutPageTemplateEntryScopeERC);
 	}
 
 	/**

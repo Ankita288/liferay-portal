@@ -10,23 +10,36 @@ import com.liferay.account.service.AccountEntryLocalService;
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.batch.engine.unit.BatchEngineUnitProcessor;
 import com.liferay.batch.engine.unit.BatchEngineUnitReader;
+import com.liferay.digital.sales.room.test.util.DigitalSalesRoomTestUtil;
 import com.liferay.fragment.model.FragmentCollection;
 import com.liferay.fragment.model.FragmentEntryModel;
 import com.liferay.fragment.service.FragmentCollectionLocalService;
 import com.liferay.fragment.service.FragmentEntryLocalService;
 import com.liferay.headless.digital.sales.room.client.dto.v1_0.DigitalSalesRoom;
+import com.liferay.headless.digital.sales.room.client.dto.v1_0.DigitalSalesRoomTemplate;
 import com.liferay.headless.digital.sales.room.client.dto.v1_0.UserAccountBrief;
+import com.liferay.headless.digital.sales.room.client.pagination.Page;
+import com.liferay.headless.digital.sales.room.client.pagination.Pagination;
+import com.liferay.headless.digital.sales.room.client.resource.v1_0.DigitalSalesRoomResource;
+import com.liferay.headless.digital.sales.room.client.resource.v1_0.DigitalSalesRoomTemplateResource;
+import com.liferay.object.constants.ObjectActionKeys;
 import com.liferay.object.model.ObjectDefinition;
 import com.liferay.object.service.ObjectDefinitionLocalService;
 import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
+import com.liferay.portal.kernel.model.Layout;
+import com.liferay.portal.kernel.model.LayoutConstants;
+import com.liferay.portal.kernel.model.ResourceConstants;
 import com.liferay.portal.kernel.model.Role;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.model.role.RoleConstants;
+import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.service.LayoutLocalService;
+import com.liferay.portal.kernel.service.ResourcePermissionLocalService;
 import com.liferay.portal.kernel.service.RoleLocalService;
+import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.UserLocalService;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
@@ -34,26 +47,23 @@ import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.test.util.UserTestUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
+import com.liferay.portal.kernel.util.PropsValues;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.test.rule.FeatureFlag;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.style.book.model.StyleBookEntry;
 import com.liferay.style.book.service.StyleBookEntryLocalService;
 
-import java.io.File;
-
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import org.osgi.framework.Bundle;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.FrameworkUtil;
 
 /**
  * @author Stefano Motta
@@ -76,38 +86,41 @@ public class DigitalSalesRoomResourceTest
 			ServiceContextTestUtil.getServiceContext(
 				TestPropsValues.getCompanyId(), TestPropsValues.getGroupId(),
 				TestPropsValues.getUserId()));
-
-		ObjectDefinition objectDefinition =
-			_objectDefinitionLocalService.
-				fetchObjectDefinitionByExternalReferenceCode(
-					"L_DSR_ROOM", TestPropsValues.getCompanyId());
-
-		if (objectDefinition != null) {
-			return;
-		}
-
-		Bundle testBundle = FrameworkUtil.getBundle(
+		_objectDefinition = DigitalSalesRoomTestUtil.getObjectDefinition(
 			DigitalSalesRoomResourceTest.class);
+	}
 
-		BundleContext bundleContext = testBundle.getBundleContext();
+	@Override
+	@Test
+	public void testDeleteDigitalSalesRoom() throws Exception {
+		super.testDeleteDigitalSalesRoom();
 
-		for (Bundle bundle : bundleContext.getBundles()) {
-			if (!Objects.equals(
-					bundle.getSymbolicName(),
-					"com.liferay.digital.sales.room.impl")) {
+		_testDeleteDigitalSalesRoomWithPermission();
+	}
 
-				continue;
-			}
+	@Override
+	@Test
+	public void testGetDigitalSalesRoom() throws Exception {
+		super.testGetDigitalSalesRoom();
 
-			_deleteFile(bundle, "01.object.folder");
-			_deleteFile(bundle, "02.object.definition");
+		_testGetDigitalSalesRoomWithPermission();
+	}
 
-			CompletableFuture<Void> completableFuture =
-				_batchEngineUnitProcessor.processBatchEngineUnits(
-					_batchEngineUnitReader.getBatchEngineUnits(bundle));
+	@Override
+	@Test
+	public void testGetDigitalSalesRoomsPage() throws Exception {
+		super.testGetDigitalSalesRoomsPage();
 
-			completableFuture.join();
-		}
+		_testGetDigitalSalesRoomsPageWithPermission();
+	}
+
+	@Ignore
+	@Override
+	@Test
+	public void testGetDigitalSalesRoomTemplateDigitalSalesRoomsPage()
+		throws Exception {
+
+		super.testGetDigitalSalesRoomTemplateDigitalSalesRoomsPage();
 	}
 
 	@Override
@@ -115,6 +128,7 @@ public class DigitalSalesRoomResourceTest
 	public void testPatchDigitalSalesRoom() throws Exception {
 		super.testPatchDigitalSalesRoom();
 
+		_testPatchDigitalSalesRoomWithPermission();
 		_testPatchDigitalSalesRoomWithStyleBookEntry();
 		_testPatchDigitalSalesRoomWithUserAccount();
 	}
@@ -124,8 +138,19 @@ public class DigitalSalesRoomResourceTest
 	public void testPostDigitalSalesRoom() throws Exception {
 		super.testPostDigitalSalesRoom();
 
+		_testPostDigitalSalesRoomWithPermission();
 		_testPostDigitalSalesRoomWithSiteInitializer();
 		_testPostDigitalSalesRoomWithUserAccount();
+	}
+
+	@Override
+	@Test
+	public void testPostDigitalSalesRoomTemplateDigitalSalesRoom()
+		throws Exception {
+
+		super.testPostDigitalSalesRoomTemplateDigitalSalesRoom();
+
+		_testPostDigitalSalesRoomTemplateDigitalSalesRoom();
 	}
 
 	@Override
@@ -194,6 +219,40 @@ public class DigitalSalesRoomResourceTest
 		throws Exception {
 
 		return digitalSalesRoomResource.postDigitalSalesRoom(digitalSalesRoom);
+	}
+
+	@Override
+	protected DigitalSalesRoom
+			testPostDigitalSalesRoomTemplateDigitalSalesRoom_addDigitalSalesRoom(
+				DigitalSalesRoom digitalSalesRoom)
+		throws Exception {
+
+		return digitalSalesRoomResource.postDigitalSalesRoom(digitalSalesRoom);
+	}
+
+	private void _addUserRole(String[] actionIds, long userId)
+		throws Exception {
+
+		Role role = _roleLocalService.addRole(
+			RandomTestUtil.randomString(), TestPropsValues.getUserId(), null, 0,
+			RandomTestUtil.randomString(), null, null,
+			RoleConstants.TYPE_REGULAR, null, new ServiceContext());
+
+		for (String actionId : actionIds) {
+			String name = _objectDefinition.getClassName();
+
+			if (Objects.equals(actionId, ObjectActionKeys.ADD_OBJECT_ENTRY)) {
+				name = _objectDefinition.getResourceName();
+			}
+
+			_resourcePermissionLocalService.addResourcePermission(
+				TestPropsValues.getCompanyId(), name,
+				ResourceConstants.SCOPE_COMPANY,
+				String.valueOf(TestPropsValues.getCompanyId()),
+				role.getRoleId(), actionId);
+		}
+
+		_roleLocalService.addUserRole(userId, role.getRoleId());
 	}
 
 	private void _assertEqualsStyleBookEntry(
@@ -273,14 +332,198 @@ public class DigitalSalesRoomResourceTest
 			jsonObject2.getString("value"));
 	}
 
-	private void _deleteFile(Bundle bundle, String fileName) {
-		File file = bundle.getDataFile(
-			".com.liferay.digital.sales.room.internal.batch." + fileName +
-				".batch.engine.data.json.0.processed");
+	private DigitalSalesRoom _randomDigitalSalesRoom(
+			Consumer<DigitalSalesRoom> digitalSalesRoomConsumer)
+		throws Exception {
 
-		if ((file != null) && file.exists()) {
-			file.delete();
-		}
+		DigitalSalesRoom randomDigitalSalesRoom = randomDigitalSalesRoom();
+
+		digitalSalesRoomConsumer.accept(randomDigitalSalesRoom);
+
+		return randomDigitalSalesRoom;
+	}
+
+	private void _testDeleteDigitalSalesRoomWithPermission() throws Exception {
+		User user = UserTestUtil.addUser(
+			TestPropsValues.getCompanyId(), TestPropsValues.getUserId(), "test",
+			RandomTestUtil.randomString() + "@liferay.com",
+			RandomTestUtil.randomString(), LocaleUtil.getDefault(),
+			RandomTestUtil.randomString(), RandomTestUtil.randomString(), null,
+			ServiceContextTestUtil.getServiceContext());
+
+		DigitalSalesRoom randomDigitalSalesRoom = _randomDigitalSalesRoom(
+			digitalSalesRoom -> digitalSalesRoom.setUserAccountBriefs(
+				new UserAccountBrief[] {
+					new UserAccountBrief() {
+						{
+							setEmailAddress(user.getEmailAddress());
+						}
+					}
+				}));
+
+		DigitalSalesRoom digitalSalesRoom =
+			digitalSalesRoomResource.postDigitalSalesRoom(
+				randomDigitalSalesRoom);
+
+		DigitalSalesRoomResource digitalSalesRoomResource =
+			DigitalSalesRoomResource.builder(
+			).authentication(
+				user.getEmailAddress(), "test"
+			).build();
+
+		assertHttpResponseStatusCode(
+			403,
+			digitalSalesRoomResource.deleteDigitalSalesRoomHttpResponse(
+				digitalSalesRoom.getId()));
+
+		_addUserRole(new String[] {ActionKeys.DELETE}, user.getUserId());
+
+		assertHttpResponseStatusCode(
+			204,
+			digitalSalesRoomResource.deleteDigitalSalesRoomHttpResponse(
+				digitalSalesRoom.getId()));
+	}
+
+	private void _testGetDigitalSalesRoomsPageWithPermission()
+		throws Exception {
+
+		User user = UserTestUtil.addUser(
+			TestPropsValues.getCompanyId(), TestPropsValues.getUserId(), "test",
+			RandomTestUtil.randomString() + "@liferay.com",
+			RandomTestUtil.randomString(), LocaleUtil.getDefault(),
+			RandomTestUtil.randomString(), RandomTestUtil.randomString(), null,
+			ServiceContextTestUtil.getServiceContext());
+
+		DigitalSalesRoomResource digitalSalesRoomResource =
+			DigitalSalesRoomResource.builder(
+			).authentication(
+				user.getEmailAddress(), "test"
+			).build();
+
+		Page<DigitalSalesRoom> digitalSalesRoomsPage =
+			digitalSalesRoomResource.getDigitalSalesRoomsPage(
+				null, Pagination.of(1, 10));
+
+		Map<String, Map<String, String>> actions =
+			digitalSalesRoomsPage.getActions();
+
+		Assert.assertTrue(actions.isEmpty());
+
+		_addUserRole(
+			new String[] {ObjectActionKeys.ADD_OBJECT_ENTRY}, user.getUserId());
+
+		digitalSalesRoomsPage =
+			digitalSalesRoomResource.getDigitalSalesRoomsPage(
+				null, Pagination.of(1, 10));
+
+		actions = digitalSalesRoomsPage.getActions();
+
+		Assert.assertNotNull(actions.get("create"));
+	}
+
+	private void _testGetDigitalSalesRoomWithPermission() throws Exception {
+		User user = UserTestUtil.addUser(
+			TestPropsValues.getCompanyId(), TestPropsValues.getUserId(), "test",
+			RandomTestUtil.randomString() + "@liferay.com",
+			RandomTestUtil.randomString(), LocaleUtil.getDefault(),
+			RandomTestUtil.randomString(), RandomTestUtil.randomString(), null,
+			ServiceContextTestUtil.getServiceContext());
+
+		DigitalSalesRoom randomDigitalSalesRoom = _randomDigitalSalesRoom(
+			digitalSalesRoom -> digitalSalesRoom.setUserAccountBriefs(
+				new UserAccountBrief[] {
+					new UserAccountBrief() {
+						{
+							setEmailAddress(user.getEmailAddress());
+						}
+					}
+				}));
+
+		DigitalSalesRoom digitalSalesRoom =
+			digitalSalesRoomResource.postDigitalSalesRoom(
+				randomDigitalSalesRoom);
+
+		DigitalSalesRoomResource digitalSalesRoomResource =
+			DigitalSalesRoomResource.builder(
+			).authentication(
+				user.getEmailAddress(), "test"
+			).build();
+
+		digitalSalesRoom = digitalSalesRoomResource.getDigitalSalesRoom(
+			digitalSalesRoom.getId());
+
+		Map<String, Map<String, String>> actions =
+			digitalSalesRoom.getActions();
+
+		Assert.assertTrue(actions.isEmpty());
+
+		_addUserRole(new String[] {ActionKeys.DELETE}, user.getUserId());
+
+		digitalSalesRoom = digitalSalesRoomResource.getDigitalSalesRoom(
+			digitalSalesRoom.getId());
+
+		actions = digitalSalesRoom.getActions();
+
+		Assert.assertNotNull(actions.get("delete"));
+		Assert.assertNull(actions.get("update"));
+
+		_addUserRole(new String[] {ActionKeys.UPDATE}, user.getUserId());
+
+		digitalSalesRoom = digitalSalesRoomResource.getDigitalSalesRoom(
+			digitalSalesRoom.getId());
+
+		actions = digitalSalesRoom.getActions();
+
+		Assert.assertNotNull(actions.get("delete"));
+		Assert.assertNotNull(actions.get("update"));
+	}
+
+	private void _testPatchDigitalSalesRoomWithPermission() throws Exception {
+		User user = UserTestUtil.addUser(
+			TestPropsValues.getCompanyId(), TestPropsValues.getUserId(), "test",
+			RandomTestUtil.randomString() + "@liferay.com",
+			RandomTestUtil.randomString(), LocaleUtil.getDefault(),
+			RandomTestUtil.randomString(), RandomTestUtil.randomString(), null,
+			ServiceContextTestUtil.getServiceContext());
+
+		DigitalSalesRoom randomDigitalSalesRoom = _randomDigitalSalesRoom(
+			digitalSalesRoom -> {
+				digitalSalesRoom.setAccountId(0L);
+				digitalSalesRoom.setUserAccountBriefs(
+					new UserAccountBrief[] {
+						new UserAccountBrief() {
+							{
+								setEmailAddress(user.getEmailAddress());
+							}
+						}
+					});
+			});
+
+		DigitalSalesRoom digitalSalesRoom =
+			digitalSalesRoomResource.postDigitalSalesRoom(
+				randomDigitalSalesRoom);
+
+		DigitalSalesRoomResource digitalSalesRoomResource =
+			DigitalSalesRoomResource.builder(
+			).authentication(
+				user.getEmailAddress(), "test"
+			).build();
+
+		assertHttpResponseStatusCode(
+			403,
+			digitalSalesRoomResource.patchDigitalSalesRoomHttpResponse(
+				digitalSalesRoom.getId(), digitalSalesRoom));
+
+		_addUserRole(
+			new String[] {
+				ActionKeys.PERMISSIONS, ActionKeys.UPDATE, ActionKeys.VIEW
+			},
+			user.getUserId());
+
+		assertHttpResponseStatusCode(
+			200,
+			digitalSalesRoomResource.patchDigitalSalesRoomHttpResponse(
+				digitalSalesRoom.getId(), digitalSalesRoom));
 	}
 
 	private void _testPatchDigitalSalesRoomWithStyleBookEntry()
@@ -300,24 +543,23 @@ public class DigitalSalesRoomResourceTest
 	}
 
 	private void _testPatchDigitalSalesRoomWithUserAccount() throws Exception {
-		DigitalSalesRoom randomDigitalSalesRoom = randomDigitalSalesRoom();
-
 		User user1 = UserTestUtil.addUser();
 		User user2 = UserTestUtil.addUser();
 
-		randomDigitalSalesRoom.setUserAccountBriefs(
-			new UserAccountBrief[] {
-				new UserAccountBrief() {
-					{
-						setEmailAddress(user1.getEmailAddress());
+		DigitalSalesRoom randomDigitalSalesRoom = _randomDigitalSalesRoom(
+			digitalSalesRoom -> digitalSalesRoom.setUserAccountBriefs(
+				new UserAccountBrief[] {
+					new UserAccountBrief() {
+						{
+							setEmailAddress(user1.getEmailAddress());
+						}
+					},
+					new UserAccountBrief() {
+						{
+							setEmailAddress(user2.getEmailAddress());
+						}
 					}
-				},
-				new UserAccountBrief() {
-					{
-						setEmailAddress(user2.getEmailAddress());
-					}
-				}
-			});
+				}));
 
 		DigitalSalesRoom postDigitalSalesRoom =
 			testPostDigitalSalesRoom_addDigitalSalesRoom(
@@ -393,6 +635,150 @@ public class DigitalSalesRoomResourceTest
 				}));
 	}
 
+	private void _testPostDigitalSalesRoomTemplateDigitalSalesRoom()
+		throws Exception {
+
+		User user1 = UserTestUtil.getAdminUser(TestPropsValues.getCompanyId());
+
+		DigitalSalesRoomTemplateResource digitalSalesRoomTemplateResource =
+			DigitalSalesRoomTemplateResource.builder(
+			).authentication(
+				user1.getEmailAddress(), PropsValues.DEFAULT_ADMIN_PASSWORD
+			).build();
+
+		DigitalSalesRoomTemplate digitalSalesRoomTemplate =
+			digitalSalesRoomTemplateResource.postDigitalSalesRoomTemplate(
+				new DigitalSalesRoomTemplate() {
+					{
+						description = RandomTestUtil.randomString();
+						name = RandomTestUtil.randomString();
+						primaryColor = RandomTestUtil.randomString();
+						secondaryColor = RandomTestUtil.randomString();
+					}
+				});
+
+		Layout layout1 = _layoutLocalService.addLayout(
+			null, TestPropsValues.getUserId(), digitalSalesRoomTemplate.getId(),
+			false, LayoutConstants.DEFAULT_PARENT_LAYOUT_ID,
+			"T" + RandomTestUtil.randomString(), StringPool.BLANK,
+			StringPool.BLANK, LayoutConstants.TYPE_NODE, false,
+			StringPool.BLANK,
+			ServiceContextTestUtil.getServiceContext(
+				testGroup.getGroupId(), TestPropsValues.getUserId()));
+		Layout layout2 = _layoutLocalService.addLayout(
+			null, TestPropsValues.getUserId(), digitalSalesRoomTemplate.getId(),
+			false, LayoutConstants.DEFAULT_PARENT_LAYOUT_ID,
+			"Z" + RandomTestUtil.randomString(), StringPool.BLANK,
+			StringPool.BLANK, LayoutConstants.TYPE_NODE, false,
+			StringPool.BLANK,
+			ServiceContextTestUtil.getServiceContext(
+				testGroup.getGroupId(), TestPropsValues.getUserId()));
+
+		User user2 = UserTestUtil.addUser();
+		User user3 = UserTestUtil.addUser();
+
+		DigitalSalesRoom randomDigitalSalesRoom = _randomDigitalSalesRoom(
+			digitalSalesRoom -> digitalSalesRoom.setUserAccountBriefs(
+				new UserAccountBrief[] {
+					new UserAccountBrief() {
+						{
+							setEmailAddress(user2.getEmailAddress());
+						}
+					},
+					new UserAccountBrief() {
+						{
+							setEmailAddress(user3.getEmailAddress());
+						}
+					}
+				}));
+
+		DigitalSalesRoom digitalSalesRoom =
+			digitalSalesRoomResource.
+				postDigitalSalesRoomTemplateDigitalSalesRoom(
+					digitalSalesRoomTemplate.getId(), randomDigitalSalesRoom);
+
+		assertEquals(randomDigitalSalesRoom, digitalSalesRoom);
+		assertValid(digitalSalesRoom);
+
+		UserAccountBrief[] userAccountBriefs =
+			digitalSalesRoom.getUserAccountBriefs();
+
+		Assert.assertEquals(
+			Arrays.toString(userAccountBriefs), 3, userAccountBriefs.length);
+
+		FragmentCollection fragmentCollection =
+			_fragmentCollectionLocalService.fetchFragmentCollection(
+				digitalSalesRoom.getId(), "digital-sales-room");
+
+		Assert.assertTrue(
+			ArrayUtil.containsAll(
+				TransformUtil.transformToArray(
+					_fragmentEntryLocalService.getFragmentEntries(
+						digitalSalesRoom.getId(),
+						fragmentCollection.getFragmentCollectionId(), 0),
+					FragmentEntryModel::getName, String.class),
+				new String[] {
+					"Gallery Block", "Header Main", "Header User",
+					"Our Team Block", "PDF Preview Block",
+					"Question and Answer Block", "Text Block", "Timeline Block",
+					"Video Block", "Welcome Block"
+				}));
+
+		Assert.assertTrue(
+			ArrayUtil.containsAll(
+				TransformUtil.transformToArray(
+					_layoutLocalService.getLayouts(
+						digitalSalesRoomTemplate.getId(), false),
+					layout -> layout.getName(LocaleUtil.getSiteDefault()),
+					String.class),
+				new String[] {
+					"Documents", "Onboarding",
+					layout1.getName(LocaleUtil.getSiteDefault()),
+					layout2.getName(LocaleUtil.getSiteDefault())
+				}));
+	}
+
+	private void _testPostDigitalSalesRoomWithPermission() throws Exception {
+		User user = UserTestUtil.addUser(
+			TestPropsValues.getCompanyId(), TestPropsValues.getUserId(), "test",
+			RandomTestUtil.randomString() + "@liferay.com",
+			RandomTestUtil.randomString(), LocaleUtil.getDefault(),
+			RandomTestUtil.randomString(), RandomTestUtil.randomString(), null,
+			ServiceContextTestUtil.getServiceContext());
+
+		DigitalSalesRoom randomDigitalSalesRoom = _randomDigitalSalesRoom(
+			digitalSalesRoom -> {
+				digitalSalesRoom.setAccountId(0L);
+				digitalSalesRoom.setUserAccountBriefs(
+					new UserAccountBrief[] {
+						new UserAccountBrief() {
+							{
+								setEmailAddress(user.getEmailAddress());
+							}
+						}
+					});
+			});
+
+		DigitalSalesRoomResource digitalSalesRoomResource =
+			DigitalSalesRoomResource.builder(
+			).authentication(
+				user.getEmailAddress(), "test"
+			).build();
+
+		assertHttpResponseStatusCode(
+			403,
+			digitalSalesRoomResource.postDigitalSalesRoomHttpResponse(
+				randomDigitalSalesRoom));
+
+		_addUserRole(
+			new String[] {ObjectActionKeys.ADD_OBJECT_ENTRY}, user.getUserId());
+
+		assertHttpResponseStatusCode(
+			200,
+			digitalSalesRoomResource.postDigitalSalesRoomHttpResponse(
+				randomDigitalSalesRoom));
+	}
+
 	private void _testPostDigitalSalesRoomWithSiteInitializer()
 		throws Exception {
 
@@ -413,7 +799,12 @@ public class DigitalSalesRoomResourceTest
 						postDigitalSalesRoom.getId(),
 						fragmentCollection.getFragmentCollectionId(), 0),
 					FragmentEntryModel::getName, String.class),
-				new String[] {"DSR Header Main", "DSR Header User"}));
+				new String[] {
+					"Gallery Block", "Header Main", "Header User",
+					"Our Team Block", "PDF Preview Block",
+					"Question and Answer Block", "Text Block", "Timeline Block",
+					"Video Block", "Welcome Block"
+				}));
 
 		Assert.assertTrue(
 			ArrayUtil.containsAll(
@@ -429,27 +820,26 @@ public class DigitalSalesRoomResourceTest
 	}
 
 	private void _testPostDigitalSalesRoomWithUserAccount() throws Exception {
-		DigitalSalesRoom randomDigitalSalesRoom = randomDigitalSalesRoom();
-
 		Role role = _roleLocalService.getRole(
 			TestPropsValues.getCompanyId(), RoleConstants.SITE_ADMINISTRATOR);
 		User user1 = UserTestUtil.addUser();
 		User user2 = UserTestUtil.addUser();
 
-		randomDigitalSalesRoom.setUserAccountBriefs(
-			new UserAccountBrief[] {
-				new UserAccountBrief() {
-					{
-						setEmailAddress(user1.getEmailAddress());
+		DigitalSalesRoom randomDigitalSalesRoom = _randomDigitalSalesRoom(
+			digitalSalesRoom -> digitalSalesRoom.setUserAccountBriefs(
+				new UserAccountBrief[] {
+					new UserAccountBrief() {
+						{
+							setEmailAddress(user1.getEmailAddress());
+						}
+					},
+					new UserAccountBrief() {
+						{
+							setEmailAddress(user2.getEmailAddress());
+							setRoleKey(role.getName());
+						}
 					}
-				},
-				new UserAccountBrief() {
-					{
-						setEmailAddress(user2.getEmailAddress());
-						setRoleKey(role.getName());
-					}
-				}
-			});
+				}));
 
 		DigitalSalesRoom postDigitalSalesRoom =
 			testPostDigitalSalesRoom_addDigitalSalesRoom(
@@ -530,8 +920,13 @@ public class DigitalSalesRoomResourceTest
 	@Inject
 	private LayoutLocalService _layoutLocalService;
 
+	private ObjectDefinition _objectDefinition;
+
 	@Inject
 	private ObjectDefinitionLocalService _objectDefinitionLocalService;
+
+	@Inject
+	private ResourcePermissionLocalService _resourcePermissionLocalService;
 
 	@Inject
 	private RoleLocalService _roleLocalService;

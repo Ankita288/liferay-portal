@@ -9,6 +9,7 @@ import {ApiHelpers} from '../../../../helpers/ApiHelpers';
 import {liferayConfig} from '../../../../liferay.config';
 import getRandomString from '../../../../utils/getRandomString';
 import {EFDSVisualizationMode, waitForFDS} from '../../../../utils/waitFor';
+import getFragmentDefinition from '../../../layout-content-page-editor-web/main/utils/getFragmentDefinition';
 import getPageDefinition from '../../../layout-content-page-editor-web/main/utils/getPageDefinition';
 import getWidgetDefinition from '../../../layout-content-page-editor-web/main/utils/getWidgetDefinition';
 
@@ -29,13 +30,10 @@ export class FDSSamplePage {
 		itemActionButtons: Locator;
 		items: Locator;
 	};
-	readonly customViewsActionsButton: Locator;
-	readonly customViewsDeleteAlert: Locator;
-	readonly customViewsSaveModal: Locator;
-	readonly customViewsSelectorButton: Locator;
 	readonly emptyStateContainer: Locator;
 	readonly fdsWrapper: Locator;
 	readonly fileDropModal: Locator;
+	readonly filterDropdownMenu: Locator;
 	readonly infoPanel: Locator;
 	readonly itemActionButton: Locator;
 	readonly itemActionsButtons: Locator;
@@ -46,6 +44,7 @@ export class FDSSamplePage {
 	};
 	readonly managementToolbar: {
 		container: Locator;
+		filterButton: Locator;
 		searchButton: Locator;
 		searchInput: Locator;
 	};
@@ -70,6 +69,10 @@ export class FDSSamplePage {
 		manageColumnsVisibilityButton: Locator;
 	};
 	readonly toggleInfoPanelButton: Locator;
+	readonly userViewsActionsButton: Locator;
+	readonly userViewsDeleteAlert: Locator;
+	readonly userViewsSaveModal: Locator;
+	readonly userViewsSelectorButton: Locator;
 	readonly visualizationModeSelector: Locator;
 
 	constructor(page: Page) {
@@ -81,9 +84,11 @@ export class FDSSamplePage {
 			activeFiltersToolbarContainer.locator('.search-resume');
 		this.activeFiltersToolbar = {
 			clearButton: activeFiltersToolbarContainer.getByRole('button', {
+				exact: true,
 				name: 'Clear',
 			}),
 			clearSearchButton: searchResume.getByRole('button', {
+				exact: true,
 				name: 'Clear Search',
 			}),
 			container: activeFiltersToolbarContainer,
@@ -106,23 +111,12 @@ export class FDSSamplePage {
 			itemActionButtons: cardItems.getByLabel('More actions'),
 			items: cardItems,
 		};
-		this.customViewsActionsButton = page.getByLabel('Show View Actions', {
-			exact: true,
-		});
-		this.customViewsDeleteAlert = page.getByRole('dialog', {
-			name: 'Delete View',
-		});
-		this.customViewsSaveModal = page.getByRole('dialog', {
-			name: 'Save New View As',
-		});
-		this.customViewsSelectorButton = page.getByLabel('Views', {
-			exact: true,
-		});
 		this.emptyStateContainer = page.locator('.fds .c-empty-state');
 		this.fdsWrapper = page.locator('div.data-set-wrapper').first();
 		this.fileDropModal = page.getByRole('dialog', {
 			name: 'Custom dummy file uploader',
 		});
+		this.filterDropdownMenu = page.locator('.data-set-filter');
 		this.infoPanel = page.locator('.fds-info-panel');
 
 		this.itemActionsButtons = page.locator(
@@ -147,6 +141,9 @@ export class FDSSamplePage {
 
 		this.managementToolbar = {
 			container: managementToolbarContainer,
+			filterButton: managementToolbarContainer.getByRole('button', {
+				name: 'Filter',
+			}),
 			searchButton: managementToolbarContainer.getByRole('button', {
 				name: 'Search',
 			}),
@@ -199,6 +196,19 @@ export class FDSSamplePage {
 		this.toggleInfoPanelButton = page
 			.getByLabel('Show Info Panel')
 			.or(page.getByLabel('Hide Info Panel'));
+
+		this.userViewsActionsButton = page.getByLabel('Show View Actions', {
+			exact: true,
+		});
+		this.userViewsDeleteAlert = page.getByRole('dialog', {
+			name: 'Delete View',
+		});
+		this.userViewsSaveModal = page.getByRole('dialog', {
+			name: 'Save New View As',
+		});
+		this.userViewsSelectorButton = page.getByLabel('Views', {
+			exact: true,
+		});
 
 		this.visualizationModeSelector = page.getByLabel(/View Selected/);
 	}
@@ -349,15 +359,21 @@ export class FDSSamplePage {
 		await expect(navLink).toHaveClass(/active/);
 	}
 
-	async setupFDSSampleWidget({locale = 'en', site}) {
-		const widgetDefinition = getWidgetDefinition({
-			id: getRandomString(),
-			widgetName:
-				'com_liferay_frontend_data_set_sample_web_internal_portlet_FDSSamplePortlet',
-		});
-
+	async setupFDSSampleWidget({fragmentKeys = [], locale = 'en', site}) {
 		const layout = await this.apiHelpers.headlessDelivery.createSitePage({
-			pageDefinition: getPageDefinition([widgetDefinition]),
+			pageDefinition: getPageDefinition([
+				...fragmentKeys.map((fragmentKey) =>
+					getFragmentDefinition({
+						id: getRandomString(),
+						key: fragmentKey,
+					})
+				),
+				getWidgetDefinition({
+					id: getRandomString(),
+					widgetName:
+						'com_liferay_frontend_data_set_sample_web_internal_portlet_FDSSamplePortlet',
+				}),
+			]),
 			siteId: site.id,
 			title: getRandomString(),
 		});

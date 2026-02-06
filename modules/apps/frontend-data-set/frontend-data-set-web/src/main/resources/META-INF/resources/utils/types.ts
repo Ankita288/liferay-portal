@@ -3,8 +3,12 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
+import {Atom} from '@liferay/frontend-js-state-web';
 import {ModalStatus} from 'frontend-js-components-web';
 import React from 'react';
+
+import {EEntityFieldType} from '../management_bar/controls/filters/utils/types';
+import {ISnapshot} from '../views/ViewsContext';
 
 export declare function FrontendDataSet({
 	actionParameterName,
@@ -15,8 +19,6 @@ export declare function FrontendDataSet({
 	creationMenu,
 	currentURL,
 	customDataRenderers,
-	customViews,
-	customViewsEnabled,
 	emptyState,
 	filters,
 	formId,
@@ -43,6 +45,8 @@ export declare function FrontendDataSet({
 	showPagination,
 	showSearch,
 	sidePanelId,
+	snapshots,
+	snapshotsEnabled,
 	sorts,
 	style,
 	views,
@@ -126,6 +130,7 @@ export interface ICreationActionItem {
 }
 
 export enum EItemActionsType {
+	CONTEXTUAL = 'contextual',
 	GROUP = 'group',
 	ITEM = 'item',
 }
@@ -202,6 +207,7 @@ export interface IField {
 	truncate?: boolean;
 }
 export interface ITableSchema {
+	accessibleNameField?: string;
 	fields: Array<IField>;
 }
 
@@ -281,6 +287,7 @@ export interface IFrontendDataSetProps {
 	additionalAPIURLParameters?: string;
 	apiURL?: string;
 	appURL?: string;
+	atom?: Atom<IFDSState>;
 	bulkActions?: any[];
 	configInURLBehavior?: EConfigInURLBehavior;
 	creationMenu?: {
@@ -294,8 +301,6 @@ export interface IFrontendDataSetProps {
 		tableCell?: Array<TRenderer>;
 		views?: Array<TRenderer>;
 	};
-	customViews?: string;
-	customViewsEnabled?: boolean;
 	defaultSelectedItems?: any[];
 	emptyState?: IEmptyStateConfiguration;
 	enableInlineAddModeSetting?: {
@@ -342,6 +347,8 @@ export interface IFrontendDataSetProps {
 	showSearch?: boolean;
 	showSelectAll?: boolean;
 	sidePanelId?: string;
+	snapshots?: Array<ISnapshot>;
+	snapshotsEnabled?: boolean;
 	sorts?: TSort[];
 	style?: 'default' | 'fluid' | 'stacked';
 	uniformActionsDisplay?: boolean;
@@ -451,3 +458,51 @@ export type IConfigWriter<K extends keyof IConfigInURL> = (
 export type VisibleFieldNames = {
 	[fieldName: string]: boolean;
 };
+
+interface ISearch {
+	query: string;
+}
+
+export interface IBaseFilterState {
+	active?: boolean;
+	enabled: boolean;
+	entityFieldType: EEntityFieldType;
+	id: string;
+	label: string;
+	moduleURL?: string;
+	odataFilterString?: string;
+	preloadedData: Record<string, unknown>;
+	selectedData?: Record<string, unknown>;
+	selectedItemsLabel: string;
+	type: 'clientExtension' | 'dateRange' | 'selection';
+}
+
+export interface IClientExtensionFilterState extends IBaseFilterState {
+	clientExtensionFilterImplementation?: string;
+	clientExtensionFilterURL: string;
+	clientExtensionResolutionError?: string;
+}
+
+export interface ISelectionFilterStateItem {
+	label?: string;
+	value: string;
+}
+interface ISelectionFilterState extends IBaseFilterState {
+	apiURL: string;
+	autocompleteEnabled: boolean;
+	itemKey: string;
+	itemLabel: string;
+	items: Array<ISelectionFilterStateItem>;
+	multiple: boolean;
+	placeholder: string;
+	selectedData?: {
+		exclude: boolean;
+		selectedItems: Array<ISelectionFilterStateItem>;
+	};
+}
+interface IFDSState {
+	filters: Array<IBaseFilterState>;
+	search: ISearch;
+}
+
+export type {IFDSState, ISelectionFilterState};

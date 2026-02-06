@@ -1129,7 +1129,7 @@ public class EmailNotificationTypeTest extends BaseNotificationTypeTest {
 					).name(
 						"textObjectField"
 					).build()),
-				Collections.emptyList());
+				Collections.emptyList(), new ServiceContext());
 
 		_addObjectAction(
 			objectDefinition.getObjectDefinitionId(),
@@ -1450,7 +1450,8 @@ public class EmailNotificationTypeTest extends BaseNotificationTypeTest {
 		_clearObjectEntryIdsMap();
 
 		defaultObjectEntryManager.expireObjectEntry(
-			dtoConverterContext, objectEntry.getId());
+			dtoConverterContext, objectEntry.getExternalReferenceCode(),
+			objectDefinition, group.getGroupKey());
 
 		_assertMailMessage(new String[] {user.getEmailAddress()});
 		_assertNotificationQueueEntryBody(
@@ -1595,7 +1596,7 @@ public class EmailNotificationTypeTest extends BaseNotificationTypeTest {
 					).name(
 						"textObjectField"
 					).build()),
-				Collections.emptyList());
+				Collections.emptyList(), new ServiceContext());
 
 		if (accountRestricted) {
 			ObjectDefinition accountEntryObjectDefinition =

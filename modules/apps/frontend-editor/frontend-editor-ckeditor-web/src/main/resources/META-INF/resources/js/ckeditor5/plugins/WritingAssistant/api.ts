@@ -8,42 +8,84 @@ import {fetch} from 'frontend-js-web';
 
 import {EActionType} from './types';
 
-export function createEventSource() {
-	return new EventSource('/o/ai-hub/v1.0/tasks/subscribe', {
+const AI_HUB_ENDPOINT = '/o/ai-hub/v1.0';
+
+export async function createEventSource() {
+	const tokens = await postToken();
+
+	if (!tokens) {
+		return;
+	}
+
+	return new EventSource(`${AI_HUB_ENDPOINT}/tasks/subscribe`, {
 		fetch: (input, init) =>
 			fetch(input as RequestInfo, {
 				...init,
 				headers: new Headers({
 					'Accept': 'text/event-stream',
-					'x-csrf-token': Liferay.authToken,
+					'Authorization': `Bearer ${tokens.accessToken}`,
+					'Liferay-AI-Hub-On-Behalf-Of': `Bearer ${tokens.userToken}`,
 				}),
 			}),
 		withCredentials: true,
 	});
 }
 
-export async function postByExternalReferenceCodeTask(
+async function postToken() {
+	try {
+		const response = await fetch(`${AI_HUB_ENDPOINT}/tokens`, {
+			method: 'POST',
+		});
+
+		if (!response.ok) {
+			throw new Error(`Unable to generate token: ${response.statusText}`);
+		}
+
+		const data = await response.json();
+
+		if (!data?.accessToken) {
+			throw new Error('Unable to generate token.');
+		}
+
+		if (!data?.userToken) {
+			throw new Error('Unable to generate user token.');
+		}
+
+		return data;
+	}
+	catch (error) {
+		console.warn((error as Error).message);
+	}
+}
+
+export async function postTask(
 	content: string,
 	eventSourceReference: string,
 	type: EActionType
 ) {
-	await fetch(
-		`/o/ai-hub/v1.0/by-external-reference-code/${eventSourceReference}/tasks`,
-		{
-			body: JSON.stringify({
-				context: {
-					text: content,
-				},
-				scope: {
-					externalReferenceCode: 'L_CMS',
-				},
-				type,
-			}),
-			headers: new Headers({
-				'Accept': 'application/json',
-				'Content-Type': 'application/json',
-			}),
-			method: 'POST',
-		}
-	);
+	const tokens = await postToken();
+
+	if (!tokens) {
+		return;
+	}
+
+	await fetch(`${AI_HUB_ENDPOINT}/tasks`, {
+		body: JSON.stringify({
+			context: {
+				text: content,
+			},
+			scope: {
+				externalReferenceCode: 'L_CMS',
+			},
+			sseEventSinkKey: eventSourceReference,
+			type,
+		}),
+		headers: new Headers({
+			'Accept': 'application/json',
+			'Authorization': `Bearer ${tokens.accessToken}`,
+			'Content-Type': 'application/json',
+			'Liferay-AI-Hub-On-Behalf-Of': `Bearer ${tokens.userToken}`,
+		}),
+		method: 'POST',
+	});
 }

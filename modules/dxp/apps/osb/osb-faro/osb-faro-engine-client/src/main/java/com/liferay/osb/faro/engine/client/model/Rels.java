@@ -60,6 +60,9 @@ public interface Rels {
 
 	public static final String DATA_SOURCE = "data-source";
 
+	public static final String DATA_SOURCE_CHANNEL_CONNECTED =
+		"data-sources-connected";
+
 	public static final String DATA_SOURCE_DISCONNECT =
 		"data-source-disconnect";
 
@@ -136,6 +139,12 @@ public interface Rels {
 
 	public static final String INDIVIDUAL_SEGMENT_MEMBERSHIPS =
 		"individual-segment-memberships";
+
+	public static final String INDIVIDUAL_SEGMENT_REAL_TIME_MEMBERSHIP_METRIC =
+		"individual-segment-real-time-membership-metric";
+
+	public static final String INDIVIDUAL_SEGMENT_REAL_TIME_MEMBERSHIPS =
+		"individual-segment-real-time-memberships";
 
 	public static final String INDIVIDUAL_SEGMENTS = "individual-segments";
 

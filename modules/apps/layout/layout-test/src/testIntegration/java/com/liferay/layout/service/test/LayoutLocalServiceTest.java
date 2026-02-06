@@ -19,6 +19,7 @@ import com.liferay.layout.page.template.model.LayoutPageTemplateEntry;
 import com.liferay.layout.page.template.service.LayoutPageTemplateEntryLocalService;
 import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
+import com.liferay.petra.function.UnsafeBiFunction;
 import com.liferay.petra.lang.SafeCloseable;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
@@ -63,6 +64,7 @@ import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
+import com.liferay.segments.model.SegmentsExperience;
 import com.liferay.segments.service.SegmentsExperienceLocalService;
 import com.liferay.sites.kernel.util.Sites;
 
@@ -70,6 +72,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -134,14 +137,58 @@ public class LayoutLocalServiceTest {
 
 		Layout draftLayout1 = layout.fetchDraftLayout();
 
-		Assert.assertNotNull(draftLayout1);
-		Assert.assertNotNull(draftLayout1.getExternalReferenceCode());
+		_assertExternalReferenceCodes(
+			draftLayout1,
+			(curExternalReferenceCode, suffix) -> Objects.equals(
+				curExternalReferenceCode, externalReferenceCode + suffix));
 
 		Layout draftLayout2 =
 			_layoutLocalService.getLayoutByExternalReferenceCode(
 				draftLayout1.getExternalReferenceCode(), _group.getGroupId());
 
 		Assert.assertEquals(draftLayout1, draftLayout2);
+
+		Map<String, String> expectedExternalReferenceCodesMap =
+			HashMapBuilder.put(
+				"-default", RandomTestUtil.randomString()
+			).put(
+				"-draft", RandomTestUtil.randomString()
+			).put(
+				"-draft-default", RandomTestUtil.randomString()
+			).build();
+
+		_serviceContext.setAttribute(
+			"defaultSegmentsExperienceExternalReferenceCode",
+			expectedExternalReferenceCodesMap.get("-default"));
+		_serviceContext.setAttribute(
+			"draftLayoutDefaultSegmentsExperienceExternalReferenceCode",
+			expectedExternalReferenceCodesMap.get("-draft-default"));
+		_serviceContext.setAttribute(
+			"draftLayoutExternalReferenceCode",
+			expectedExternalReferenceCodesMap.get("-draft"));
+
+		try {
+			layout = _layoutLocalService.addLayout(
+				StringUtil.randomString(), TestPropsValues.getUserId(),
+				_group.getGroupId(), true,
+				LayoutConstants.DEFAULT_PARENT_LAYOUT_ID,
+				RandomTestUtil.randomString(), null,
+				RandomTestUtil.randomString(), LayoutConstants.TYPE_CONTENT,
+				false, false, null, _serviceContext);
+
+			_assertExternalReferenceCodes(
+				layout.fetchDraftLayout(),
+				(curExternalReferenceCode, suffix) -> Objects.equals(
+					curExternalReferenceCode,
+					expectedExternalReferenceCodesMap.get(suffix)));
+		}
+		finally {
+			_serviceContext.removeAttribute(
+				"defaultSegmentsExperienceExternalReferenceCode");
+			_serviceContext.removeAttribute(
+				"draftLayoutDefaultSegmentsExperienceExternalReferenceCode");
+			_serviceContext.removeAttribute("draftLayoutExternalReferenceCode");
+		}
 	}
 
 	@Test
@@ -165,8 +212,10 @@ public class LayoutLocalServiceTest {
 
 		Layout draftLayout1 = layout1.fetchDraftLayout();
 
-		Assert.assertNotNull(draftLayout1);
-		Assert.assertNotNull(draftLayout1.getExternalReferenceCode());
+		_assertExternalReferenceCodes(
+			draftLayout1,
+			(curExternalReferenceCode, suffix) -> Objects.equals(
+				curExternalReferenceCode, externalReferenceCode + suffix));
 
 		Layout draftLayout2 =
 			_layoutLocalService.getLayoutByExternalReferenceCode(
@@ -293,7 +342,8 @@ public class LayoutLocalServiceTest {
 			layout.getTitleMap(), layout.getDescriptionMap(),
 			layout.getKeywordsMap(), layout.getRobotsMap(), layout.getType(),
 			layout.isHidden(), friendlyURLMap, layout.isIconImage(), null,
-			layout.getStyleBookEntryERC(), layout.getFaviconFileEntryId(),
+			layout.getStyleBookEntryERC(), layout.getFaviconFileEntryERC(),
+			layout.getFaviconFileEntryScopeERC(),
 			layout.getMasterLayoutPageTemplateEntryERC(), _serviceContext);
 
 		friendlyURLMap = layout.getFriendlyURLMap();
@@ -359,7 +409,8 @@ public class LayoutLocalServiceTest {
 				LocaleUtil.US, "/friendly-url-2"
 			).build(),
 			false, null, layout1.getStyleBookEntryERC(),
-			layout1.getFaviconFileEntryId(),
+			layout1.getFaviconFileEntryERC(),
+			layout1.getFaviconFileEntryScopeERC(),
 			layout1.getMasterLayoutPageTemplateEntryERC(), _serviceContext);
 
 		Layout layout2 = _layoutLocalService.addLayout(
@@ -677,7 +728,8 @@ public class LayoutLocalServiceTest {
 				LocaleUtil.US, "/friendly-url-2"
 			).build(),
 			false, null, layout.getStyleBookEntryERC(),
-			layout.getFaviconFileEntryId(),
+			layout.getFaviconFileEntryERC(),
+			layout.getFaviconFileEntryScopeERC(),
 			layout.getMasterLayoutPageTemplateEntryERC(), _serviceContext);
 
 		Layout draftLayout = layout.fetchDraftLayout();
@@ -690,7 +742,8 @@ public class LayoutLocalServiceTest {
 			draftLayout.getRobotsMap(), draftLayout.getType(),
 			draftLayout.isHidden(), draftLayout.getFriendlyURLMap(), false,
 			null, draftLayout.getStyleBookEntryERC(),
-			draftLayout.getFaviconFileEntryId(),
+			draftLayout.getFaviconFileEntryERC(),
+			draftLayout.getFaviconFileEntryScopeERC(),
 			draftLayout.getMasterLayoutPageTemplateEntryERC(), _serviceContext);
 	}
 
@@ -721,7 +774,7 @@ public class LayoutLocalServiceTest {
 			layout.getTitleMap(), layout.getDescriptionMap(),
 			layout.getKeywordsMap(), layout.getRobotsMap(), layout.getType(),
 			layout.isHidden(), friendlyURLMap, layout.getIconImage(), null,
-			null, 0, null, serviceContext);
+			null, null, null, null, serviceContext);
 
 		Assert.assertEquals(
 			friendlyURL, layout.getFriendlyURL(LocaleUtil.GERMANY));
@@ -749,7 +802,8 @@ public class LayoutLocalServiceTest {
 				LocaleUtil.US, ""
 			).build(),
 			false, null, layout.getStyleBookEntryERC(),
-			layout.getFaviconFileEntryId(),
+			layout.getFaviconFileEntryERC(),
+			layout.getFaviconFileEntryScopeERC(),
 			layout.getMasterLayoutPageTemplateEntryERC(), serviceContext);
 
 		Assert.assertEquals("/home", layout.getFriendlyURL(LocaleUtil.US));
@@ -778,7 +832,8 @@ public class LayoutLocalServiceTest {
 			layout.getKeywordsMap(), layout.getRobotsMap(), layout.getType(),
 			layout.isHidden(), layout.getFriendlyURLMap(),
 			layout.getIconImage(), null, layout.getStyleBookEntryERC(),
-			layout.getFaviconFileEntryId(),
+			layout.getFaviconFileEntryERC(),
+			layout.getFaviconFileEntryScopeERC(),
 			layoutPageTemplateEntry.getExternalReferenceCode(),
 			_serviceContext);
 	}
@@ -826,7 +881,8 @@ public class LayoutLocalServiceTest {
 					layout.getRobotsMap(), layout.getType(), false,
 					layout.getFriendlyURLMap(), layout.isIconImage(), null,
 					layout.getStyleBookEntryERC(),
-					layout.getFaviconFileEntryId(),
+					layout.getFaviconFileEntryERC(),
+					layout.getFaviconFileEntryScopeERC(),
 					layout.getMasterLayoutPageTemplateEntryERC(),
 					_serviceContext);
 
@@ -843,7 +899,8 @@ public class LayoutLocalServiceTest {
 				layout.getDescriptionMap(), layout.getKeywordsMap(),
 				layout.getRobotsMap(), LayoutConstants.TYPE_CONTENT, false,
 				layout.getFriendlyURLMap(), layout.isIconImage(), null,
-				layout.getStyleBookEntryERC(), layout.getFaviconFileEntryId(),
+				layout.getStyleBookEntryERC(), layout.getFaviconFileEntryERC(),
+				layout.getFaviconFileEntryScopeERC(),
 				layout.getMasterLayoutPageTemplateEntryERC(), _serviceContext);
 
 			Assert.assertEquals(
@@ -1014,7 +1071,8 @@ public class LayoutLocalServiceTest {
 			layout.getTitleMap(), layout.getDescriptionMap(),
 			layout.getKeywordsMap(), layout.getRobotsMap(), layout.getType(),
 			layout.isHidden(), layout.getFriendlyURLMap(),
-			layout.getIconImage(), null, null, 0, null, serviceContext);
+			layout.getIconImage(), null, null, null, null, null,
+			serviceContext);
 
 		Layout updatedLayout = _layoutLocalService.getLayout(layout.getPlid());
 
@@ -1025,6 +1083,37 @@ public class LayoutLocalServiceTest {
 			"Updating layout prototype should not add property \"" +
 				Sites.LAYOUT_UPDATEABLE + "\"",
 			typeSettingsUnicodeProperties.containsKey(Sites.LAYOUT_UPDATEABLE));
+	}
+
+	private void _assertExternalReferenceCodes(
+			Layout draftLayout,
+			UnsafeBiFunction<String, String, Boolean, Exception>
+				unsafeBiFunction)
+		throws Exception {
+
+		SegmentsExperience segmentsExperience =
+			_segmentsExperienceLocalService.fetchDefaultSegmentsExperience(
+				draftLayout.getClassPK());
+
+		Assert.assertTrue(
+			segmentsExperience.getExternalReferenceCode(),
+			unsafeBiFunction.apply(
+				segmentsExperience.getExternalReferenceCode(), "-default"));
+
+		Assert.assertTrue(
+			draftLayout.getExternalReferenceCode(),
+			unsafeBiFunction.apply(
+				draftLayout.getExternalReferenceCode(), "-draft"));
+
+		segmentsExperience =
+			_segmentsExperienceLocalService.fetchDefaultSegmentsExperience(
+				draftLayout.getPlid());
+
+		Assert.assertTrue(
+			segmentsExperience.getExternalReferenceCode(),
+			unsafeBiFunction.apply(
+				segmentsExperience.getExternalReferenceCode(),
+				"-draft-default"));
 	}
 
 	private void _assertSearch(

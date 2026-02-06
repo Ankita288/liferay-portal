@@ -8,7 +8,6 @@ import {Locator, Page, expect} from '@playwright/test';
 import {clickAndExpectToBeHidden} from '../../utils/clickAndExpectToBeHidden';
 import {clickAndExpectToBeVisible} from '../../utils/clickAndExpectToBeVisible';
 import {collapseSection} from '../../utils/collapseSection';
-import dragAndDropElement from '../../utils/dragAndDropElement';
 import {expandSection} from '../../utils/expandSection';
 import fillAndClickOutside from '../../utils/fillAndClickOutside';
 import {hoverAndExpectToBeVisible} from '../../utils/hoverAndExpectToBeVisible';
@@ -114,7 +113,7 @@ export class PageEditorPage {
 		await expandSection(header);
 
 		if (dropTarget) {
-			await dragAndDropElement({
+			await this.dragAndDropFragment({
 				dragTarget: this.page.getByRole('menuitem', {name}).first(),
 				dropTarget,
 				page: this.page,
@@ -156,10 +155,12 @@ export class PageEditorPage {
 		actions,
 		conditions,
 		name,
+		saveRule = true,
 	}: {
 		actions: {label: string; option: string}[][];
 		conditions: {label: string; option: string}[][];
 		name: string;
+		saveRule?: boolean;
 	}) {
 		const addActionOrCondition = async ({index, label, option}) => {
 			const trigger = this.page.getByLabel(label).nth(index);
@@ -181,7 +182,10 @@ export class PageEditorPage {
 
 		const modal = await this.openRulesModal();
 
-		await modal.getByLabel('Rule Name').fill(name);
+		const nameInput = modal.getByLabel('Rule Name');
+
+		await nameInput.waitFor();
+		await nameInput.fill(name);
 
 		for (const [index, condition] of conditions.entries()) {
 			if (index) {
@@ -207,12 +211,16 @@ export class PageEditorPage {
 			}
 		}
 
-		await modal.getByRole('button', {exact: true, name: 'Save'}).click();
+		if (saveRule) {
+			await modal
+				.getByRole('button', {exact: true, name: 'Save'})
+				.click();
 
-		await waitForAlert(
-			this.page,
-			'Success:The rule was created successfully.'
-		);
+			await waitForAlert(
+				this.page,
+				'Success:The rule was created successfully.'
+			);
+		}
 	}
 
 	async addRandomRuleAction() {
@@ -256,7 +264,7 @@ export class PageEditorPage {
 		await expandSection(header);
 
 		if (dropTarget) {
-			await dragAndDropElement({
+			await this.dragAndDropFragment({
 				dragTarget: this.page.getByRole('menuitem', {name}).first(),
 				dropTarget,
 				page: this.page,
@@ -706,6 +714,39 @@ export class PageEditorPage {
 		}
 	}
 
+	async dragAndDropFragment({
+		dragTarget,
+		dropTarget,
+		force = false,
+		page,
+		timeout,
+	}: {
+		dragTarget: Locator;
+		dropTarget: Locator;
+		force?: boolean;
+		page: Page;
+		timeout?: number;
+	}) {
+		await dragTarget.hover({force, timeout});
+
+		await page.mouse.down();
+
+		const boundingClientRect = await dropTarget.evaluate((element) =>
+			element.getBoundingClientRect()
+		);
+
+		await dropTarget.hover({
+			force,
+			position: {
+				x: boundingClientRect.width / 2,
+				y: boundingClientRect.height / 2,
+			},
+			timeout,
+		});
+
+		await page.mouse.up();
+	}
+
 	async dragTreeNode({
 		position = 'middle',
 		source,
@@ -885,7 +926,7 @@ export class PageEditorPage {
 		await expect(async () => {
 			await this.page.keyboard.press('Escape');
 
-			await this.waitForChangesSaved();
+			await this.waitForChangesSaved({timeout: 2000});
 
 			await expect(editor).not.toBeVisible({
 				timeout: 1000,
@@ -1264,11 +1305,9 @@ export class PageEditorPage {
 	async openRulesModal() {
 		const modal = this.page.locator('.modal-dialog');
 
-		await clickAndExpectToBeVisible({
-			target: modal.getByRole('heading', {name: 'New Rule'}),
-			timeout: 3000,
-			trigger: this.newRuleButton,
-		});
+		await this.newRuleButton.click();
+
+		await expect(modal).toBeVisible();
 
 		return modal;
 	}
@@ -1294,9 +1333,12 @@ export class PageEditorPage {
 		const button = isMaster ? this.publishMasterButton : this.publishButton;
 
 		await button.waitFor();
-		await button.click();
 
-		await waitForAlert(this.page, 'successfully');
+		await expect(async () => {
+			await button.click({timeout: 1000});
+
+			await waitForAlert(this.page, 'successfully', {timeout: 2000});
+		}).toPass();
 	}
 
 	async redoAction() {
@@ -1755,6 +1797,11 @@ export class PageEditorPage {
 				.getByLabel('Configuration Panel')
 				.locator('header', {hasText: fragmentName})
 		).toBeVisible();
+
+		await this.page
+			.getByLabel('Configuration Panel')
+			.locator('header', {hasText: fragmentName})
+			.click();
 	}
 
 	async switchExperience(experience: string) {
@@ -1781,13 +1828,27 @@ export class PageEditorPage {
 			.click();
 	}
 
-	async switchViewport(viewport: Viewport) {
-		await this.page.getByLabel(viewport, {exact: true}).click();
+	async switchViewport(
+		viewport: Viewport,
+		{timeout}: {timeout?: number} = {}
+	) {
+		await this.page.getByLabel(viewport, {exact: true}).click({timeout});
+
 		await this.page
 			.locator(
 				`.page-editor__layout-viewport--size-${VIEWPORTS_CLASSNAMES[viewport]}`
 			)
-			.waitFor();
+			.waitFor({timeout});
+
+		const resizer = this.page.locator(
+			'.page-editor__layout-viewport__resizer'
+		);
+
+		const loadingIndicator = resizer.locator('.loading-animation');
+
+		if (await loadingIndicator.isVisible()) {
+			await loadingIndicator.waitFor({state: 'hidden'});
+		}
 	}
 
 	async undoAction() {

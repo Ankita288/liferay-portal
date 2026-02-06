@@ -15,13 +15,17 @@ import React, {
 } from 'react';
 import {v4 as uuidv4} from 'uuid';
 
-import {Rule} from '../../types/Rule';
+import {AdvancedRule, BasicRule, Rule} from '../../types/Rule';
+import {useSelectItem} from '../js-index';
 import selectPageRules from '../selectors/selectPageRules';
 import {useSelector} from './StoreContext';
 
 const RulesModalContext = React.createContext<{
 	editingRule: Rule;
+	scriptError: string | null;
+	scriptInputRef: React.MutableRefObject<HTMLInputElement | null>;
 	setEditingRule: Dispatch<SetStateAction<Rule>>;
+	setScriptError: Dispatch<SetStateAction<string | null>>;
 	setShouldValidate: Dispatch<SetStateAction<boolean>>;
 	setTrigger: Dispatch<SetStateAction<HTMLButtonElement | null>>;
 	setVisible: Dispatch<SetStateAction<boolean>>;
@@ -30,7 +34,10 @@ const RulesModalContext = React.createContext<{
 	visible: boolean;
 }>({
 	editingRule: getDefaultRule([]),
+	scriptError: null,
+	scriptInputRef: {current: null},
 	setEditingRule: () => {},
+	setScriptError: () => {},
 	setShouldValidate: () => false,
 	setTrigger: () => {},
 	setVisible: () => {},
@@ -46,12 +53,17 @@ function RulesModalContextProvider({children}: {children: ReactNode}) {
 	const [visible, setVisible] = useState<boolean>(false);
 	const [editingRule, setEditingRule] = useState<Rule>(getDefaultRule(rules));
 	const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
+	const [scriptError, setScriptError] = useState<string | null>(null);
+	const scriptInputRef = React.useRef<HTMLInputElement | null>(null);
 
 	return (
 		<RulesModalContext.Provider
 			value={{
 				editingRule,
+				scriptError,
+				scriptInputRef,
 				setEditingRule,
+				setScriptError,
 				setShouldValidate,
 				setTrigger,
 				setVisible,
@@ -71,16 +83,35 @@ function useRulesModal() {
 
 	const rules = useSelector(selectPageRules);
 
+	const selectItem = useSelectItem();
+
 	const openRulesModal = useCallback(
 		({
 			rule,
 			trigger,
 		}: {rule?: Partial<Rule>; trigger?: HTMLButtonElement | null} = {}) => {
 			if (rule) {
-				setEditingRule((previous) => ({
-					...previous,
-					...rule,
-				}));
+				if (isNullOrUndefined(rule.script)) {
+					setEditingRule(
+						(previous) =>
+							({
+								...previous,
+								...rule,
+								script: undefined,
+							}) as BasicRule
+					);
+				}
+				else {
+					setEditingRule(
+						(previous) =>
+							({
+								...previous,
+								...rule,
+								conditionType: undefined,
+								conditions: undefined,
+							}) as AdvancedRule
+					);
+				}
 			}
 
 			if (trigger) {
@@ -88,8 +119,10 @@ function useRulesModal() {
 			}
 
 			setVisible(true);
+
+			selectItem(null);
 		},
-		[setEditingRule, setTrigger, setVisible]
+		[setEditingRule, setTrigger, setVisible, selectItem]
 	);
 
 	const closeRulesModal = useCallback(() => {
@@ -104,18 +137,46 @@ function useRulesModal() {
 		setTrigger(null);
 	}, [editingRule, rules, setEditingRule, setTrigger, setVisible, trigger]);
 
-	const updateEditingRule = useCallback(
+	const updateConditions = useCallback(
 		({
-			actions,
 			conditionType,
 			conditions,
-			name,
+			script,
 		}: {
 			actions?: Rule['actions'];
 			conditionType?: Rule['conditionType'];
 			conditions?: Rule['conditions'];
 			name?: Rule['name'];
+			script?: Rule['script'];
 		}) => {
+			setEditingRule((rule) => {
+				if (!rule) {
+					return rule;
+				}
+
+				if (isNullOrUndefined(script)) {
+					return {
+						...rule,
+						conditionType: conditionType || 'all',
+						conditions: conditions || [],
+						script: undefined,
+					} as BasicRule;
+				}
+				else {
+					return {
+						...rule,
+						conditionType: undefined,
+						conditions: undefined,
+						script,
+					} as AdvancedRule;
+				}
+			});
+		},
+		[setEditingRule]
+	);
+
+	const updateName = useCallback(
+		(name: string) => {
 			setEditingRule((rule) => {
 				if (!rule) {
 					return rule;
@@ -123,19 +184,36 @@ function useRulesModal() {
 
 				return {
 					...rule,
-					...(!isNullOrUndefined(name) ? {name} : {}),
-					...(!isNullOrUndefined(actions) ? {actions} : {}),
-					...(!isNullOrUndefined(conditions) ? {conditions} : {}),
-					...(!isNullOrUndefined(conditionType)
-						? {conditionType}
-						: {}),
+					name,
 				};
 			});
 		},
 		[setEditingRule]
 	);
 
-	return {closeRulesModal, openRulesModal, updateEditingRule};
+	const updateActions = useCallback(
+		(actions: Rule['actions']) => {
+			setEditingRule((rule) => {
+				if (!rule) {
+					return rule;
+				}
+
+				return {
+					...rule,
+					actions,
+				};
+			});
+		},
+		[setEditingRule]
+	);
+
+	return {
+		closeRulesModal,
+		openRulesModal,
+		updateActions,
+		updateConditions,
+		updateName,
+	};
 }
 
 function useRulesModalState() {
@@ -163,6 +241,18 @@ function useTriggerRuleValidation() {
 	return () => setShouldValidate(true);
 }
 
+function useScriptError() {
+	const {scriptError, setScriptError} = useContext(RulesModalContext);
+
+	return {scriptError, setScriptError};
+}
+
+function useScriptInputRef() {
+	const {scriptInputRef} = useContext(RulesModalContext);
+
+	return scriptInputRef;
+}
+
 function getDefaultRule(rules: Rule[]): Rule {
 	const nameIsUsed = (rules: Rule[], name: string) =>
 		rules.some((rule) => rule.name === name);
@@ -180,8 +270,9 @@ function getDefaultRule(rules: Rule[]): Rule {
 		actions: [{id: uuidv4(), type: undefined}],
 		conditionType: 'all',
 		conditions: [{id: uuidv4(), type: undefined}],
+		id: '',
 		name,
-	};
+	} as BasicRule;
 }
 
 export {
@@ -191,4 +282,6 @@ export {
 	useRulesModalState,
 	useRuleValidation,
 	useTriggerRuleValidation,
+	useScriptError,
+	useScriptInputRef,
 };

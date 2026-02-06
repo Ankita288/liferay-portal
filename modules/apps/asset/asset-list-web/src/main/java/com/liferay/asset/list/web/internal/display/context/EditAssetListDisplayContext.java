@@ -42,6 +42,8 @@ import com.liferay.item.selector.criteria.InfoItemItemSelectorReturnType;
 import com.liferay.item.selector.criteria.asset.criterion.AssetEntryItemSelectorCriterion;
 import com.liferay.item.selector.criteria.group.criterion.GroupItemSelectorCriterion;
 import com.liferay.item.selector.criteria.info.item.criterion.InfoItemItemSelectorCriterion;
+import com.liferay.object.model.ObjectDefinition;
+import com.liferay.object.service.ObjectDefinitionLocalService;
 import com.liferay.petra.function.UnsafeConsumer;
 import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.string.CharPool;
@@ -122,14 +124,16 @@ public class EditAssetListDisplayContext {
 	public EditAssetListDisplayContext(
 		AssetRendererFactoryClassProvider assetRendererFactoryClassProvider,
 		InfoSearchClassMapperRegistry infoSearchClassMapperRegistry,
-		ItemSelector itemSelector, PortletRequest portletRequest,
-		PortletResponse portletResponse,
+		ItemSelector itemSelector,
+		ObjectDefinitionLocalService objectDefinitionLocalService,
+		PortletRequest portletRequest, PortletResponse portletResponse,
 		SegmentsConfigurationProvider segmentsConfigurationProvider,
 		UnicodeProperties unicodeProperties) {
 
 		_assetRendererFactoryClassProvider = assetRendererFactoryClassProvider;
 		_infoSearchClassMapperRegistry = infoSearchClassMapperRegistry;
 		_itemSelector = itemSelector;
+		_objectDefinitionLocalService = objectDefinitionLocalService;
 		_portletRequest = portletRequest;
 		_portletResponse = portletResponse;
 		_segmentsConfigurationProvider = segmentsConfigurationProvider;
@@ -1389,7 +1393,19 @@ public class EditAssetListDisplayContext {
 					LanguageUtil.format(
 						_httpServletRequest, "select-x", classTypeName,
 						false)));
-			dropdownItem.setLabel(classTypeName);
+
+			ObjectDefinition objectDefinition =
+				_objectDefinitionLocalService.fetchObjectDefinitionByClassName(
+					_themeDisplay.getCompanyId(),
+					assetRendererFactory.getClassName());
+
+			if ((objectDefinition != null) && objectDefinition.isCMS()) {
+				dropdownItem.setLabel(
+					StringUtil.appendParentheticalSuffix(classTypeName, "CMS"));
+			}
+			else {
+				dropdownItem.setLabel(classTypeName);
+			}
 		};
 	}
 
@@ -1467,6 +1483,7 @@ public class EditAssetListDisplayContext {
 	private final InfoSearchClassMapperRegistry _infoSearchClassMapperRegistry;
 	private final ItemSelector _itemSelector;
 	private Boolean _liveGroup;
+	private final ObjectDefinitionLocalService _objectDefinitionLocalService;
 	private String _orderByColumn1;
 	private String _orderByColumn2;
 	private String _orderByType1;

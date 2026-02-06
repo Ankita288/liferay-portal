@@ -31,6 +31,7 @@ export const test = mergeTests(
 	assetCategoriesPagesTest,
 	dataApiHelpersTest,
 	featureFlagsTest({
+		'LPD-35443': {enabled: true},
 		'LPD-35914': {enabled: true},
 	}),
 	loginTest(),
@@ -1022,13 +1023,11 @@ test(
 
 		await siteMembershipsPage.goto(site.friendlyUrlPath);
 		await siteMembershipsPage.userGroupsLink.click();
-		await siteMembershipsPage.newUserGroupButton.click();
 
-		await expect(
-			siteMembershipsPage.assignUserGroupIFrameTitle
-		).toBeVisible();
-
-		await siteMembershipsPage.assignUserGroupTable.changeView('Table');
+		await expect(async () => {
+			await siteMembershipsPage.newUserGroupButton.click();
+			await siteMembershipsPage.assignUserGroupTable.changeView('Table');
+		}).toPass();
 
 		await expect(
 			siteMembershipsPage.assignUserGroupTable.cell(userGroup.name)
@@ -1797,8 +1796,8 @@ test(
 
 		await assetCategoriesAdminPage.goto('/global');
 		await assetCategoriesAdminPage.gotoVocabulary(vocabularyName);
-		await vocabulariesEditPage.goto(vocabularyName);
 
+		await vocabulariesEditPage.goto(vocabularyName);
 		await vocabulariesEditPage.toggleRequired();
 
 		await usersAndOrganizationsPage.goToUsers();
@@ -1816,11 +1815,11 @@ test(
 
 		await expect(editUserPage.membershipsNoUserGroupsMessage).toBeVisible();
 
-		await editUserPage.selectUserGroupsButton.click();
+		await expect(async () => {
+			await editUserPage.selectUserGroupsButton.click();
+			await editUserPage.selectUserGroupTable.changeView('table');
+		}).toPass();
 
-		await page.waitForLoadState('domcontentloaded');
-
-		await editUserPage.selectUserGroupTable.changeView('table');
 		await editUserPage.selectUserGroupTable.cell(userGroup.name).click();
 
 		await expect(
@@ -1836,5 +1835,58 @@ test(
 		await editUserPage.saveButton.click();
 
 		await waitForAlert(page);
+	}
+);
+
+test(
+	'Test XSS vulnerability when adding user with malicious first name to an organization',
+	{tag: ['@LPD-72282']},
+	async ({
+		apiHelpers,
+		organizationUsersPage,
+		page,
+		usersAndOrganizationsPage,
+	}) => {
+		const userAccount = await apiHelpers.headlessAdminUser.postUserAccount({
+			alternateName: `xsstest${getRandomInt()}`,
+			emailAddress: `xsstest${getRandomInt()}@liferay.com`,
+			familyName: `TestUser${getRandomInt()}`,
+			givenName: `<img src=x onerror="alert('x')">`,
+		});
+
+		const organization =
+			await apiHelpers.headlessAdminUser.postOrganization();
+
+		await apiHelpers.headlessAdminUser.assignUserToOrganizationByEmailAddress(
+			organization.id,
+			userAccount.emailAddress
+		);
+
+		apiHelpers.data.push({
+			id: `${organization.id}_${userAccount.emailAddress}`,
+			type: 'organizationUserAccountAssociation',
+		});
+
+		await usersAndOrganizationsPage.goToOrganizations();
+
+		await usersAndOrganizationsPage.organizationsTable
+			.valueLink(organization.name)
+			.click();
+
+		await expect(organizationUsersPage.filterButton).toBeVisible();
+
+		page.on('dialog', async (dialog) => {
+			if (dialog.type() === 'alert') {
+				throw new Error('XSS');
+			}
+		});
+
+		await organizationUsersPage.organizationUsersTable.changeView('Cards');
+
+		await expect(
+			await organizationUsersPage.screenName(
+				userAccount.givenName + ' ' + userAccount.familyName
+			)
+		).toBeVisible();
 	}
 );

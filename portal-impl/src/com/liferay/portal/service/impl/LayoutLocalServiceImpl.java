@@ -14,6 +14,7 @@ import com.liferay.layout.page.template.kernel.provider.util.LayoutPageTemplateE
 import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.lang.CentralizedThreadLocal;
 import com.liferay.petra.sql.dsl.DSLQueryFactoryUtil;
+import com.liferay.petra.sql.dsl.expression.Predicate;
 import com.liferay.petra.sql.dsl.query.DSLQuery;
 import com.liferay.petra.sql.dsl.query.FromStep;
 import com.liferay.petra.sql.dsl.query.GroupByStep;
@@ -33,6 +34,7 @@ import com.liferay.portal.kernel.exception.LayoutNameException;
 import com.liferay.portal.kernel.exception.LayoutTypeException;
 import com.liferay.portal.kernel.exception.MasterLayoutException;
 import com.liferay.portal.kernel.exception.NoSuchLayoutException;
+import com.liferay.portal.kernel.exception.NoSuchLayoutPrototypeException;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.RequiredLayoutException;
 import com.liferay.portal.kernel.exception.SitemapChangeFrequencyException;
@@ -212,8 +214,7 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 	 * @param  system whether the layout is of system type
 	 * @param  friendlyURLMap the layout's locales and localized friendly URLs.
 	 *         To see how the URL is normalized when accessed, see {@link
-	 *         com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 *         String)}.
+	 *         FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param  masterLayoutPageTemplateEntryERC the external reference code of
 	 *         the master layout page template entry
 	 * @param  serviceContext the service context to be applied. Must set the
@@ -358,15 +359,22 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 		layout.setMasterLayoutPageTemplateEntryERC(
 			masterLayoutPageTemplateEntryERC);
 
-		String layoutPrototypeUuid = ParamUtil.getString(
-			serviceContext, "layoutPrototypeUuid");
-		boolean layoutPrototypeLinkEnabled = ParamUtil.getBoolean(
-			serviceContext, "layoutPrototypeLinkEnabled",
-			PropsValues.LAYOUT_PROTOTYPE_LINK_ENABLED_DEFAULT);
+		String portletLayoutPageTemplateEntryERC = ParamUtil.getString(
+			serviceContext, "portletLayoutPageTemplateEntryERC");
+		String portletLayoutPageTemplateEntryScopeERC = ParamUtil.getString(
+			serviceContext, "portletLayoutPageTemplateEntryScopeERC");
+		boolean portletLayoutPageTemplateEntryLinkEnabled =
+			ParamUtil.getBoolean(
+				serviceContext, "portletLayoutPageTemplateEntryLinkEnabled",
+				PropsValues.LAYOUT_PROTOTYPE_LINK_ENABLED_DEFAULT);
 
-		if (Validator.isNotNull(layoutPrototypeUuid)) {
-			layout.setLayoutPrototypeUuid(layoutPrototypeUuid);
-			layout.setLayoutPrototypeLinkEnabled(layoutPrototypeLinkEnabled);
+		if (Validator.isNotNull(portletLayoutPageTemplateEntryERC)) {
+			layout.setPortletLayoutPageTemplateEntryERC(
+				portletLayoutPageTemplateEntryERC);
+			layout.setPortletLayoutPageTemplateEntryScopeERC(
+				portletLayoutPageTemplateEntryScopeERC);
+			layout.setPortletLayoutPageTemplateEntryLinkEnabled(
+				portletLayoutPageTemplateEntryLinkEnabled);
 		}
 
 		String layoutSetPrototypeLayoutERC = ParamUtil.getString(
@@ -409,11 +417,13 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 
 		// Layout prototype
 
-		if (Validator.isNotNull(layoutPrototypeUuid) &&
-			!layoutPrototypeLinkEnabled) {
+		if (Validator.isNotNull(portletLayoutPageTemplateEntryERC) &&
+			!portletLayoutPageTemplateEntryLinkEnabled) {
 
 			_applyLayoutPrototype(
-				layoutPrototypeUuid, layout, layoutPrototypeLinkEnabled);
+				layout, portletLayoutPageTemplateEntryERC,
+				portletLayoutPageTemplateEntryScopeERC,
+				portletLayoutPageTemplateEntryLinkEnabled);
 		}
 
 		// Resources
@@ -467,6 +477,10 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 					"draftLayoutDefaultSegmentsExperienceExternalReference" +
 						"Code"));
 			serviceContext.setAttribute(
+				"defaultSegmentsExperienceUuid",
+				serviceContext.getAttribute(
+					"draftLayoutDefaultSegmentsExperienceUuid"));
+			serviceContext.setAttribute(
 				"layoutSetPrototypeLayoutERC",
 				serviceContext.getAttribute(
 					"draftLayoutLayoutSetPrototypeLayoutERC"));
@@ -476,7 +490,7 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 				GetterUtil.getString(
 					serviceContext.getAttribute(
 						"draftLayoutExternalReferenceCode"),
-					null),
+					layout.getExternalReferenceCode() + "-draft"),
 				userId, groupId, privateLayout, parentLayoutId,
 				_classNameLocalService.getClassNameId(Layout.class),
 				layout.getPlid(), nameMap, titleMap, descriptionMap,
@@ -518,8 +532,7 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 	 * @param  system whether the layout is of system type
 	 * @param  friendlyURLMap the layout's locales and localized friendly URLs.
 	 *         To see how the URL is normalized when accessed, see {@link
-	 *         com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 *         String)}.
+	 *         FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param  serviceContext the service context to be applied. Must set the
 	 *         UUID for the layout. Can set the creation date, modification
 	 *         date, and expando bridge attributes for the layout. For layouts
@@ -584,8 +597,7 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 	 * @param  hidden whether the layout is hidden
 	 * @param  friendlyURLMap the layout's locales and localized friendly URLs.
 	 *         To see how the URL is normalized when accessed, see {@link
-	 *         com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 *         String)}.
+	 *         FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param  serviceContext the service context to be applied. Must set the
 	 *         UUID for the layout. Can set the creation date, modification
 	 *         date, and expando bridge attributes for the layout. For layouts
@@ -659,8 +671,7 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 	 *         <code>portal-ext.properties</code> by specifying new values for
 	 *         the corresponding properties defined in {@link PropsValues}. To
 	 *         see how the URL is normalized when accessed, see {@link
-	 *         com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 *         String)}.
+	 *         FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param  serviceContext the service context to be applied. Must set the
 	 *         UUID for the layout. Can set the creation date and modification
 	 *         date for the layout. For layouts that belong to a layout set
@@ -740,8 +751,7 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 	 *         <code>portal-ext.properties</code> by specifying new values for
 	 *         the corresponding properties defined in {@link PropsValues}. To
 	 *         see how the URL is normalized when accessed, see {@link
-	 *         com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 *         String)}.
+	 *         FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param  serviceContext the service context to be applied. Must set the
 	 *         UUID for the layout. Can set the creation date and modification
 	 *         date for the layout. For layouts that belong to a layout set
@@ -2058,21 +2068,6 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 	}
 
 	@Override
-	public List<Layout> getLayoutsByLayoutPrototypeUuid(
-		String layoutPrototypeUuid) {
-
-		return layoutPersistence.findByLayoutPrototypeUuid(layoutPrototypeUuid);
-	}
-
-	@Override
-	public int getLayoutsByLayoutPrototypeUuidCount(
-		String layoutPrototypeUuid) {
-
-		return layoutPersistence.countByLayoutPrototypeUuid(
-			layoutPrototypeUuid);
-	}
-
-	@Override
 	public int getLayoutsCount(Group group, boolean privateLayout)
 		throws PortalException {
 
@@ -2324,7 +2319,8 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 					serviceContext);
 			},
 			externalReferenceCode, this::fetchLayoutByExternalReferenceCode,
-			this::getLayoutByExternalReferenceCode, groupId);
+			this::getLayoutByExternalReferenceCode, groupId,
+			Layout.class.getName());
 	}
 
 	@Override
@@ -2596,6 +2592,47 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 
 		int count = layoutPersistence.countByG_P_P(
 			groupId, privateLayout, parentLayoutId);
+
+		if (count > 0) {
+			return true;
+		}
+
+		return false;
+	}
+
+	@Override
+	public boolean hasLayouts(
+		long groupId, String portletLayoutPageTemplateEntryERC) {
+
+		Group group = _groupLocalService.fetchGroup(groupId);
+
+		if (group == null) {
+			return false;
+		}
+
+		Predicate predicate = Predicate.withParentheses(
+			LayoutTable.INSTANCE.portletLayoutPageTemplateEntryScopeERC.eq(
+				group.getExternalReferenceCode()
+			).or(
+				Predicate.withParentheses(
+					LayoutTable.INSTANCE.portletLayoutPageTemplateEntryScopeERC.
+						isNull(
+						).and(
+							LayoutTable.INSTANCE.groupId.eq(groupId)
+						))
+			));
+
+		int count = dslQueryCount(
+			DSLQueryFactoryUtil.count(
+			).from(
+				LayoutTable.INSTANCE
+			).where(
+				LayoutTable.INSTANCE.portletLayoutPageTemplateEntryERC.eq(
+					portletLayoutPageTemplateEntryERC
+				).and(
+					predicate
+				)
+			));
 
 		if (count > 0) {
 			return true;
@@ -2958,13 +2995,15 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 	 * @param  hidden whether the layout is hidden
 	 * @param  friendlyURLMap the layout's locales and localized friendly URLs.
 	 *         To see how the URL is normalized when accessed, see {@link
-	 *         com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 *         String)}.
+	 *         FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param  hasIconImage whether the icon image will be updated
 	 * @param  iconBytes the byte array of the layout's new icon image
 	 * @param  styleBookEntryERC the external reference code of the style book
 	 *         entry
-	 * @param  faviconFileEntryId the file entry ID of the layout's new favicon
+	 * @param  faviconFileEntryERC the file entry external reference code of the
+	 *         layout's new favicon
+	 * @param  faviconFileEntryScopeERC the file entry scope external reference
+	 *         code of the layout's new favicon
 	 * @param  masterLayoutPageTemplateEntryERC the external reference code of
 	 *         the master layout page template entry
 	 * @param  serviceContext the service context to be applied. Can set the
@@ -2987,7 +3026,8 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 			Map<Locale, String> keywordsMap, Map<Locale, String> robotsMap,
 			String type, boolean hidden, Map<Locale, String> friendlyURLMap,
 			boolean hasIconImage, byte[] iconBytes, String styleBookEntryERC,
-			long faviconFileEntryId, String masterLayoutPageTemplateEntryERC,
+			String faviconFileEntryERC, String faviconFileEntryScopeERC,
+			String masterLayoutPageTemplateEntryERC,
 			ServiceContext serviceContext)
 		throws PortalException {
 
@@ -3056,7 +3096,8 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 			layout, hasIconImage, iconBytes, "iconImageId", 0, 0, 0);
 
 		layout.setStyleBookEntryERC(styleBookEntryERC);
-		layout.setFaviconFileEntryId(faviconFileEntryId);
+		layout.setFaviconFileEntryERC(faviconFileEntryERC);
+		layout.setFaviconFileEntryScopeERC(faviconFileEntryScopeERC);
 		layout.setMasterLayoutPageTemplateEntryERC(
 			masterLayoutPageTemplateEntryERC);
 
@@ -3080,26 +3121,36 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 
 		layout.setTypeSettingsProperties(typeSettingsUnicodeProperties);
 
-		String layoutPrototypeUuid = ParamUtil.getString(
-			serviceContext, "layoutPrototypeUuid");
+		String portletLayoutPageTemplateEntryERC = ParamUtil.getString(
+			serviceContext, "portletLayoutPageTemplateEntryERC");
 
-		if (Validator.isNotNull(layoutPrototypeUuid)) {
-			layout.setLayoutPrototypeUuid(layoutPrototypeUuid);
+		if (Validator.isNotNull(portletLayoutPageTemplateEntryERC)) {
+			layout.setPortletLayoutPageTemplateEntryERC(
+				portletLayoutPageTemplateEntryERC);
 
 			boolean applyLayoutPrototype = ParamUtil.getBoolean(
 				serviceContext, "applyLayoutPrototype");
 
-			boolean layoutPrototypeLinkEnabled = ParamUtil.getBoolean(
-				serviceContext, "layoutPrototypeLinkEnabled");
+			layout.setPortletLayoutPageTemplateEntryScopeERC(
+				ParamUtil.getString(
+					serviceContext, "portletLayoutPageTemplateEntryScopeERC"));
 
-			layout.setLayoutPrototypeLinkEnabled(layoutPrototypeLinkEnabled);
+			boolean portletLayoutPageTemplateEntryLinkEnabled =
+				ParamUtil.getBoolean(
+					serviceContext,
+					"portletLayoutPageTemplateEntryLinkEnabled");
+
+			layout.setPortletLayoutPageTemplateEntryLinkEnabled(
+				portletLayoutPageTemplateEntryLinkEnabled);
 
 			if (applyLayoutPrototype) {
 				serviceContext.setAttribute(
 					"applyLayoutPrototype", Boolean.FALSE);
 
 				_applyLayoutPrototype(
-					layoutPrototypeUuid, layout, layoutPrototypeLinkEnabled);
+					layout, portletLayoutPageTemplateEntryERC,
+					layout.getPortletLayoutPageTemplateEntryScopeERC(),
+					portletLayoutPageTemplateEntryLinkEnabled);
 
 				layout = layoutPersistence.findByG_P_L(
 					groupId, privateLayout, layoutId);
@@ -3139,7 +3190,8 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 			long groupId, boolean privateLayout, long layoutId,
 			String typeSettings, byte[] iconBytes, String themeId,
 			String colorSchemeId, String styleBookEntryERC, String css,
-			long faviconFileEntryId, String masterLayoutPageTemplateEntryERC)
+			String faviconFileEntryERC, String faviconFileEntryScopeERC,
+			String masterLayoutPageTemplateEntryERC)
 		throws PortalException {
 
 		Layout layout = layoutPersistence.findByG_P_L(
@@ -3161,7 +3213,8 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 		layout.setColorSchemeId(colorSchemeId);
 		layout.setStyleBookEntryERC(styleBookEntryERC);
 		layout.setCss(css);
-		layout.setFaviconFileEntryId(faviconFileEntryId);
+		layout.setFaviconFileEntryERC(faviconFileEntryERC);
+		layout.setFaviconFileEntryScopeERC(faviconFileEntryScopeERC);
 		layout.setMasterLayoutPageTemplateEntryERC(
 			masterLayoutPageTemplateEntryERC);
 
@@ -3771,8 +3824,9 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 		if (Objects.equals(type, LayoutConstants.TYPE_CONTENT) ||
 			Objects.equals(type, LayoutConstants.TYPE_UTILITY)) {
 
-			layout.setLayoutPrototypeUuid(StringPool.BLANK);
-			layout.setLayoutPrototypeLinkEnabled(false);
+			layout.setPortletLayoutPageTemplateEntryERC(StringPool.BLANK);
+			layout.setPortletLayoutPageTemplateEntryScopeERC(StringPool.BLANK);
+			layout.setPortletLayoutPageTemplateEntryLinkEnabled(false);
 		}
 
 		return layoutLocalService.updateLayout(layout);
@@ -3983,19 +4037,35 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 	}
 
 	private void _applyLayoutPrototype(
-			String layoutPrototypeUuid, Layout layout,
-			boolean layoutPrototypeLinkEnabled)
+			Layout layout, String portletLayoutPageTemplateEntryERC,
+			String portletLayoutPageTemplateEntryScopeERC,
+			boolean portletLayoutPageTemplateEntryLinkEnabled)
 		throws PortalException {
 
 		LayoutPrototype layoutPrototype =
-			_layoutPrototypeLocalService.getLayoutPrototypeByUuidAndCompanyId(
-				layoutPrototypeUuid, layout.getCompanyId());
+			LayoutPageTemplateEntryLayoutProviderUtil.
+				getLayoutPageTemplateEntryLayoutPrototype(
+					layout.getCompanyId(), portletLayoutPageTemplateEntryERC,
+					portletLayoutPageTemplateEntryScopeERC,
+					layout.getGroupId());
+
+		if (layoutPrototype == null) {
+			if (_log.isWarnEnabled()) {
+				_log.warn(
+					"Unable to apply layout prototype for PLID " +
+						layout.getPlid(),
+					new NoSuchLayoutPrototypeException());
+			}
+
+			return;
+		}
 
 		try {
 			Sites sites = _sitesSnapshot.get();
 
 			sites.applyLayoutPrototype(
-				layoutPrototype, layout, layoutPrototypeLinkEnabled);
+				layoutPrototype, layout,
+				portletLayoutPageTemplateEntryLinkEnabled);
 		}
 		catch (PortalException portalException) {
 			throw portalException;
@@ -4413,7 +4483,7 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 			return false;
 		}
 
-		if (Validator.isNull(layout.getLayoutPrototypeUuid()) &&
+		if (Validator.isNull(layout.getPortletLayoutPageTemplateEntryERC()) &&
 			Validator.isNull(layout.getLayoutSetPrototypeLayoutERC())) {
 
 			return false;

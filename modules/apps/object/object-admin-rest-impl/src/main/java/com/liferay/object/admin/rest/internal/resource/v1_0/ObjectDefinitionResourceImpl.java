@@ -64,6 +64,7 @@ import com.liferay.object.system.SystemObjectDefinitionManagerRegistry;
 import com.liferay.petra.lang.SafeCloseable;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
+import com.liferay.portal.kernel.lazy.referencing.LazyReferencingThreadLocal;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.mass.delete.MassDeleteCacheThreadLocal;
@@ -74,6 +75,10 @@ import com.liferay.portal.kernel.search.filter.Filter;
 import com.liferay.portal.kernel.security.auth.GuestOrUserUtil;
 import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.service.GroupLocalService;
+import com.liferay.portal.kernel.service.ResourceActionLocalService;
+import com.liferay.portal.kernel.service.ResourcePermissionLocalService;
+import com.liferay.portal.kernel.service.RoleLocalService;
+import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.WorkflowDefinitionLinkLocalService;
 import com.liferay.portal.kernel.transaction.Propagation;
 import com.liferay.portal.kernel.transaction.TransactionConfig;
@@ -94,6 +99,7 @@ import com.liferay.portal.vulcan.dto.converter.DTOConverter;
 import com.liferay.portal.vulcan.dto.converter.DefaultDTOConverterContext;
 import com.liferay.portal.vulcan.pagination.Page;
 import com.liferay.portal.vulcan.pagination.Pagination;
+import com.liferay.portal.vulcan.permission.ModelPermissionsUtil;
 import com.liferay.portal.vulcan.util.LocalizedMapUtil;
 import com.liferay.portal.vulcan.util.SearchUtil;
 
@@ -198,6 +204,11 @@ public class ObjectDefinitionResourceImpl
 			}
 
 			@Override
+			public int getRank() {
+				return 99;
+			}
+
+			@Override
 			public String getResourceClassName() {
 				return ObjectDefinitionResourceImpl.class.getName();
 			}
@@ -274,6 +285,8 @@ public class ObjectDefinitionResourceImpl
 				searchContext.addVulcanAggregation(aggregation);
 				searchContext.setAttribute(Field.NAME, search);
 				searchContext.setCompanyId(contextCompany.getCompanyId());
+				searchContext.setLocale(
+					contextAcceptLanguage.getPreferredLocale());
 			},
 			sorts,
 			document -> _toObjectDefinition(
@@ -421,7 +434,8 @@ public class ObjectDefinitionResourceImpl
 							contextUser.getCompanyId(), _groupLocalService,
 							contextUser.getUserId(),
 							_workflowDefinitionLinkLocalService,
-							objectDefinition.getWorkflowDefinitionLinks()));
+							objectDefinition.getWorkflowDefinitionLinks()),
+						_createServiceContext(objectDefinition));
 			}
 		}
 
@@ -689,7 +703,8 @@ public class ObjectDefinitionResourceImpl
 							contextUser.getCompanyId(), _groupLocalService,
 							contextUser.getUserId(),
 							_workflowDefinitionLinkLocalService,
-							objectDefinition.getWorkflowDefinitionLinks()));
+							objectDefinition.getWorkflowDefinitionLinks()),
+						_createServiceContext(objectDefinition));
 			}
 		}
 
@@ -1170,52 +1185,80 @@ public class ObjectDefinitionResourceImpl
 				serviceBuilderObjectDefinition2)
 		throws Exception {
 
-		String objectDefinitionExternalReferenceCode1 =
-			objectField.getObjectDefinitionExternalReferenceCode1();
+		try (SafeCloseable safeCloseable =
+				LazyReferencingThreadLocal.setEnabledWithSafeCloseable(true)) {
 
-		if (Validator.isNull(objectDefinitionExternalReferenceCode1) ||
-			StringUtil.equals(
-				objectDefinitionExternalReferenceCode1,
-				serviceBuilderObjectDefinition2.getExternalReferenceCode())) {
+			String objectDefinitionExternalReferenceCode1 =
+				objectField.getObjectDefinitionExternalReferenceCode1();
 
-			return null;
-		}
-
-		com.liferay.object.model.ObjectDefinition
-			serviceBuilderObjectDefinition1 =
-				_objectDefinitionLocalService.
-					fetchObjectDefinitionByExternalReferenceCode(
-						objectDefinitionExternalReferenceCode1,
-						serviceBuilderObjectDefinition2.getCompanyId());
-
-		if (serviceBuilderObjectDefinition1 == null) {
-			serviceBuilderObjectDefinition1 =
-				_objectDefinitionLocalService.addObjectDefinition(
+			if (Validator.isNull(objectDefinitionExternalReferenceCode1) ||
+				StringUtil.equals(
 					objectDefinitionExternalReferenceCode1,
-					contextUser.getUserId(),
-					serviceBuilderObjectDefinition2.getObjectFolderId(), true,
-					ObjectDefinitionConstants.SCOPE_COMPANY, false);
+					serviceBuilderObjectDefinition2.
+						getExternalReferenceCode())) {
+
+				return null;
+			}
+
+			com.liferay.object.model.ObjectDefinition
+				serviceBuilderObjectDefinition1 =
+					_objectDefinitionLocalService.getOrAddEmptyObjectDefinition(
+						objectDefinitionExternalReferenceCode1,
+						serviceBuilderObjectDefinition2.getCompanyId(),
+						contextUser.getUserId(),
+						serviceBuilderObjectDefinition2.getObjectFolderId(),
+						true, ObjectDefinitionConstants.SCOPE_COMPANY, false);
+
+			com.liferay.object.model.ObjectRelationship objectRelationship =
+				_objectRelationshipLocalService.
+					fetchObjectRelationshipByExternalReferenceCode(
+						objectField.
+							getObjectRelationshipExternalReferenceCode(),
+						serviceBuilderObjectDefinition1.
+							getObjectDefinitionId());
+
+			if (objectRelationship != null) {
+				return objectRelationship;
+			}
+
+			return _objectRelationshipLocalService.addObjectRelationship(
+				objectField.getObjectRelationshipExternalReferenceCode(),
+				contextUser.getUserId(),
+				serviceBuilderObjectDefinition1.getObjectDefinitionId(),
+				serviceBuilderObjectDefinition2.getObjectDefinitionId(),
+				ObjectFieldUtil.toObjectField(
+					defaultLanguageId, _listTypeDefinitionLocalService,
+					objectField, _objectFieldLocalService,
+					_objectFieldSettingLocalService,
+					_objectFilterLocalService));
+		}
+	}
+
+	private ServiceContext _createServiceContext(
+			ObjectDefinition objectDefinition)
+		throws Exception {
+
+		ServiceContext serviceContext = new ServiceContext();
+
+		if (!FeatureFlagManagerUtil.isEnabled(
+				contextCompany.getCompanyId(), "LPD-35914") ||
+			(objectDefinition.getPermissions() == null)) {
+
+			serviceContext.setModelPermissions(null);
+
+			return serviceContext;
 		}
 
-		com.liferay.object.model.ObjectRelationship objectRelationship =
-			_objectRelationshipLocalService.
-				fetchObjectRelationshipByExternalReferenceCode(
-					objectField.getObjectRelationshipExternalReferenceCode(),
-					serviceBuilderObjectDefinition1.getObjectDefinitionId());
+		serviceContext.setModelPermissions(
+			ModelPermissionsUtil.toModelPermissions(
+				contextCompany.getCompanyId(),
+				objectDefinition.getPermissions(),
+				GetterUtil.getLong(objectDefinition.getId()),
+				com.liferay.object.model.ObjectDefinition.class.getName(),
+				_resourceActionLocalService, _resourcePermissionLocalService,
+				_roleLocalService));
 
-		if (objectRelationship != null) {
-			return objectRelationship;
-		}
-
-		return _objectRelationshipLocalService.addObjectRelationship(
-			objectField.getObjectRelationshipExternalReferenceCode(),
-			contextUser.getUserId(),
-			serviceBuilderObjectDefinition1.getObjectDefinitionId(),
-			serviceBuilderObjectDefinition2.getObjectDefinitionId(),
-			ObjectFieldUtil.toObjectField(
-				defaultLanguageId, _listTypeDefinitionLocalService, objectField,
-				_objectFieldLocalService, _objectFieldSettingLocalService,
-				_objectFilterLocalService));
+		return serviceContext;
 	}
 
 	private Set<String> _getAccountEntryRestrictedObjectRelationshipsNames(
@@ -1300,9 +1343,9 @@ public class ObjectDefinitionResourceImpl
 		}
 
 		ObjectFolder objectFolder =
-			_objectFolderLocalService.getObjectFolderByExternalReferenceCode(
+			_objectFolderLocalService.getOrAddEmptyObjectFolder(
 				objectFolderExternalReferenceCode,
-				contextCompany.getCompanyId());
+				contextCompany.getCompanyId(), contextUser.getUserId());
 
 		return objectFolder.getObjectFolderId();
 	}
@@ -1568,6 +1611,15 @@ public class ObjectDefinitionResourceImpl
 
 	@Reference
 	private ObjectViewService _objectViewService;
+
+	@Reference
+	private ResourceActionLocalService _resourceActionLocalService;
+
+	@Reference
+	private ResourcePermissionLocalService _resourcePermissionLocalService;
+
+	@Reference
+	private RoleLocalService _roleLocalService;
 
 	@Reference
 	private SystemObjectDefinitionManagerRegistry

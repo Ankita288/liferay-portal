@@ -12,8 +12,10 @@ import {loginTest} from '../../../fixtures/loginTest';
 import {productAnalyticsPagesTest} from '../../../fixtures/productAnalyticsPagesTest';
 import {siteSettingsPagesTest} from '../../../fixtures/siteSettingsPagesTest';
 import {systemSettingsPageTest} from '../../../fixtures/systemSettingsPageTest';
+import {usersAndOrganizationsPagesTest} from '../../../fixtures/usersAndOrganizationsPagesTest';
 import {ApiHelpers} from '../../../helpers/ApiHelpers';
 import {AccountSettingsPage} from '../../../pages/users-admin-web/AccountSettingsPage';
+import {clickAndExpectToBeVisible} from '../../../utils/clickAndExpectToBeVisible';
 import performLogin, {userData} from '../../../utils/performLogin';
 import {
 	OptionalProductAnalyticsCookieTypes,
@@ -27,7 +29,8 @@ export const disabledTest = mergeTests(
 	featureFlagsTest({
 		'LPD-51356': {enabled: false},
 	}),
-	loginTest()
+	loginTest(),
+	systemSettingsPageTest
 );
 
 export const test = mergeTests(
@@ -39,12 +42,90 @@ export const test = mergeTests(
 	loginTest(),
 	productAnalyticsPagesTest,
 	siteSettingsPagesTest,
-	systemSettingsPageTest
+	systemSettingsPageTest,
+	usersAndOrganizationsPagesTest
 );
 
-test.afterEach(async ({page}) => {
+test.afterEach(async ({page, systemSettingsPage}) => {
+	const productAnalyticsHeading = await page.getByRole('heading', {
+		name: 'Product Analytics',
+	});
+
+	await test.step('Reset Product Analytics System Settings if needed', async () => {
+		await systemSettingsPage.goToSystemSetting('Privacy', 'Cookie Manager');
+
+		if (!(await page.getByText('Product Analytics').isVisible())) {
+			return;
+		}
+
+		await systemSettingsPage.goToSystemSetting(
+			'Privacy',
+			'Product Analytics'
+		);
+
+		await productAnalyticsHeading.waitFor();
+
+		if (
+			await systemSettingsPage.page
+				.getByRole('button', {name: 'Actions'})
+				.isVisible()
+		) {
+			page.once('dialog', async (dialogWindow) => {
+				await dialogWindow.accept();
+			});
+
+			await clickAndExpectToBeVisible({
+				autoClick: true,
+				target: systemSettingsPage.page.getByRole('menuitem', {
+					name: 'Reset Default Values',
+				}),
+				trigger: systemSettingsPage.page.getByRole('button', {
+					name: 'Actions',
+				}),
+			});
+		}
+	});
+
 	await test.step('Clear Product Analytics cookies if present', async () => {
 		await clearProductAnalyticsCookies(page);
+	});
+});
+
+test.beforeEach(async ({page, systemSettingsPage}) => {
+	const productAnalyticsHeading = await page.getByRole('heading', {
+		name: 'Product Analytics',
+	});
+
+	await test.step('Verify Product Analytics Instance Level Configuration', async () => {
+		await systemSettingsPage.goToSystemSetting('Privacy', 'Cookie Manager');
+
+		if (!(await page.getByText('Product Analytics').isVisible())) {
+			return;
+		}
+
+		await systemSettingsPage.goToSystemSetting(
+			'Privacy',
+			'Product Analytics'
+		);
+
+		await productAnalyticsHeading.waitFor();
+
+		const enabledButton = await page.getByLabel('Enabled');
+
+		await enabledButton.setChecked(true);
+
+		if (await page.getByRole('button', {name: 'Save'}).isVisible()) {
+			await page
+				.getByRole('button', {name: 'Save'})
+				.dispatchEvent('click');
+		}
+		else {
+			await page
+				.getByRole('button', {name: 'Update'})
+				.dispatchEvent('click');
+		}
+
+		await page.waitForTimeout(1000);
 	});
 });
 
@@ -83,6 +164,31 @@ test(
 );
 
 test(
+	'Verify back button is showing on the top left of the Data and Privacy screen',
+	{tag: '@LPD-73820'},
+	async ({page, usersAndOrganizationsPage}) => {
+		await usersAndOrganizationsPage.goToUsers();
+
+		await usersAndOrganizationsPage.goToUser('Test Test');
+
+		await usersAndOrganizationsPage.page
+			.locator('.nav-link', {
+				hasText: 'Data And Privacy',
+			})
+			.click();
+
+		await clickAndExpectToBeVisible({
+			target: page.getByText('Edit User Test Test', {
+				exact: true,
+			}),
+			trigger: usersAndOrganizationsPage.page.locator('.nav-link', {
+				hasText: 'Data And Privacy',
+			}),
+		});
+	}
+);
+
+test(
 	'Verify Product Analytics Consent Panel buttons and order from Account Settings',
 	{tag: '@LPD-67119'},
 	async ({
@@ -92,13 +198,7 @@ test(
 	}) => {
 		await productAnalyticsBannerPage.acceptAllButton.click();
 
-		await test.step('Go to Product Analytics Account Settings', async () => {
-			await accountSettingsPage.goToDataAndPrivacy();
-
-			await accountSettingsPage.productAnalyticsMenuItem.waitFor();
-
-			await accountSettingsPage.productAnalyticsMenuItem.click();
-		});
+		await accountSettingsPage.goToDataAndPrivacy();
 
 		await test.step('Verify Customize button displays Consent Panel', async () => {
 			await expectProductAnalyticsConsentPanelButtons(
@@ -241,10 +341,6 @@ test(
 		await test.step('AC3: Verify Product Analytics Account Settings', async () => {
 			await accountSettingsPage.goToDataAndPrivacy();
 
-			await accountSettingsPage.productAnalyticsMenuItem.waitFor();
-
-			await accountSettingsPage.productAnalyticsMenuItem.click();
-
 			await productAnalyticsConsentPanelPage.consentPanelFormLocator.waitFor();
 		});
 
@@ -353,19 +449,20 @@ async function expectProductAnalyticsAccountSettingsVisibility(
 
 	const accountSettingsPage = new AccountSettingsPage(newPage);
 
-	await accountSettingsPage.goToDataAndPrivacy();
+	await accountSettingsPage.goToAccountSettings();
 
-	await accountSettingsPage.page.waitForLoadState();
+	const dataAndPrivacyTab = await accountSettingsPage.page.locator(
+		'.nav-link',
+		{
+			hasText: 'Data And Privacy',
+		}
+	);
 
 	if (isVisible) {
-		await expect(
-			await accountSettingsPage.productAnalyticsMenuItem
-		).toBeVisible();
+		await expect(await dataAndPrivacyTab).toBeVisible();
 	}
 	else {
-		await expect(
-			await accountSettingsPage.productAnalyticsMenuItem
-		).not.toBeVisible();
+		await expect(await dataAndPrivacyTab).not.toBeVisible();
 	}
 }
 

@@ -1560,7 +1560,10 @@ defaultValueTest.describe(
 						.getByText('Boolean', {exact: true})
 						.click();
 
-					await modelBuilderRightSidebarPage.setDefaultValue('False');
+					await modelBuilderRightSidebarPage.setDefaultValue(
+						'Boolean',
+						'False'
+					);
 
 					await viewObjectEntriesPage.goto(objectClassName);
 
@@ -1590,7 +1593,10 @@ defaultValueTest.describe(
 						.getByText('Boolean', {exact: true})
 						.click();
 
-					await modelBuilderRightSidebarPage.setDefaultValue('True');
+					await modelBuilderRightSidebarPage.setDefaultValue(
+						'Boolean',
+						'True'
+					);
 
 					await viewObjectEntriesPage.goto(objectClassName);
 
@@ -1736,6 +1742,115 @@ defaultValueTest.describe(
 						page.getByLabel(booleanFieldName)
 					).not.toBeChecked();
 				});
+			}
+		);
+
+		defaultValueTest(
+			'can create, read, update and delete the default value of date and dateTime fields',
+			{tag: ['@LPD-48612']},
+			async ({
+				apiHelpers,
+				objectFieldsPage,
+				page,
+				viewObjectEntriesPage,
+			}) => {
+				const FIELDS: Array<{
+					businessType: 'Date' | 'DateTime';
+					editedValue: string;
+					initialValue: string;
+					initialValueUI: string;
+					label?: string;
+				}> = [
+					{
+						businessType: 'Date',
+						editedValue: '12/10/2030',
+						initialValue: '2025-12-10',
+						initialValueUI: '12/10/2025',
+					},
+					{
+						businessType: 'DateTime',
+						editedValue: '12/10/2030 03:00 PM',
+						initialValue: '2025-12-10 15:00',
+						initialValueUI: '12/10/2025 03:00 PM',
+					},
+				];
+
+				const objectFields = generateObjectFields({
+					objectFieldBusinessTypes: FIELDS.map(
+						({businessType, initialValue}) => ({
+							businessType,
+							objectFieldSettings: [
+								{
+									name: 'defaultValueType',
+									value: 'inputAsValue',
+								},
+								{name: 'defaultValue', value: initialValue},
+							],
+						})
+					),
+				});
+
+				const objectDefinition =
+					await apiHelpers.objectAdmin.postRandomObjectDefinition({
+						objectFields,
+						status: {code: 0},
+					});
+
+				apiHelpers.data.push({
+					id: objectDefinition.id,
+					type: 'objectDefinition',
+				});
+
+				FIELDS.forEach((field, index) => {
+					field.label = objectFields[index].label['en_US'];
+				});
+
+				await viewObjectEntriesPage.goto(objectDefinition.className);
+				await viewObjectEntriesPage.clickAddObjectEntry(
+					objectDefinition.label['en_US']
+				);
+
+				for (const {initialValueUI, label} of FIELDS) {
+					await expect(page.getByLabel(label)).toHaveValue(
+						initialValueUI
+					);
+				}
+
+				await objectFieldsPage.goto(objectDefinition.label['en_US']);
+
+				for (const {businessType, editedValue, label} of FIELDS) {
+					await objectFieldsPage.setDefaultValue({
+						defaultValue: editedValue,
+						objectFieldBusinessType: businessType,
+						objectFieldName: label,
+					});
+				}
+
+				await viewObjectEntriesPage.goto(objectDefinition.className);
+				await viewObjectEntriesPage.clickAddObjectEntry(
+					objectDefinition.label['en_US']
+				);
+
+				for (const {editedValue, label} of FIELDS) {
+					await expect(page.getByLabel(label)).toHaveValue(
+						editedValue
+					);
+				}
+
+				await objectFieldsPage.goto(objectDefinition.label['en_US']);
+
+				for (const {label} of FIELDS) {
+					await objectFieldsPage.disableDefaultValue(label);
+				}
+
+				await viewObjectEntriesPage.goto(objectDefinition.className);
+				await viewObjectEntriesPage.clickAddObjectEntry(
+					objectDefinition.label['en_US']
+				);
+
+				for (const {label} of FIELDS) {
+					await expect(page.getByLabel(label)).toHaveValue('');
+				}
 			}
 		);
 
@@ -2051,6 +2166,59 @@ defaultValueTest.describe(
 		);
 
 		defaultValueTest(
+			'can edit a default value input through Model Builder without throwing errors',
+			{tag: ['@LPD-70980']},
+			async ({
+				apiHelpers,
+				modelBuilderDiagramPage,
+				modelBuilderLeftSidebarPage,
+				modelBuilderObjectDefinitionNodePage,
+				modelBuilderRightSidebarPage,
+				page,
+			}) => {
+				const objectFields = generateObjectFields({
+					objectFieldBusinessTypes: ['Text'],
+				});
+
+				const objectDefinition =
+					await apiHelpers.objectAdmin.postRandomObjectDefinition({
+						objectFields,
+						status: {code: 0},
+					});
+
+				apiHelpers.data.push({
+					id: objectDefinition.id,
+					type: 'objectDefinition',
+				});
+
+				await modelBuilderDiagramPage.goto({
+					objectFolderName: 'Default',
+				});
+
+				await modelBuilderLeftSidebarPage.sidebarItems
+					.filter({hasText: objectDefinition.name})
+					.click();
+
+				await modelBuilderObjectDefinitionNodePage.clickShowAllFieldsButton(
+					objectDefinition.name,
+					modelBuilderDiagramPage.objectDefinitionNodes
+				);
+
+				await modelBuilderDiagramPage.objectDefinitionNodes
+					.filter({hasText: objectDefinition.name})
+					.getByText(objectFields[0].label.en_US, {exact: true})
+					.click();
+
+				await modelBuilderRightSidebarPage.setDefaultValue(
+					'Text',
+					'this is a text default value on model builder'
+				);
+
+				await expect(page.getByText('Error')).toHaveCount(0);
+			}
+		);
+
+		defaultValueTest(
 			'default value fields are required',
 			{tag: ['@LPD-48612']},
 			async ({apiHelpers, objectFieldsPage, page}) => {
@@ -2101,6 +2269,68 @@ defaultValueTest.describe(
 						{type: 'danger'}
 					);
 				}
+			}
+		);
+
+		defaultValueTest(
+			'model builder rightSidebar width only increases if configuration is enabled',
+			{tag: ['@LPD-70980']},
+			async ({
+				apiHelpers,
+				modelBuilderDiagramPage,
+				modelBuilderLeftSidebarPage,
+				modelBuilderObjectDefinitionNodePage,
+				modelBuilderRightSidebarPage,
+				page,
+			}) => {
+				const objectFields = generateObjectFields({
+					objectFieldBusinessTypes: ['Text'],
+				});
+
+				const objectDefinition =
+					await apiHelpers.objectAdmin.postRandomObjectDefinition({
+						objectFields,
+						status: {code: 0},
+					});
+
+				apiHelpers.data.push({
+					id: objectDefinition.id,
+					type: 'objectDefinition',
+				});
+
+				await modelBuilderDiagramPage.goto({
+					objectFolderName: 'Default',
+				});
+
+				await modelBuilderLeftSidebarPage.sidebarItems
+					.filter({hasText: objectDefinition.name})
+					.click();
+
+				await modelBuilderObjectDefinitionNodePage.clickShowAllFieldsButton(
+					objectDefinition.name,
+					modelBuilderDiagramPage.objectDefinitionNodes
+				);
+
+				await modelBuilderDiagramPage.objectDefinitionNodes
+					.filter({hasText: objectDefinition.name})
+					.getByText(objectFields[0].label.en_US, {exact: true})
+					.click();
+
+				const rightSidebar = page.locator(
+					'.lfr__objects-custom-vertical-bar-content > .sidebar[id*="ModelBuilderRightSidebar"]'
+				);
+
+				await expect(rightSidebar).toHaveCSS('width', '320px');
+
+				await modelBuilderRightSidebarPage.advancedTab.click();
+
+				await modelBuilderRightSidebarPage.useDefaultValueToggle.check();
+
+				await expect(rightSidebar).toHaveCSS('width', '500px');
+
+				await modelBuilderRightSidebarPage.useDefaultValueToggle.uncheck();
+
+				await expect(rightSidebar).toHaveCSS('width', '320px');
 			}
 		);
 	}

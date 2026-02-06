@@ -42,6 +42,7 @@ import com.liferay.layout.content.page.editor.web.internal.configuration.PageEdi
 import com.liferay.layout.content.page.editor.web.internal.constants.ContentPageEditorActionKeys;
 import com.liferay.layout.content.page.editor.web.internal.manager.FragmentCollectionManager;
 import com.liferay.layout.content.page.editor.web.internal.manager.FragmentEntryLinkManager;
+import com.liferay.layout.content.page.editor.web.internal.util.CodeEditorUtil;
 import com.liferay.layout.content.page.editor.web.internal.util.MappingContentUtil;
 import com.liferay.layout.content.page.editor.web.internal.util.MappingTypesUtil;
 import com.liferay.layout.content.page.editor.web.internal.util.StyleBookEntryUtil;
@@ -70,7 +71,6 @@ import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.editor.configuration.EditorConfiguration;
 import com.liferay.portal.kernel.editor.configuration.EditorConfigurationFactoryUtil;
 import com.liferay.portal.kernel.exception.PortalException;
-import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
@@ -80,7 +80,6 @@ import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.LayoutConstants;
-import com.liferay.portal.kernel.model.LayoutSet;
 import com.liferay.portal.kernel.model.ModelHintsUtil;
 import com.liferay.portal.kernel.model.Theme;
 import com.liferay.portal.kernel.module.configuration.ConfigurationException;
@@ -135,7 +134,6 @@ import com.liferay.style.book.model.StyleBookEntry;
 import com.liferay.style.book.service.StyleBookEntryLocalService;
 import com.liferay.style.book.util.DefaultStyleBookEntryUtil;
 import com.liferay.style.book.util.StyleBookUtil;
-import com.liferay.style.book.util.comparator.StyleBookEntryNameComparator;
 
 import jakarta.portlet.PortletRequest;
 import jakarta.portlet.PortletURL;
@@ -292,6 +290,9 @@ public class ContentPageEditorDisplayContext {
 				getFragmentEntryActionURL(
 					"/layout_content_page_editor/change_style_book_entry")
 			).put(
+				"codeEditorSidebarPanels",
+				CodeEditorUtil.getSidebarSectionsJSONArray(httpServletRequest)
+			).put(
 				"collectionSelectorURL", _getCollectionSelectorURL()
 			).put(
 				"commonStyles",
@@ -381,26 +382,10 @@ public class ContentPageEditorDisplayContext {
 			).put(
 				"frontendTokens",
 				() -> {
-					FrontendTokenDefinition frontendTokenDefinition = null;
-
-					if (FeatureFlagManagerUtil.isEnabled(
-							themeDisplay.getCompanyId(), "LPD-30204")) {
-
-						frontendTokenDefinition =
-							_frontendTokenDefinitionRegistry.
-								getFrontendTokenDefinition(
-									themeDisplay.getLayout());
-					}
-					else {
-						Group group = themeDisplay.getScopeGroup();
-
-						frontendTokenDefinition =
-							_frontendTokenDefinitionRegistry.
-								getFrontendTokenDefinition(
-									_layoutSetLocalService.fetchLayoutSet(
-										themeDisplay.getSiteGroupId(),
-										group.isLayoutSetPrototype()));
-					}
+					FrontendTokenDefinition frontendTokenDefinition =
+						_frontendTokenDefinitionRegistry.
+							getFrontendTokenDefinition(
+								themeDisplay.getLayout());
 
 					if (frontendTokenDefinition == null) {
 						return _jsonFactory.createJSONObject();
@@ -693,31 +678,12 @@ public class ContentPageEditorDisplayContext {
 				"siteNavigationMenuItemSelectorURL",
 				_getSiteNavigationMenuItemSelectorURL()
 			).put(
-				"styleBookEnabled",
-				() -> {
-					Layout layout = themeDisplay.getLayout();
-
-					Theme theme = layout.getTheme();
-
-					LayoutSet layoutSet = _layoutSetLocalService.fetchLayoutSet(
-						themeDisplay.getSiteGroupId(), false);
-
-					return Objects.equals(
-						theme.getThemeId(), layoutSet.getThemeId());
-				}
-			).put(
 				"styleBookEntryERC",
 				() -> {
 					Layout layout = themeDisplay.getLayout();
 
 					String styleBookEntryERC = GetterUtil.getString(
 						layout.getStyleBookEntryERC());
-
-					if (!FeatureFlagManagerUtil.isEnabled(
-							layout.getCompanyId(), "LPD-30204")) {
-
-						return styleBookEntryERC;
-					}
 
 					if (Validator.isNotNull(styleBookEntryERC)) {
 						StyleBookEntry styleBookEntry =
@@ -820,6 +786,10 @@ public class ContentPageEditorDisplayContext {
 				"updateSegmentsExperienceURL",
 				getFragmentEntryActionURL(
 					"/layout_content_page_editor/update_segments_experience")
+			).put(
+				"validateExpressionURL",
+				_getResourceURL(
+					"/layout_content_page_editor/validate_expression")
 			).put(
 				"videoItemSelectorURL", _getVideoItemSelectorURL()
 			).put(
@@ -1990,70 +1960,54 @@ public class ContentPageEditorDisplayContext {
 	private List<Map<String, Object>> _getStyleBooks() throws Exception {
 		ArrayList<Map<String, Object>> styleBooks = new ArrayList<>();
 
-		List<StyleBookEntry> styleBookEntries = new ArrayList<>();
+		FrontendTokenDefinition frontendTokenDefinition =
+			_frontendTokenDefinitionRegistry.getFrontendTokenDefinition(
+				themeDisplay.getLayout());
 
-		FrontendTokenDefinition frontendTokenDefinition = null;
-
-		if (FeatureFlagManagerUtil.isEnabled("LPD-30204")) {
-			frontendTokenDefinition =
-				_frontendTokenDefinitionRegistry.getFrontendTokenDefinition(
-					themeDisplay.getLayout());
-
-			if (frontendTokenDefinition != null) {
-				styleBookEntries =
-					_styleBookEntryLocalService.getStyleBookEntries(
-						_staging.getLiveGroupId(themeDisplay.getScopeGroupId()),
-						frontendTokenDefinition.getThemeId());
-			}
+		if (frontendTokenDefinition == null) {
+			return styleBooks;
 		}
-		else {
-			frontendTokenDefinition =
-				_frontendTokenDefinitionRegistry.getFrontendTokenDefinition(
-					themeDisplay.getLayoutSet());
 
-			styleBookEntries = _styleBookEntryLocalService.getStyleBookEntries(
+		styleBooks.add(
+			HashMapBuilder.<String, Object>put(
+				"imagePreviewURL",
+				() -> {
+					StyleBookEntry defaultStyleBookEntry =
+						_getDefaultMasterStyleBookEntry();
+
+					if (defaultStyleBookEntry != null) {
+						return defaultStyleBookEntry.getImagePreviewURL(
+							themeDisplay);
+					}
+
+					return StringPool.BLANK;
+				}
+			).put(
+				"name",
+				DefaultStyleBookEntryUtil.getStyleBookEntryName(
+					themeDisplay.getLayout(), themeDisplay.getLocale(),
+					StyleBookUtil.getStyleFromThemeStyleBookEntry(
+						themeDisplay.getLayout(), themeDisplay.getLocale()))
+			).put(
+				"styleBookEntryERC", StringPool.BLANK
+			).put(
+				"subtitle",
+				() -> {
+					StyleBookEntry defaultStyleBookEntry =
+						_getDefaultMasterStyleBookEntry();
+
+					if (defaultStyleBookEntry != null) {
+						return defaultStyleBookEntry.getName();
+					}
+
+					return null;
+				}
+			).build());
+
+		List<StyleBookEntry> styleBookEntries =
+			_styleBookEntryLocalService.getStyleBookEntries(
 				_staging.getLiveGroupId(themeDisplay.getScopeGroupId()),
-				QueryUtil.ALL_POS, QueryUtil.ALL_POS,
-				StyleBookEntryNameComparator.getInstance(true));
-		}
-
-		if (frontendTokenDefinition != null) {
-			styleBooks.add(
-				HashMapBuilder.<String, Object>put(
-					"imagePreviewURL",
-					() -> {
-						StyleBookEntry defaultStyleBookEntry =
-							_getDefaultMasterStyleBookEntry();
-
-						if (defaultStyleBookEntry != null) {
-							return defaultStyleBookEntry.getImagePreviewURL(
-								themeDisplay);
-						}
-
-						return StringPool.BLANK;
-					}
-				).put(
-					"name",
-					DefaultStyleBookEntryUtil.getStyleBookEntryName(
-						themeDisplay.getLayout(), themeDisplay.getLocale(),
-						StyleBookUtil.getStyleFromThemeStyleBookEntry(
-							themeDisplay.getLayout(), themeDisplay.getLocale()))
-				).put(
-					"styleBookEntryERC", StringPool.BLANK
-				).put(
-					"subtitle",
-					() -> {
-						StyleBookEntry defaultStyleBookEntry =
-							_getDefaultMasterStyleBookEntry();
-
-						if (defaultStyleBookEntry != null) {
-							return defaultStyleBookEntry.getName();
-						}
-
-						return null;
-					}
-				).build());
-		}
+				frontendTokenDefinition.getThemeId());
 
 		for (StyleBookEntry styleBookEntry : styleBookEntries) {
 			styleBooks.add(

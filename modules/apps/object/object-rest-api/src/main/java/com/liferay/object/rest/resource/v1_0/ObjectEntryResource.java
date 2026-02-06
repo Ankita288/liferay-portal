@@ -6,6 +6,7 @@
 package com.liferay.object.rest.resource.v1_0;
 
 import com.liferay.object.rest.dto.v1_0.ObjectEntry;
+import com.liferay.object.rest.dto.v1_0.TranslationResponse;
 import com.liferay.object.rest.dto.v1_0.ValidationRequest;
 import com.liferay.object.rest.dto.v1_0.ValidationResponse;
 import com.liferay.portal.kernel.service.GroupLocalService;
@@ -18,6 +19,7 @@ import com.liferay.portal.odata.sort.SortParserProvider;
 import com.liferay.portal.vulcan.accept.language.AcceptLanguage;
 import com.liferay.portal.vulcan.batch.engine.resource.VulcanBatchEngineExportTaskResource;
 import com.liferay.portal.vulcan.batch.engine.resource.VulcanBatchEngineImportTaskResource;
+import com.liferay.portal.vulcan.multipart.MultipartBody;
 import com.liferay.portal.vulcan.pagination.Page;
 import com.liferay.portal.vulcan.pagination.Pagination;
 
@@ -51,16 +53,9 @@ public interface ObjectEntryResource {
 			String externalReferenceCode, Integer version)
 		throws Exception;
 
-	public void deleteByExternalReferenceCodeComment(
-			String externalReferenceCode, String commentExternalReferenceCode)
-		throws Exception;
-
 	public void deleteObjectEntry(Long objectEntryId) throws Exception;
 
 	public Response deleteObjectEntryBatch(String callbackURL, Object object)
-		throws Exception;
-
-	public void deleteObjectEntryByVersion(Long objectEntryId, Integer version)
 		throws Exception;
 
 	public void deleteScopeScopeKeyByExternalReferenceCode(
@@ -69,11 +64,6 @@ public interface ObjectEntryResource {
 
 	public void deleteScopeScopeKeyByExternalReferenceCodeByVersion(
 			String scopeKey, String externalReferenceCode, Integer version)
-		throws Exception;
-
-	public void deleteScopeScopeKeyByExternalReferenceCodeComment(
-			String scopeKey, String externalReferenceCode,
-			String commentExternalReferenceCode)
 		throws Exception;
 
 	public ObjectEntry getApprovedByExternalReferenceCode(
@@ -108,19 +98,19 @@ public interface ObjectEntryResource {
 			com.liferay.portal.kernel.search.Sort[] sorts)
 		throws Exception;
 
-	public Page<ObjectEntry> getObjectEntriesVersionsPage(
-			Long objectEntryId, Pagination pagination,
-			com.liferay.portal.kernel.search.Sort[] sorts)
-		throws Exception;
-
 	public ObjectEntry getObjectEntry(Long objectEntryId) throws Exception;
-
-	public ObjectEntry getObjectEntryByVersion(
-			Long objectEntryId, Integer version)
-		throws Exception;
 
 	public Page<com.liferay.portal.vulcan.permission.Permission>
 			getObjectEntryPermissionsPage(Long objectEntryId, String roleNames)
+		throws Exception;
+
+	public Response getObjectEntryTranslation(
+			Long objectEntryId, String sourceLanguageId,
+			String targetLanguageIds, String version)
+		throws Exception;
+
+	public Response getObjectEntryTranslationLanguage(
+			Long objectEntryId, String languageId, String targetLanguageId)
 		throws Exception;
 
 	public ObjectEntry getScopeScopeKeyApprovedByExternalReferenceCode(
@@ -141,6 +131,16 @@ public interface ObjectEntryResource {
 
 	public ObjectEntry getScopeScopeKeyByExternalReferenceCodeByVersion(
 			String scopeKey, String externalReferenceCode, Integer version)
+		throws Exception;
+
+	public Response getScopeScopeKeyByExternalReferenceCodeTranslation(
+			String scopeKey, String externalReferenceCode,
+			String sourceLanguageId, String targetLanguageIds, String version)
+		throws Exception;
+
+	public Response getScopeScopeKeyByExternalReferenceCodeTranslationLanguage(
+			String scopeKey, String externalReferenceCode, String languageId,
+			String targetLanguageId)
 		throws Exception;
 
 	public Page<ObjectEntry>
@@ -179,17 +179,8 @@ public interface ObjectEntryResource {
 			String externalReferenceCode, Integer version)
 		throws Exception;
 
-	public com.liferay.headless.delivery.dto.v1_0.Comment
-			postByExternalReferenceCodeComment(
-				String externalReferenceCode,
-				com.liferay.headless.delivery.dto.v1_0.Comment comment)
-		throws Exception;
-
-	public com.liferay.headless.delivery.dto.v1_0.Comment
-			postByExternalReferenceCodeCommentReplyComment(
-				String externalReferenceCode,
-				String commentExternalReferenceCode,
-				com.liferay.headless.delivery.dto.v1_0.Comment comment)
+	public ObjectEntry postByExternalReferenceCodeExpire(
+			String externalReferenceCode)
 		throws Exception;
 
 	public void postByExternalReferenceCodeSubscribe(
@@ -229,15 +220,8 @@ public interface ObjectEntryResource {
 			Long objectEntryId, Long objectEntryFolderId)
 		throws Exception;
 
-	public ObjectEntry postObjectEntryByVersionCopy(
-			Long objectEntryId, Integer version)
-		throws Exception;
-
-	public ObjectEntry postObjectEntryByVersionExpire(
-			Long objectEntryId, Integer version)
-		throws Exception;
-
-	public ObjectEntry postObjectEntryExpire(Long objectEntryId)
+	public TranslationResponse postObjectEntryTranslation(
+			Long objectEntryId, MultipartBody multipartBody)
 		throws Exception;
 
 	public ObjectEntry postScopeScopeKey(
@@ -252,25 +236,18 @@ public interface ObjectEntryResource {
 			String scopeKey, String externalReferenceCode, Integer version)
 		throws Exception;
 
-	public com.liferay.headless.delivery.dto.v1_0.Comment
-			postScopeScopeKeyByExternalReferenceCodeComment(
-				String scopeKey, String externalReferenceCode,
-				com.liferay.headless.delivery.dto.v1_0.Comment comment)
-		throws Exception;
-
-	public com.liferay.headless.delivery.dto.v1_0.Comment
-			postScopeScopeKeyByExternalReferenceCodeCommentReplyComment(
-				String scopeKey, String externalReferenceCode,
-				String commentExternalReferenceCode,
-				com.liferay.headless.delivery.dto.v1_0.Comment comment)
-		throws Exception;
-
 	public ObjectEntry postScopeScopeKeyByExternalReferenceCodeExpire(
 			String scopeKey, String externalReferenceCode)
 		throws Exception;
 
 	public void postScopeScopeKeyByExternalReferenceCodeSubscribe(
 			String scopeKey, String externalReferenceCode)
+		throws Exception;
+
+	public TranslationResponse
+			postScopeScopeKeyByExternalReferenceCodeTranslation(
+				String scopeKey, String externalReferenceCode,
+				MultipartBody multipartBody)
 		throws Exception;
 
 	public void postScopeScopeKeyByExternalReferenceCodeUnsubscribe(
@@ -292,13 +269,6 @@ public interface ObjectEntryResource {
 			String externalReferenceCode, Integer version)
 		throws Exception;
 
-	public com.liferay.headless.delivery.dto.v1_0.Comment
-			putByExternalReferenceCodeComment(
-				String externalReferenceCode,
-				String commentExternalReferenceCode,
-				com.liferay.headless.delivery.dto.v1_0.Comment comment)
-		throws Exception;
-
 	public void putByExternalReferenceCodeObjectActionObjectActionName(
 			String externalReferenceCode, String objectActionName)
 		throws Exception;
@@ -312,10 +282,6 @@ public interface ObjectEntryResource {
 		throws Exception;
 
 	public Response putObjectEntryBatch(String callbackURL, Object object)
-		throws Exception;
-
-	public ObjectEntry putObjectEntryByVersionRestore(
-			Long objectEntryId, Integer version)
 		throws Exception;
 
 	public void putObjectEntryObjectActionObjectActionName(
@@ -335,13 +301,6 @@ public interface ObjectEntryResource {
 
 	public ObjectEntry putScopeScopeKeyByExternalReferenceCodeByVersionRestore(
 			String scopeKey, String externalReferenceCode, Integer version)
-		throws Exception;
-
-	public com.liferay.headless.delivery.dto.v1_0.Comment
-			putScopeScopeKeyByExternalReferenceCodeComment(
-				String scopeKey, String externalReferenceCode,
-				String commentExternalReferenceCode,
-				com.liferay.headless.delivery.dto.v1_0.Comment comment)
 		throws Exception;
 
 	public void

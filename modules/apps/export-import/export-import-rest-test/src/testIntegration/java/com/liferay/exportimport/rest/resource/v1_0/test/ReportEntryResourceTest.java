@@ -29,6 +29,7 @@ import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.PropsValues;
 import com.liferay.portal.test.rule.FeatureFlag;
+import com.liferay.portal.test.rule.FeatureFlags;
 import com.liferay.portal.test.rule.Inject;
 
 import java.io.Serializable;
@@ -45,7 +46,9 @@ import org.junit.runner.RunWith;
 /**
  * @author Petteri Karttunen
  */
-@FeatureFlag("LPD-35914")
+@FeatureFlags(
+	featureFlags = {@FeatureFlag("LPD-35443"), @FeatureFlag("LPD-35914")}
+)
 @RunWith(Arquillian.class)
 public class ReportEntryResourceTest extends BaseReportEntryResourceTestCase {
 
@@ -119,8 +122,7 @@ public class ReportEntryResourceTest extends BaseReportEntryResourceTestCase {
 						reportEntry.getClassNameId(),
 						_exportImportConfiguration.
 							getExportImportConfigurationId(),
-						reportEntry.getModelName(),
-						ExportImportReportEntryConstants.ORIGIN_BATCH);
+						reportEntry.getModelName());
 		}
 		else {
 			exportImportReportEntry =
@@ -133,8 +135,7 @@ public class ReportEntryResourceTest extends BaseReportEntryResourceTestCase {
 							getExportImportConfigurationId(),
 						reportEntry.getErrorMessage(),
 						reportEntry.getErrorStacktrace(),
-						reportEntry.getModelName(),
-						ExportImportReportEntryConstants.ORIGIN_BATCH);
+						reportEntry.getModelName());
 		}
 
 		_exportImportReportEntries.add(exportImportReportEntry);
@@ -208,7 +209,7 @@ public class ReportEntryResourceTest extends BaseReportEntryResourceTestCase {
 			reportEntry.getClassNameId(), reportEntry.getClassPK(),
 			_exportImportConfiguration.getExportImportConfigurationId(),
 			reportEntry.getErrorMessage(), reportEntry.getErrorStacktrace(),
-			"example-text", ExportImportReportEntryConstants.ORIGIN_BATCH);
+			"example-text");
 
 		Page<ReportEntry> page =
 			reportEntryResource.getImportProcessReportEntriesPage(

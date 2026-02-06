@@ -107,7 +107,8 @@ public class UtilityPageResourceImpl
 
 			@Override
 			public List<String> getNestedFields() {
-				return List.of("friendlyUrlHistory", "pageSpecifications");
+				return List.of(
+					"friendlyUrlHistory", "pageSpecifications", "thumbnail");
 			}
 
 			@Override
@@ -128,6 +129,11 @@ public class UtilityPageResourceImpl
 			@Override
 			public boolean isActive(PortletDataContext portletDataContext) {
 				return FeatureFlagManagerUtil.isEnabled("LPD-35443");
+			}
+
+			@Override
+			public boolean isStagingSupported() {
+				return true;
 			}
 
 		};
@@ -301,7 +307,9 @@ public class UtilityPageResourceImpl
 		}
 
 		long previewFileEntryId = FileEntryUtil.getPreviewFileEntryId(
-			groupId, utilityPage.getThumbnail());
+			groupId, getResourceName(),
+			_getServiceContext(groupId, utilityPage),
+			utilityPage.getThumbnailURLReference());
 
 		if (previewFileEntryId !=
 				layoutUtilityPageEntry.getPreviewFileEntryId()) {
@@ -349,8 +357,9 @@ public class UtilityPageResourceImpl
 				utilityPage::getPageSpecifications);
 		}
 
-		if (utilityPage.getThumbnail() != null) {
-			existingUtilityPage.setThumbnail(utilityPage::getThumbnail);
+		if (utilityPage.getThumbnailURLReference() != null) {
+			existingUtilityPage.setThumbnailURLReference(
+				utilityPage::getThumbnailURLReference);
 		}
 
 		if (utilityPage.getUtilityPageSettings() != null) {
@@ -371,7 +380,9 @@ public class UtilityPageResourceImpl
 				utilityPage.getExternalReferenceCode(), groupId,
 				_getLayoutPlid(groupId, utilityPage, serviceContext),
 				FileEntryUtil.getPreviewFileEntryId(
-					groupId, utilityPage.getThumbnail()),
+					groupId, getResourceName(),
+					_getServiceContext(groupId, utilityPage),
+					utilityPage.getThumbnailURLReference()),
 				utilityPage.getMarkedAsDefault(), utilityPage.getName(),
 				_getType(utilityPage.getType()), null, serviceContext));
 	}

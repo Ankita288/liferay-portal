@@ -80,6 +80,7 @@ const assigneeTest = test;
 const cmsTest = mergeTests(
 	test,
 	featureFlagsTest({
+		'LPD-11235': {enabled: true},
 		'LPD-17564': {enabled: true},
 		'LPD-34594': {enabled: true},
 	})
@@ -2501,6 +2502,11 @@ test.describe('Manage object entries through View Object Entries', () => {
 					status: {code: 0},
 				});
 
+			apiHelpers.data.push({
+				id: objectDefinition.id,
+				type: 'objectDefinition',
+			});
+
 			await accountSettingsPage.goToDisplaySettings();
 
 			await accountSettingsPage.setTimeZone('America/Sao_Paulo');
@@ -2528,7 +2534,7 @@ test.describe('Manage object entries through View Object Entries', () => {
 			await viewObjectEntriesPage.backButton.click();
 
 			let formattedDate = date.toLocaleString('en-US', {
-				day: '2-digit',
+				day: 'numeric',
 				hour: 'numeric',
 				hour12: true,
 				minute: '2-digit',
@@ -3372,10 +3378,12 @@ cmsTest.describe('Manage attachment ObjectField download permission', () => {
 				const objectField = objectFields[0];
 
 				const objectFieldActionCheckbox = iframeLocator.locator(
-					'#guest_ACTION_download_' + objectField.name
+					'#guest_ACTION_DOWNLOAD_' + objectField.name.toUpperCase()
 				);
 
-				await objectFieldActionCheckbox.click();
+				await page.waitForTimeout(500);
+
+				await objectFieldActionCheckbox.check();
 
 				await expect(objectFieldActionCheckbox).toBeChecked();
 

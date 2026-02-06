@@ -195,16 +195,18 @@ public class UpgradeJakartaTest {
 			try (Connection connection = DataAccess.getConnection();
 				PreparedStatement preparedStatement =
 					connection.prepareStatement(
-						StringBundler.concat(
-							"select dictionary from Configuration_ where ",
-							"configurationId = '", _JAKARTA_CLASS_NAME, "'"));
-				ResultSet resultSet = preparedStatement.executeQuery()) {
+						"select dictionary from Configuration_ where " +
+							"configurationId = ?")) {
 
-				Assert.assertTrue(resultSet.next());
+				preparedStatement.setString(1, _JAKARTA_CLASS_NAME);
 
-				Assert.assertEquals(
-					resultSet.getString(1), "key=" + _JAKARTA_CLASS_NAME,
-					resultSet.getString(1));
+				try (ResultSet resultSet = preparedStatement.executeQuery()) {
+					Assert.assertTrue(resultSet.next());
+
+					Assert.assertEquals(
+						resultSet.getString(1), "key=" + _JAKARTA_CLASS_NAME,
+						resultSet.getString(1));
+				}
 			}
 		}
 		finally {
@@ -368,11 +370,9 @@ public class UpgradeJakartaTest {
 
 		Assert.assertNotNull(updatedExportImportConfiguration);
 
-		Assert.assertTrue(
-			updatedExportImportConfiguration.getSettings(
-			).contains(
-				_JAKARTA_CLASS_NAME
-			));
+		String settings = updatedExportImportConfiguration.getSettings();
+
+		Assert.assertTrue(settings.contains(_JAKARTA_CLASS_NAME));
 
 		_exportImportConfigurationLocalService.deleteExportImportConfiguration(
 			exportImportConfiguration.getExportImportConfigurationId());
@@ -569,11 +569,9 @@ public class UpgradeJakartaTest {
 
 		Assert.assertNotNull(updatedKaleoDefinition);
 
-		Assert.assertTrue(
-			updatedKaleoDefinition.getContentAsXML(
-			).contains(
-				_JAKARTA_IMPORT
-			));
+		String content = updatedKaleoDefinition.getContentAsXML();
+
+		Assert.assertTrue(content.contains(_JAKARTA_IMPORT));
 
 		_kaleoDefinitionLocalService.deleteKaleoDefinition(kaleoDefinition);
 		_kaleoInstanceLocalService.deleteKaleoInstance(kaleoInstance);
@@ -599,11 +597,9 @@ public class UpgradeJakartaTest {
 
 		Assert.assertNotNull(updatedKaleoDefinition);
 
-		Assert.assertTrue(
-			updatedKaleoDefinition.getContentAsXML(
-			).contains(
-				_JAKARTA_IMPORT
-			));
+		String content = updatedKaleoDefinition.getContentAsXML();
+
+		Assert.assertTrue(content.contains(_JAKARTA_IMPORT));
 
 		List<KaleoDefinitionVersion> kaleoDefinitionVersions =
 			kaleoDefinition.getKaleoDefinitionVersions();
@@ -612,13 +608,12 @@ public class UpgradeJakartaTest {
 			kaleoDefinitionVersions.toString(), 1,
 			kaleoDefinitionVersions.size());
 
-		Assert.assertTrue(
-			kaleoDefinitionVersions.get(
-				0
-			).getContentAsXML(
-			).contains(
-				_JAKARTA_IMPORT
-			));
+		KaleoDefinitionVersion kaleoDefinitionVersion =
+			kaleoDefinitionVersions.get(0);
+
+		content = kaleoDefinitionVersion.getContentAsXML();
+
+		Assert.assertTrue(content.contains(_JAKARTA_IMPORT));
 
 		_kaleoDefinitionLocalService.deleteKaleoDefinition(kaleoDefinition);
 		_kaleoInstanceLocalService.deleteKaleoInstance(kaleoInstance);
@@ -702,14 +697,17 @@ public class UpgradeJakartaTest {
 
 		KaleoDefinition kaleoDefinition = _addKaleoDefinition();
 
+		List<KaleoDefinitionVersion> kaleoDefinitionVersions =
+			kaleoDefinition.getKaleoDefinitionVersions();
+
+		KaleoDefinitionVersion kaleoDefinitionVersion =
+			kaleoDefinitionVersions.get(0);
+
 		KaleoNotification kaleoNotification =
 			_kaleoNotificationLocalService.addKaleoNotification(
 				KaleoNode.class.getName(), kaleoInstance.getClassPK(),
 				kaleoDefinition.getKaleoDefinitionId(),
-				kaleoDefinition.getKaleoDefinitionVersions(
-				).get(
-					0
-				).getKaleoDefinitionVersionId(),
+				kaleoDefinitionVersion.getKaleoDefinitionVersionId(),
 				kaleoNode.getName(),
 				new Notification(
 					StringUtil.randomString(), StringUtil.randomString(),

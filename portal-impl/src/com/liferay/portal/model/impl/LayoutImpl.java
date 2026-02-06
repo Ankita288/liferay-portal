@@ -27,6 +27,7 @@ import com.liferay.portal.kernel.model.GroupConstants;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.LayoutConstants;
 import com.liferay.portal.kernel.model.LayoutFriendlyURL;
+import com.liferay.portal.kernel.model.LayoutPrototype;
 import com.liferay.portal.kernel.model.LayoutSet;
 import com.liferay.portal.kernel.model.LayoutSetPrototype;
 import com.liferay.portal.kernel.model.LayoutType;
@@ -68,6 +69,7 @@ import com.liferay.portal.kernel.util.PortletKeys;
 import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.PropsUtil;
 import com.liferay.portal.kernel.util.PropsValues;
+import com.liferay.portal.kernel.util.ScopeUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.URLCodec;
 import com.liferay.portal.kernel.util.UnicodeProperties;
@@ -553,13 +555,24 @@ public class LayoutImpl extends LayoutBaseImpl {
 		return portlets;
 	}
 
+	public long getFaviconFileEntryGroupId() {
+		Long groupId = ScopeUtil.getItemGroupId(
+			getCompanyId(), getFaviconFileEntryScopeERC(), getGroupId());
+
+		if (groupId == null) {
+			return 0;
+		}
+
+		return groupId;
+	}
+
 	@Override
 	public String getFaviconURL() {
 		if (_faviconURL != null) {
 			return _faviconURL;
 		}
 
-		String faviconURL = _getFaviconURL(getFaviconFileEntryId());
+		String faviconURL = _getFaviconURL();
 
 		if (faviconURL != null) {
 			_faviconURL = faviconURL;
@@ -757,6 +770,21 @@ public class LayoutImpl extends LayoutBaseImpl {
 		}
 
 		return false;
+	}
+
+	@Override
+	public String getLayoutPrototypeUuid() {
+		LayoutPrototype layoutPrototype =
+			LayoutPageTemplateEntryLayoutProviderUtil.
+				getLayoutPageTemplateEntryLayoutPrototype(
+					getCompanyId(), getPortletLayoutPageTemplateEntryERC(),
+					getPortletLayoutPageTemplateEntryScopeERC(), getGroupId());
+
+		if (layoutPrototype == null) {
+			return null;
+		}
+
+		return layoutPrototype.getUuid();
 	}
 
 	/**
@@ -1265,13 +1293,7 @@ public class LayoutImpl extends LayoutBaseImpl {
 	 */
 	@Override
 	public boolean isLayoutPrototypeLinkActive() {
-		if (isLayoutPrototypeLinkEnabled() &&
-			Validator.isNotNull(getLayoutPrototypeUuid())) {
-
-			return true;
-		}
-
-		return false;
+		return isPortletLayoutPageTemplateEntryLinkActive();
 	}
 
 	@Override
@@ -1282,7 +1304,7 @@ public class LayoutImpl extends LayoutBaseImpl {
 	@Override
 	public boolean isLayoutUpdateable() {
 		try {
-			if (Validator.isNull(getLayoutPrototypeUuid()) &&
+			if (Validator.isNull(getPortletLayoutPageTemplateEntryERC()) &&
 				Validator.isNull(getLayoutSetPrototypeLayoutERC())) {
 
 				return true;
@@ -1372,6 +1394,17 @@ public class LayoutImpl extends LayoutBaseImpl {
 		}
 
 		return true;
+	}
+
+	@Override
+	public boolean isPortletLayoutPageTemplateEntryLinkActive() {
+		if (isPortletLayoutPageTemplateEntryLinkEnabled() &&
+			Validator.isNotNull(getPortletLayoutPageTemplateEntryERC())) {
+
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
@@ -1686,14 +1719,15 @@ public class LayoutImpl extends LayoutBaseImpl {
 			getCompanyId(), getThemeId(), getColorSchemeId());
 	}
 
-	private String _getFaviconURL(long faviconFileEntryId) {
-		if (faviconFileEntryId <= 0) {
+	private String _getFaviconURL() {
+		if (Validator.isNull(getFaviconFileEntryERC())) {
 			return null;
 		}
 
 		try {
-			FileEntry fileEntry = DLAppServiceUtil.getFileEntry(
-				faviconFileEntryId);
+			FileEntry fileEntry =
+				DLAppServiceUtil.getFileEntryByExternalReferenceCode(
+					getFaviconFileEntryERC(), getFaviconFileEntryGroupId());
 
 			return HtmlUtil.escape(
 				StringBundler.concat(

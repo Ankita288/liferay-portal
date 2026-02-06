@@ -25,7 +25,6 @@ const cookieKeys = [
 export const test = mergeTests(
 	featureFlagsTest({
 		'LPD-51356': {enabled: true},
-		'LPD-65277': {enabled: true},
 	}),
 	loginTest(),
 	productAnalyticsPagesTest,
@@ -62,24 +61,56 @@ test.afterEach(async ({page, systemSettingsPage}) => {
 	});
 });
 
-test.beforeEach(async ({productAnalyticsBannerPage, systemSettingsPage}) => {
-	await test.step('Verify Product Analytics Banner appears, then Accept All cookies', async () => {
-		await expect(
-			await productAnalyticsBannerPage.bannerLocator
-		).toBeVisible();
+test.beforeEach(
+	async ({page, productAnalyticsBannerPage, systemSettingsPage}) => {
+		const productAnalyticsHeading = await page.getByRole('heading', {
+			name: 'Product Analytics',
+		});
 
-		await productAnalyticsBannerPage.acceptAllButton.click();
-	});
+		await test.step('Verify Product Analytics Instance Level Configuration', async () => {
+			await systemSettingsPage.goToSystemSetting(
+				'Privacy',
+				'Product Analytics'
+			);
 
-	await test.step('Go to Product Analytics System Settings Configuration', async () => {
-		await systemSettingsPage.goToSystemSetting(
-			'Privacy',
-			'Product Analytics'
-		);
+			await productAnalyticsHeading.waitFor();
 
-		await systemSettingsPage.page.waitForLoadState();
-	});
-});
+			const enabledButton = await page.getByLabel('Enabled');
+
+			await enabledButton.setChecked(true);
+
+			if (await page.getByRole('button', {name: 'Save'}).isVisible()) {
+				await page
+					.getByRole('button', {name: 'Save'})
+					.dispatchEvent('click');
+			}
+			else {
+				await page
+					.getByRole('button', {name: 'Update'})
+					.dispatchEvent('click');
+			}
+
+			await page.waitForTimeout(1000);
+		});
+
+		await test.step('Verify Product Analytics Banner appears, then Accept All cookies', async () => {
+			await expect(
+				await productAnalyticsBannerPage.bannerLocator
+			).toBeVisible();
+
+			await productAnalyticsBannerPage.acceptAllButton.click();
+		});
+
+		await test.step('Go to Product Analytics System Settings Configuration', async () => {
+			await systemSettingsPage.goToSystemSetting(
+				'Privacy',
+				'Product Analytics'
+			);
+
+			await systemSettingsPage.page.waitForLoadState();
+		});
+	}
+);
 
 test(
 	'Consent Renewal Period configuration field validation',
@@ -172,7 +203,7 @@ test(
 			await page.waitForLoadState();
 
 			await expect(await consentRenewalPeriodField).toHaveValue('12');
-			await expect(await page.getByLabel('Enabled')).toBeChecked();
+			await expect(await page.getByLabel('Enabled')).not.toBeChecked();
 			await expect(
 				await page.getByRole('menuitem', {
 					name: 'Reset Default Values',
@@ -270,7 +301,12 @@ test(
 
 			await page.getByLabel('Consent Renewal Period').fill('2');
 
-			await page.getByRole('button', {name: 'Save'}).click();
+			if (await page.getByRole('button', {name: 'Save'}).isVisible()) {
+				await page.getByRole('button', {name: 'Save'}).click();
+			}
+			else {
+				await page.getByRole('button', {name: 'Update'}).click();
+			}
 
 			await waitForAlert(page);
 

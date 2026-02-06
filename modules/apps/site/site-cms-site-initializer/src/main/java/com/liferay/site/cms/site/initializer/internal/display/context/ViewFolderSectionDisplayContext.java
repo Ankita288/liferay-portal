@@ -33,6 +33,7 @@ import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
 import com.liferay.site.cms.site.initializer.internal.constants.CMSSiteInitializerFDSNames;
 import com.liferay.site.cms.site.initializer.internal.util.ActionUtil;
+import com.liferay.translation.exporter.TranslationInfoItemFieldValuesExporterRegistry;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -55,13 +56,16 @@ public class ViewFolderSectionDisplayContext extends BaseSectionDisplayContext {
 		ObjectEntryFolderLocalService objectEntryFolderLocalService,
 		ModelResourcePermission<ObjectEntryFolder>
 			objectEntryFolderModelResourcePermission,
-		Portal portal) {
+		Portal portal,
+		TranslationInfoItemFieldValuesExporterRegistry
+			translationInfoItemFieldValuesExporterRegistry) {
 
 		super(
 			depotEntryLocalService, dlConfiguration, groupLocalService,
 			httpServletRequest, language, objectDefinitionService,
 			objectDefinitionSettingLocalService,
-			objectEntryFolderModelResourcePermission, portal);
+			objectEntryFolderModelResourcePermission, portal,
+			translationInfoItemFieldValuesExporterRegistry);
 
 		_httpServletRequest = httpServletRequest;
 		_objectEntryFolderLocalService = objectEntryFolderLocalService;
@@ -149,6 +153,16 @@ public class ViewFolderSectionDisplayContext extends BaseSectionDisplayContext {
 				"#", "password-policies", "default-permissions",
 				LanguageUtil.get(httpServletRequest, "default-permissions"),
 				null, null, null));
+		fdsBulkActionDropdownItems.add(
+			new FDSActionDropdownItem(
+				null, "pencil", "edit-categories",
+				LanguageUtil.get(httpServletRequest, "edit-categories"), "post",
+				"edit-categories", null));
+		fdsBulkActionDropdownItems.add(
+			new FDSActionDropdownItem(
+				null, "pencil", "edit-tags",
+				LanguageUtil.get(httpServletRequest, "edit-tags"), "post",
+				"edit-tags", null));
 		fdsBulkActionDropdownItems.add(
 			new FDSActionDropdownItem(
 				StringPool.BLANK, "password-policies",

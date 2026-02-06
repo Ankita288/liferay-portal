@@ -7,11 +7,13 @@ import ClayLoadingIndicator from '@clayui/loading-indicator';
 import {ClayPaginationBarWithBasicItems} from '@clayui/pagination-bar';
 import {useControlledState} from '@clayui/shared';
 import {useIsMounted, useThunk} from '@liferay/frontend-js-react-web';
+import {useLiferayState} from '@liferay/frontend-js-state-web/react';
 import classNames from 'classnames';
 import {openToast} from 'frontend-js-components-web';
 import {
 	ClientExtensionDefinition,
 	ClientExtensionResolution,
+	deepClone,
 	fetch,
 	getObjectValueFromPath,
 	loadClientExtensions,
@@ -22,6 +24,7 @@ import React, {
 	useCallback,
 	useContext,
 	useEffect,
+	useMemo,
 	useReducer,
 	useRef,
 	useState,
@@ -32,6 +35,9 @@ import FDSDndProvider from './dnd/FDSDndProvider';
 import isFileDropEnabled from './utils/isFileDropEnabled';
 
 import './styles/main.scss';
+
+import {Atom, Selector, State} from '@liferay/frontend-js-state-web';
+
 import DnDContext from './DnDContext';
 import FrontendDataSetContext from './FrontendDataSetContext';
 import useFDSDrop from './dnd/useFDSDrop';
@@ -42,6 +48,7 @@ import {InfoPanel} from './info_panel/InfoPanel';
 // @ts-ignore
 
 import ManagementBar from './management_bar/ManagementBar';
+import {FILTER_IMPLEMENTATIONS} from './management_bar/controls/filters/Filter';
 
 // @ts-ignore
 
@@ -51,7 +58,7 @@ import Modal from './modal/Modal';
 
 import SidePanel from './side_panel/SidePanel';
 import filterCreationActions from './utils/actionItems/filterCreationActions';
-import {contains} from './utils/configInURL';
+import {contains, readConfigFromURL} from './utils/configInURL';
 import EVENTS from './utils/eventsDefinitions';
 import {activateFilter} from './utils/filters/activateFilter';
 import {deactivateFilter} from './utils/filters/deactivateFilter';
@@ -69,12 +76,16 @@ import {saveViewSettings} from './utils/saveViewSettings';
 import {
 	EConfigInURLBehavior,
 	EConfigInURLKeys,
+	IBaseFilterState,
 	IConfigInURL,
 	IDataSetData,
+	IFDSState,
 	IField,
 	IFrontendDataSetProps,
 	IModalConfig,
 	IRequestOptions,
+	ISelectionFilterState,
+	ISelectionFilterStateItem,
 	ISuccessNotification,
 	ITableSchema,
 	IView,
@@ -83,18 +94,37 @@ import {
 	VisibleFieldNames,
 } from './utils/types';
 import useConfigInURL, {useUpdateConfig} from './utils/useConfigInURL';
-import ViewsContext from './views/ViewsContext';
-
-// @ts-ignore
-
+import ViewsContext, {ISnapshot} from './views/ViewsContext';
 import getViewComponent from './views/getViewComponent';
-
-// @ts-ignore
-
 import viewsReducer, {EViewsActionTypes} from './views/viewsReducer';
 
 const DEFAULT_PAGINATION_DELTA = 20;
 const DEFAULT_PAGINATION_PAGE_NUMBER = 1;
+
+const getAtom = ({
+	atom,
+	id,
+}: {
+	atom: Atom<IFDSState> | undefined;
+	id: string;
+}): Atom<IFDSState> | Selector<IFDSState> => {
+	if (atom) {
+		return atom;
+	}
+
+	const key = `${id}_fdsState`;
+
+	const fallbackAtom: Atom<IFDSState> | null =
+		State.__unsafe__.getAtomOrSelectorKey(key) as Atom<IFDSState> | null;
+
+	return (
+		fallbackAtom ||
+		State.atom<IFDSState>(key, {
+			filters: [],
+			search: {query: ''},
+		})
+	);
+};
 
 const FrontendDataSetContent = ({
 	actionParameterName,
@@ -102,14 +132,13 @@ const FrontendDataSetContent = ({
 	additionalAPIURLParameters,
 	apiURL,
 	appURL,
+	atom,
 	bulkActions = [],
 	configInURLBehavior = EConfigInURLBehavior.PUSH,
 	creationMenu: initialCreationMenu,
 	currentURL,
 	customDataRenderers,
 	customRenderers,
-	customViews = '{}',
-	customViewsEnabled,
 	defaultSelectedItems,
 	emptyState,
 	filters: initialFilters,
@@ -144,13 +173,14 @@ const FrontendDataSetContent = ({
 	showSearch = true,
 	showSelectAll = false,
 	sidePanelId,
+	snapshots = [],
+	snapshotsEnabled,
 	sorts: sortsProp = [],
 	style = 'default',
 	uniformActionsDisplay,
 	views,
 }: IFrontendDataSetProps) => {
-	const fdsRef = useRef(null);
-	const dataSetWrapperRef: RefObject<HTMLDivElement> = useRef(null);
+	const {fileDropSettings} = useContext(DnDContext);
 
 	const [getActiveSorts, updateActiveSorts] = useConfigInURL({
 		configInURLBehavior,
@@ -203,7 +233,9 @@ const FrontendDataSetContent = ({
 										...filter.selectedData,
 										selectedItems:
 											filter.selectedData.selectedItems.map(
-												(item: any) => {
+												(
+													item: ISelectionFilterStateItem
+												) => {
 													if (filter.items?.length) {
 														const newSelectedItem =
 															{...item};
@@ -224,7 +256,7 @@ const FrontendDataSetContent = ({
 		id,
 		stateDispatcher: {
 			key: EConfigInURLKeys.ACTIVE_FILTERS,
-			type: EViewsActionTypes.UPDATE_FILTERS,
+			type: EViewsActionTypes.NOOP,
 		},
 	});
 
@@ -267,7 +299,7 @@ const FrontendDataSetContent = ({
 		},
 	});
 
-	const [getSearchParam, updateSearchParam] = useConfigInURL({
+	const [getSearchParam] = useConfigInURL({
 		configInURLBehavior,
 
 		configReader: (searchParam: string | undefined) => {
@@ -322,13 +354,15 @@ const FrontendDataSetContent = ({
 				const updatedVisibleFieldNames: VisibleFieldNames = {};
 
 				tableSchema.fields.forEach((field: IField) => {
-					const fieldName: string = String(field.fieldName);
+					let fieldName: string = String(field.fieldName);
+
+					if (fieldName.includes('.')) {
+						fieldName = fieldName.replaceAll('.', ',');
+					}
 
 					if (visibleFieldNames[fieldName] !== undefined) {
-						{
-							updatedVisibleFieldNames[fieldName] =
-								visibleFieldNames[fieldName];
-						}
+						updatedVisibleFieldNames[fieldName] =
+							visibleFieldNames[fieldName];
 					}
 					else {
 						updatedVisibleFieldNames[fieldName] = true;
@@ -352,11 +386,26 @@ const FrontendDataSetContent = ({
 		},
 	});
 
-	const updateConfig = useUpdateConfig({
+	const updateConfigInURL = useUpdateConfig({
 		configInURLBehavior,
 		id,
 	});
 
+	const atomStable = useMemo(() => getAtom({atom, id}), [atom, id]);
+
+	const [globalFDSState, setGlobalFDSState] =
+		useLiferayState<IFDSState>(atomStable);
+
+	const [globalFDSStateInitialized, setGlobalFDSStateInitialized] =
+		useState(false);
+	const [cellClientExtensionsLoaded, setCellClientExtensionsLoaded] =
+		useState(false);
+	const [cellClientExtensionsLoading, setCellClientExtensionsLoading] =
+		useState(false);
+	const [filterClientExtensionsLoaded, setFilterClientExtensionsLoaded] =
+		useState(false);
+	const [filterClientExtensionsLoading, setFilterClientExtensionsLoading] =
+		useState(false);
 	const [componentLoading, setComponentLoading] = useState(false);
 	const [creationMenu, setCreationMenu] = useState(initialCreationMenu);
 	const [dataLoading, setDataLoading] = useState(!!apiURL);
@@ -397,59 +446,63 @@ const FrontendDataSetContent = ({
 
 	const [total, setTotal] = useState(0);
 
-	const {fileDropSettings} = useContext(DnDContext);
-
 	const isMounted = useIsMounted();
 
 	const updateFilterActivation = ({
 		newFilters,
 		oldFilters,
 	}: {
-		newFilters: Array<any> | undefined;
-		oldFilters: Array<any>;
-	}): Array<any> => {
+		newFilters: Array<IBaseFilterState> | undefined;
+		oldFilters: Array<IBaseFilterState>;
+	}): Array<IBaseFilterState> => {
 		if (!newFilters) {
 			return oldFilters;
 		}
 
-		return oldFilters?.map((filter: any): any => {
+		return oldFilters.map((filter: IBaseFilterState): IBaseFilterState => {
 			const newFilter = newFilters.find(
-				(newFilter: any) => newFilter.id === filter.id
+				(newFilter) => newFilter.id === filter.id
 			);
 
-			if (newFilter) {
+			if (!newFilter) {
+				return deactivateFilter(filter);
+			}
+
+			if (filter.type !== 'selection') {
 				return activateFilter({
 					filter,
-					selectedData:
-						filter.type === 'selection' && filter.items?.length
-							? {
-									...filter.selectedData,
-									selectedItems:
-										newFilter.selectedData.selectedItems.map(
-											(newItem: any) => {
-												const selectedItem =
-													filter.items.find(
-														(item: any) =>
-															item.value ===
-															newItem.value
-													);
-
-												if (selectedItem) {
-													return selectedItem;
-												}
-
-												return newItem;
-											}
-										),
-								}
-							: {
-									...filter.selectedData,
-									...newFilter.selectedData,
-								},
+					selectedData: {
+						...filter.selectedData,
+						...newFilter.selectedData,
+					},
 				});
 			}
 
-			return deactivateFilter(filter);
+			const selectionFilter = filter as ISelectionFilterState;
+			const newSelectionFilter = newFilter as ISelectionFilterState;
+
+			return activateFilter({
+				filter: selectionFilter,
+				selectedData: {
+					...selectionFilter.selectedData,
+					...newSelectionFilter.selectedData,
+					selectedItems:
+						newSelectionFilter.selectedData?.selectedItems.map(
+							(newItem) => {
+								const selectedItem = selectionFilter.items.find(
+									(item: ISelectionFilterStateItem) =>
+										item.value === newItem.value
+								);
+
+								if (selectedItem) {
+									return selectedItem;
+								}
+
+								return newItem;
+							}
+						),
+				},
+			});
 		});
 	};
 
@@ -498,6 +551,13 @@ const FrontendDataSetContent = ({
 	};
 
 	const getInitialViewsState = () => {
+		const defaultSnapshot: any = {
+			modifiedFields: {},
+			paginationDelta:
+				showPagination &&
+				(pagination?.initialDelta || DEFAULT_PAGINATION_DELTA),
+		};
+
 		const customInternalViews =
 			customRenderers?.views?.map((customRenderer: TRenderer) => ({
 
@@ -520,9 +580,14 @@ const FrontendDataSetContent = ({
 			views[0] ||
 			(customInternalViews?.length && customInternalViews[0]);
 
+		defaultSnapshot.activeView = {
+			component: getViewComponent(initialActiveView as IView),
+			...initialActiveView,
+		};
+
 		let initialVisibleFieldNames = {};
 
-		if (activeViewSettings) {
+		if (!snapshotsEnabled && activeViewSettings) {
 			const {name: activeViewName, visibleFieldNames} =
 				JSON.parse(activeViewSettings);
 
@@ -542,6 +607,8 @@ const FrontendDataSetContent = ({
 		}
 
 		const visibleFieldNames = getVisibleFields();
+
+		defaultSnapshot.visibleFieldNames = initialVisibleFieldNames;
 
 		let saveVisibleFieldNames = false;
 
@@ -574,29 +641,22 @@ const FrontendDataSetContent = ({
 			...initialActiveView,
 		};
 
-		const filters = initialFilters
-			? updateFilterActivation({
-					newFilters: getFilters(),
-					oldFilters: initialFilters.map((filter) => {
-						const preloadedData = filter.preloadedData;
+		defaultSnapshot.filters = initialFilters
+			? initialFilters.map((filter) => {
+					const preloadedData = deepClone(filter.preloadedData);
+					if (preloadedData) {
+						filter = activateFilter({
+							filter,
+							selectedData: preloadedData,
+						});
+					}
 
-						if (preloadedData) {
-							filter = activateFilter({
-								filter,
-								selectedData: preloadedData,
-							});
-						}
-
-						return filter;
-					}),
+					return filter;
 				})
 			: [];
 
 		const paginationDelta =
-			showPagination &&
-			(getDelta() ||
-				pagination?.initialDelta ||
-				DEFAULT_PAGINATION_DELTA);
+			showPagination && (getDelta() || defaultSnapshot.paginationDelta);
 
 		const pageNumber =
 			getPageNumber() ||
@@ -604,6 +664,8 @@ const FrontendDataSetContent = ({
 			DEFAULT_PAGINATION_PAGE_NUMBER;
 
 		const searchParam = getSearchParam();
+
+		defaultSnapshot.sorts = sortsProp;
 
 		const sorts = updateSortsActivation({
 			newSorts: getActiveSorts(),
@@ -613,8 +675,7 @@ const FrontendDataSetContent = ({
 		// viewsDispatch is not available here, so we can't use state in url
 		// setters at this point. hook does the job
 
-		updateConfig({
-			[EConfigInURLKeys.ACTIVE_FILTERS]: filters,
+		updateConfigInURL({
 			[EConfigInURLKeys.ACTIVE_SORTS]: sorts,
 			[EConfigInURLKeys.DELTA]: paginationDelta,
 			[EConfigInURLKeys.PAGE_NUMBER]: pageNumber,
@@ -637,23 +698,21 @@ const FrontendDataSetContent = ({
 			});
 		}
 
+		const parsedSnapshots = snapshots?.map((snapshot: ISnapshot) => ({
+			...snapshot,
+			configuration: JSON.parse(snapshot.configuration),
+		}));
+
 		return {
 			activeView,
-			customViews: customViews && JSON.parse(customViews),
-			customViewsEnabled,
-			defaultView: {
-				activeView,
-				filters,
-				paginationDelta,
-				sorts,
-				visibleFieldNames: initialVisibleFieldNames,
-			},
-			filters,
+			defaultSnapshot,
 			filtersGroups,
 			modifiedFields: {},
 			pageNumber,
 			paginationDelta,
 			searchParam,
+			snapshots: parsedSnapshots,
+			snapshotsEnabled,
 			sorts,
 			views: [...views, ...customInternalViews],
 			visibleFieldNames: initialVisibleFieldNames,
@@ -664,14 +723,7 @@ const FrontendDataSetContent = ({
 		useReducer(viewsReducer, getInitialViewsState())
 	);
 
-	const {
-		activeView,
-		filters,
-		pageNumber,
-		paginationDelta,
-		searchParam,
-		sorts,
-	} = viewsState;
+	const {activeView, pageNumber, paginationDelta, sorts} = viewsState;
 
 	const handleDeltaChange = useCallback(
 		(delta: number) => {
@@ -692,16 +744,17 @@ const FrontendDataSetContent = ({
 			return;
 		}
 
-		const activeFiltersOdataStrings = filters.reduce(
+		const unfrozenGlobalFDSState: IFDSState = deepClone(globalFDSState);
 
-			// Difficult to type filter as it is a mix of filters from FDS and FILTER_IMPLEMENTATIONS<T>
+		const activeFilters: Array<IBaseFilterState> =
+			unfrozenGlobalFDSState.filters.filter((filter) => filter.active) ||
+			[];
 
-			(activeFilters: Array<string>, filter: any) =>
-				filter.active && filter.odataFilterString
-					? [...activeFilters, filter.odataFilterString]
-					: activeFilters,
-			[]
-		);
+		const activeFiltersOdataStrings = activeFilters.map((filter) => {
+			const filterImplementation = FILTER_IMPLEMENTATIONS[filter.type];
+
+			return filterImplementation.getOdataString(filter);
+		});
 
 		const activeSorts =
 			sorts.length > 1
@@ -715,53 +768,79 @@ const FrontendDataSetContent = ({
 			delta: paginationDelta,
 			odataFiltersStrings: activeFiltersOdataStrings,
 			page: pageNumber,
-			searchParam,
+			searchParam: unfrozenGlobalFDSState.search.query,
 			sorts: activeSorts,
 		});
 	}, [
 		additionalAPIURLParameters,
 		apiURL,
 		currentURL,
-		paginationDelta,
-		filters,
+		globalFDSState,
 		pageNumber,
-		searchParam,
+		paginationDelta,
 		sorts,
 	]);
 
-	const onSearch = useCallback(
-		({query}: {query: string}) => {
-			if (apiURL || appURL) {
-				setSearching(true);
-
-				viewsDispatch(updateSearchParam(query));
-			}
-			else {
-				setItems(
-					itemsProp?.length
-						? itemsProp.filter((item) => {
-								return JSON.stringify(
-									Object.values(item)
-								).includes(query);
-							})
-						: []
-				);
-			}
-		},
-		[apiURL, appURL, itemsProp, updateSearchParam, viewsDispatch]
-	);
-
 	const onClearFilters = useCallback(() => {
-		setSearching(true);
+		const unfrozenGlobalFDSState: IFDSState = deepClone(globalFDSState);
 
-		viewsDispatch(
-			updateFilters(
-				filters.map((filter: any) => deactivateFilter(filter))
-			)
+		const filters = unfrozenGlobalFDSState.filters.map((filter) =>
+			deactivateFilter(filter)
 		);
 
-		onSearch({query: ''});
-	}, [filters, onSearch, updateFilters, viewsDispatch]);
+		setGlobalFDSState({
+			...unfrozenGlobalFDSState,
+			filters,
+			search: {query: ''},
+		});
+	}, [globalFDSState, setGlobalFDSState]);
+
+	const skipSnapshotsUpdatedChangeRef = useRef(true);
+
+	useEffect(() => {
+		if (
+			globalFDSStateInitialized ||
+			!filterClientExtensionsLoaded ||
+			!cellClientExtensionsLoaded
+		) {
+			return;
+		}
+
+		setGlobalFDSStateInitialized(true);
+	}, [
+		cellClientExtensionsLoaded,
+		filterClientExtensionsLoaded,
+		globalFDSStateInitialized,
+	]);
+
+	useEffect(() => {
+		if (!globalFDSStateInitialized) {
+			return;
+		}
+
+		const unfrozenGlobalFDSState = deepClone(globalFDSState);
+
+		updateConfigInURL({
+			[EConfigInURLKeys.ACTIVE_FILTERS]: unfrozenGlobalFDSState.filters,
+			[EConfigInURLKeys.SEARCH_PARAM]:
+				unfrozenGlobalFDSState.search.query,
+		});
+
+		if (skipSnapshotsUpdatedChangeRef.current) {
+			skipSnapshotsUpdatedChangeRef.current = false;
+		}
+		else {
+			viewsDispatch({
+				type: EViewsActionTypes.UPDATE_SNAPSHOT_UPDATED,
+				value: true,
+			});
+		}
+	}, [
+		globalFDSState,
+		globalFDSStateInitialized,
+		updateConfigInURL,
+		viewsDispatch,
+	]);
 
 	const updateDataSetItems = useCallback(
 		(dataSetData: IDataSetData) => {
@@ -793,83 +872,168 @@ const FrontendDataSetContent = ({
 	);
 
 	useEffect(() => {
+		if (
+			globalFDSStateInitialized ||
+			filterClientExtensionsLoading ||
+			filterClientExtensionsLoaded ||
+			cellClientExtensionsLoading ||
+			cellClientExtensionsLoaded
+		) {
+			return;
+		}
+
+		const searchParam = getSearchParam();
+
+		const preloadFilters = (
+			filters: Array<IBaseFilterState> | undefined
+		): Array<IBaseFilterState> => {
+			if (!filters) {
+				return [];
+			}
+
+			const configInURL: Partial<IConfigInURL> | null =
+				readConfigFromURL(id);
+
+			const urlFilters = configInURL?.[EConfigInURLKeys.ACTIVE_FILTERS];
+
+			if (urlFilters) {
+				return updateFilterActivation({
+					newFilters: urlFilters,
+					oldFilters: filters,
+				});
+			}
+
+			return (
+				filters.map((filter) => {
+					const preloadedData = filter.preloadedData;
+
+					if (preloadedData) {
+						filter = activateFilter({
+							filter,
+							selectedData: preloadedData,
+						});
+					}
+
+					return filter;
+				}) || []
+			);
+		};
+
+		const filterClientExtensionDefinitions = initialFilters
+			? initialFilters
+					.filter((filter) => filter.clientExtensionFilterURL)
+					.map((filter) => ({
+						context: filter,
+						importDeclaration: `default from ${filter.clientExtensionFilterURL}`,
+					}))
+			: [];
+
+		if (filterClientExtensionDefinitions.length) {
+			setFilterClientExtensionsLoading(true);
+		}
+		else {
+			setFilterClientExtensionsLoaded(true);
+
+			setGlobalFDSState({
+				...globalFDSState,
+				filters: preloadFilters(initialFilters),
+				search: {query: searchParam ?? ''},
+			});
+		}
+
+		const cellClientExtensionDefinitions = views.reduce(
+			(
+				clientExtensionDefinitions: Array<
+					ClientExtensionDefinition<any>
+				>,
+				view: IView
+			) => {
+				if (view.schema && 'fields' in view.schema) {
+					if (!view.schema.fields.length) {
+						return clientExtensionDefinitions;
+					}
+
+					const clientExtensionFields = view.schema.fields.filter(
+						(field: IField) =>
+							!!field.contentRendererClientExtension
+					);
+
+					for (const field of clientExtensionFields) {
+						clientExtensionDefinitions.push({
+							context: field,
+							importDeclaration: field.contentRendererModuleURL,
+						});
+					}
+
+					return clientExtensionDefinitions;
+				}
+				else {
+					return [];
+				}
+			},
+			[]
+		);
+
+		if (cellClientExtensionDefinitions.length) {
+			setCellClientExtensionsLoading(true);
+		}
+		else {
+			setCellClientExtensionsLoaded(true);
+		}
+
+		if (
+			!filterClientExtensionDefinitions.length &&
+			!cellClientExtensionDefinitions.length
+		) {
+			return;
+		}
+
 		loadClientExtensions([
 			{
-				clientExtensionDefinitions: initialFilters
-					? initialFilters
-							.filter((filter) => filter.clientExtensionFilterURL)
-							.map((filter) => ({
-								context: filter,
-								importDeclaration: `default from ${filter.clientExtensionFilterURL}`,
-							}))
-					: [],
+				clientExtensionDefinitions: filterClientExtensionDefinitions,
 				onLoad: (
 					resolutions: Array<ClientExtensionResolution<any>>
 				) => {
-					const newFilters = initialFilters?.map((filter) => {
-						const resolution = resolutions.find(
-							(resolution: ClientExtensionResolution<any>) =>
-								resolution.context.clientExtensionFilterURL ===
-								filter.clientExtensionFilterURL
-						);
+					const newFilters: Array<IBaseFilterState> =
+						initialFilters?.map((filter) => {
+							const resolution = resolutions.find(
+								(resolution: ClientExtensionResolution<any>) =>
+									resolution.context
+										.clientExtensionFilterURL ===
+									filter.clientExtensionFilterURL
+							);
 
-						if (resolution) {
-							if (resolution.error) {
+							if (resolution) {
+								if (resolution.error) {
+									return {
+										...filter,
+										clientExtensionResolutionError:
+											resolution.error,
+									};
+								}
+
 								return {
 									...filter,
-									clientExtensionResolutionError:
-										resolution.error,
+									clientExtensionFilterImplementation:
+										resolution.binding,
 								};
 							}
 
-							return {
-								...filter,
-								clientExtensionFilterImplementation:
-									resolution.binding,
-							};
-						}
+							return filter;
+						}) || [];
 
-						return filter;
+					setGlobalFDSState({
+						...globalFDSState,
+						filters: preloadFilters(newFilters),
+						search: {query: searchParam ?? ''},
 					});
 
-					viewsDispatch(updateFilters(newFilters || []));
+					setFilterClientExtensionsLoading(false);
+					setFilterClientExtensionsLoaded(true);
 				},
 			},
 			{
-				clientExtensionDefinitions: views.reduce(
-					(
-						clientExtensionDefinitions: Array<
-							ClientExtensionDefinition<any>
-						>,
-						view: IView
-					) => {
-						if (view.schema && 'fields' in view.schema) {
-							if (!view.schema.fields.length) {
-								return clientExtensionDefinitions;
-							}
-
-							const clientExtensionFields =
-								view.schema.fields.filter(
-									(field: IField) =>
-										!!field.contentRendererClientExtension
-								);
-
-							for (const field of clientExtensionFields) {
-								clientExtensionDefinitions.push({
-									context: field,
-									importDeclaration:
-										field.contentRendererModuleURL,
-								});
-							}
-
-							return clientExtensionDefinitions;
-						}
-						else {
-							return [];
-						}
-					},
-					[]
-				),
+				clientExtensionDefinitions: cellClientExtensionDefinitions,
 				onLoad: (
 					resolutions: Array<ClientExtensionResolution<any>>
 				) => {
@@ -896,10 +1060,26 @@ const FrontendDataSetContent = ({
 							},
 						});
 					});
+
+					setCellClientExtensionsLoading(false);
+					setCellClientExtensionsLoaded(true);
 				},
 			},
 		]);
-	}, [initialFilters, views, updateFilters, viewsDispatch]);
+	}, [
+		cellClientExtensionsLoaded,
+		cellClientExtensionsLoading,
+		filterClientExtensionsLoaded,
+		filterClientExtensionsLoading,
+		getSearchParam,
+		globalFDSState,
+		globalFDSStateInitialized,
+		id,
+		initialFilters,
+		setGlobalFDSState,
+		views,
+		viewsDispatch,
+	]);
 
 	useEffect(() => {
 		if (itemsProp) {
@@ -993,6 +1173,8 @@ const FrontendDataSetContent = ({
 		}
 	}
 
+	const dataSetWrapperRef: RefObject<HTMLDivElement> = useRef(null);
+
 	useEffect(() => {
 		if (dataSetWrapperRef.current) {
 			const form = (dataSetWrapperRef.current as HTMLElement).closest(
@@ -1012,14 +1194,20 @@ const FrontendDataSetContent = ({
 		}> = [];
 
 		const activeFilters = getFilters();
+		const searchParam = getSearchParam();
 
-		if (activeFilters) {
-			stateUpdates.push({
-				type: EViewsActionTypes.UPDATE_FILTERS,
-				value: updateFilterActivation({
+		if (activeFilters || searchParam) {
+			const unfrozenGlobalFDSState: IFDSState = deepClone(globalFDSState);
+
+			setGlobalFDSState({
+				...unfrozenGlobalFDSState,
+				filters: updateFilterActivation({
 					newFilters: activeFilters,
-					oldFilters: filters,
+					oldFilters: unfrozenGlobalFDSState.filters,
 				}),
+				search: {
+					query: searchParam ?? '',
+				},
 			});
 		}
 
@@ -1065,15 +1253,6 @@ const FrontendDataSetContent = ({
 			value: getPageNumber() || 1,
 		});
 
-		const searchParam = getSearchParam();
-
-		if (searchParam !== undefined) {
-			stateUpdates.push({
-				type: EViewsActionTypes.UPDATE_SEARCH_PARAM,
-				value: searchParam,
-			});
-		}
-
 		const visibleFields = getVisibleFields();
 
 		if (visibleFields) {
@@ -1098,17 +1277,18 @@ const FrontendDataSetContent = ({
 		}
 	}, [
 		appURL,
-		filters,
-		getFilters,
 		getActiveSorts,
 		getDelta,
+		getFilters,
 		getPageNumber,
 		getSearchParam,
 		getView,
 		getVisibleFields,
+		globalFDSState,
 		id,
 		paginationDelta,
 		portletId,
+		setGlobalFDSState,
 		sorts,
 		viewsDispatch,
 	]);
@@ -1132,14 +1312,18 @@ const FrontendDataSetContent = ({
 						updateDataSetItems(data);
 
 						setSelectedItems(
-							data.items.filter((item: any) => {
-								const itemValue = getObjectValueFromPath({
-									object: item,
-									path: selectedItemsKey,
-								});
+							data.items.filter(
+								(item: ISelectionFilterStateItem) => {
+									const itemValue = getObjectValueFromPath({
+										object: item,
+										path: selectedItemsKey,
+									});
 
-								return selectedItemsValue.includes(itemValue);
-							})
+									return selectedItemsValue.includes(
+										itemValue
+									);
+								}
+							)
 						);
 
 						setDataLoading(false);
@@ -1222,18 +1406,7 @@ const FrontendDataSetContent = ({
 	};
 
 	useEffect(() => {
-		if (!apiURL) {
-			return;
-		}
-
-		const clientExtensionFiltersLoading = filters.some(
-			(filter: any) =>
-				filter.clientExtensionFilterURL &&
-				!filter.clientExtensionFilterImplementation &&
-				!filter.clientExtensionResolutionError
-		);
-
-		if (clientExtensionFiltersLoading) {
+		if (!apiURL || !globalFDSStateInitialized) {
 			return;
 		}
 
@@ -1266,16 +1439,15 @@ const FrontendDataSetContent = ({
 				}
 
 				setDataLoading(false);
+
 				setSearching(false);
 			}
 		});
 	}, [
 		apiURL,
-		filters,
+		globalFDSStateInitialized,
 		isMounted,
 		requestData,
-		setDataLoading,
-		setSearching,
 		updateDataSetItems,
 	]);
 
@@ -1313,8 +1485,12 @@ const FrontendDataSetContent = ({
 		};
 	}, [configInURLBehavior, handlePopState, id, refreshData]);
 
-	const hasSearch = !!searchParam;
-	const hasActiveFilters = filters.some((filter: any) => filter.active);
+	const fdsRef = useRef(null);
+
+	const hasSearch = !!globalFDSState.search.query;
+	const hasActiveFilters = globalFDSState.filters.some(
+		(filter) => filter.active
+	);
 
 	const showManagementToolbar =
 		showManagementBar &&
@@ -1382,7 +1558,7 @@ const FrontendDataSetContent = ({
 						items={items}
 						itemsActions={itemsActions}
 						onItemSelectionChange={(
-							selectedItem: any,
+							selectedItem: ISelectionFilterStateItem,
 							forceSingleSelection: boolean
 						) => {
 							if (allItemsSelectedActive) {
@@ -1419,9 +1595,7 @@ const FrontendDataSetContent = ({
 					<EmptyState
 						creationMenu={creationMenu}
 						emptyStateConfiguration={emptyState}
-						filters={filters}
 						onClearFilters={onClearFilters}
-						searchParam={searchParam}
 					/>
 				)}
 			</div>
@@ -1577,6 +1751,67 @@ const FrontendDataSetContent = ({
 		});
 	}
 
+	const unfrozenGlobalFDSState: IFDSState = deepClone(globalFDSState);
+
+	const handleSnapshotChange = ({defaultSnapshot, snapshots, value}: any) => {
+		if (value === 'DEFAULT_VIEW') {
+			updateConfigInURL({
+				[EConfigInURLKeys.ACTIVE_FILTERS]: defaultSnapshot.filters,
+				[EConfigInURLKeys.ACTIVE_SORTS]: defaultSnapshot.sorts,
+				[EConfigInURLKeys.DELTA]: {...defaultSnapshot.paginationDelta},
+				[EConfigInURLKeys.VIEW_NAME]: {
+					...defaultSnapshot.activeView.name,
+				},
+				[EConfigInURLKeys.VISIBLE_FIELDS]: {
+					...defaultSnapshot.visibleFieldNames,
+				},
+			});
+
+			viewsDispatch({
+				type: EViewsActionTypes.RESET_TO_DEFAULT_SNAPSHOT,
+			});
+
+			skipSnapshotsUpdatedChangeRef.current = true;
+
+			setGlobalFDSState({
+				...unfrozenGlobalFDSState,
+				filters: defaultSnapshot.filters,
+			});
+		}
+		else {
+			const snapshot = deepClone(
+				snapshots.find((view: ISnapshot) => view.erc === value)
+			);
+
+			updateConfigInURL({
+				[EConfigInURLKeys.ACTIVE_FILTERS]:
+					snapshot.configuration.filters,
+				[EConfigInURLKeys.ACTIVE_SORTS]: updateSortsActivation({
+					newSorts: snapshot.configuration.sorts,
+					oldSorts: sorts,
+				}),
+				[EConfigInURLKeys.DELTA]:
+					snapshot.configuration.paginationDelta,
+				[EConfigInURLKeys.VIEW_NAME]:
+					snapshot.configuration.activeView.name,
+				[EConfigInURLKeys.VISIBLE_FIELDS]:
+					snapshot.configuration.visibleFieldNames,
+			});
+
+			viewsDispatch({
+				type: EViewsActionTypes.UPDATE_ACTIVE_SNAPSHOT,
+				value: snapshot,
+			});
+
+			skipSnapshotsUpdatedChangeRef.current = true;
+
+			setGlobalFDSState({
+				...unfrozenGlobalFDSState,
+				filters: snapshot.configuration.filters,
+			});
+		}
+	};
+
 	function toggleItemInlineEdit(itemKey: any) {
 		setItemsChanges(({[itemKey]: foundItem, ...itemsChanges}) => {
 			return foundItem
@@ -1719,6 +1954,7 @@ const FrontendDataSetContent = ({
 				executeAsyncItemAction,
 				formId,
 				formName,
+				globalFDSState: unfrozenGlobalFDSState,
 				hideManagementBarInEmptyState,
 				highlightItems,
 				highlightedItemsValue,
@@ -1736,22 +1972,71 @@ const FrontendDataSetContent = ({
 				nestedItemsReferenceKey,
 				onActionDropdownItemClick,
 				onBulkActionItemClick,
+				onClearResultsBar: () => {
+					const filters = unfrozenGlobalFDSState.filters.map(
+						(filter) => deactivateFilter(filter)
+					);
+
+					setGlobalFDSState({
+						...unfrozenGlobalFDSState,
+						filters,
+						search: {
+							query: '',
+						},
+					});
+				},
+				onClearSearch: () => {
+					skipSnapshotsUpdatedChangeRef.current = true;
+
+					setGlobalFDSState({
+						...unfrozenGlobalFDSState,
+						search: {
+							query: '',
+						},
+					});
+				},
+				onFilterChange: ({
+					changedFilter,
+				}: {
+					changedFilter: IBaseFilterState;
+				}) => {
+					const filters = unfrozenGlobalFDSState.filters.map(
+						(filter) =>
+							filter.id === changedFilter.id
+								? changedFilter
+								: filter
+					);
+
+					setGlobalFDSState({
+						...unfrozenGlobalFDSState,
+						filters,
+					});
+				},
 				onInfoPanelToggleButtonClick: () => {
 					setInfoPanelOpen((value) => !value);
 				},
 				onItemsChange,
-				onSearch,
+				onSearch: ({query}) => {
+					skipSnapshotsUpdatedChangeRef.current = true;
+
+					setGlobalFDSState({
+						...unfrozenGlobalFDSState,
+						search: {
+							query,
+						},
+					});
+				},
+				onSnapshotChange: handleSnapshotChange,
 				openModal,
 				openSidePanel,
 				portletId,
-				searchParam,
+				searchParam: unfrozenGlobalFDSState.search.query,
 				searching,
 				selectable,
 				selectedItems,
 				selectedItemsKey,
 				selectedItemsValue,
 				selectionType,
-				setSearching,
 				showBulkActionsManagementBar,
 				showBulkActionsManagementBarActions,
 				showInfoPanel: infoPanelComponent ? true : false,
@@ -1773,72 +2058,79 @@ const FrontendDataSetContent = ({
 					<DragLayer dataSetWrapperRef={dataSetWrapperRef} />
 				)}
 
-				<div className="fds" ref={fdsRef}>
-					<Modal
-						id={dataSetSupportModalIdRef.current}
-						onClose={refreshData}
-					/>
-
-					{!sidePanelId && (
-						<SidePanel
-							id={dataSetSupportSidePanelIdRef.current}
-							onAfterSubmit={refreshData}
+				{filterClientExtensionsLoading ||
+				cellClientExtensionsLoading ? (
+					<ClayLoadingIndicator className="my-7" />
+				) : (
+					<div className="fds" ref={fdsRef}>
+						<Modal
+							id={dataSetSupportModalIdRef.current}
+							onClose={refreshData}
 						/>
-					)}
 
-					{infoPanelComponent && (
-						<InfoPanel
-							className="fds-info-panel"
-							component={infoPanelComponent}
-							containerRef={fdsRef}
-							id={dataSetSupportInfoPanelIdRef.current}
-							onOpenChange={setInfoPanelOpen}
-							open={infoPanelOpen}
-						/>
-					)}
-
-					<div
-						className={classNames(
-							`data-set-wrapper visualization-mode-${activeView.contentRenderer}`,
-							className,
-							selectable
-						)}
-						data-testid={`visualization-mode-${activeView.name}`}
-						ref={dataSetWrapperRef}
-					>
-						{style === 'default' && (
-							<div className="data-set data-set-inline">
-								{managementBar}
-
-								{view}
-
-								{paginationComponent}
-							</div>
+						{!sidePanelId && (
+							<SidePanel
+								id={dataSetSupportSidePanelIdRef.current}
+								onAfterSubmit={refreshData}
+							/>
 						)}
 
-						{style === 'stacked' && (
-							<div className="data-set data-set-stacked">
-								{managementBar}
-
-								{view}
-
-								{paginationComponent}
-							</div>
+						{infoPanelComponent && (
+							<InfoPanel
+								className="fds-info-panel"
+								component={infoPanelComponent}
+								containerRef={fdsRef}
+								id={dataSetSupportInfoPanelIdRef.current}
+								onOpenChange={setInfoPanelOpen}
+								open={infoPanelOpen}
+							/>
 						)}
 
-						{style === 'fluid' && (
-							<div className="data-set data-set-fluid">
-								{managementBar}
+						<div
+							className={classNames(
+								`data-set-wrapper visualization-mode-${activeView.contentRenderer}`,
+								className,
+								{
+									selectable,
+								}
+							)}
+							data-testid={`visualization-mode-${activeView.name}`}
+							ref={dataSetWrapperRef}
+						>
+							{style === 'default' && (
+								<div className="data-set data-set-inline">
+									{managementBar}
 
-								<div className="container-fluid mt-3">
 									{view}
 
 									{paginationComponent}
 								</div>
-							</div>
-						)}
+							)}
+
+							{style === 'stacked' && (
+								<div className="data-set data-set-stacked">
+									{managementBar}
+
+									{view}
+
+									{paginationComponent}
+								</div>
+							)}
+
+							{style === 'fluid' && (
+								<div className="data-set data-set-fluid">
+									{managementBar}
+
+									<div className="container-fluid mt-3">
+										{view}
+
+										{paginationComponent}
+									</div>
+								</div>
+							)}
+						</div>
 					</div>
-				</div>
+				)}
 			</ViewsContext.Provider>
 		</FrontendDataSetContext.Provider>
 	);

@@ -97,8 +97,9 @@ public class ImportSystemDataSetMVCResourceCommand
 			WebKeys.THEME_DISPLAY);
 
 		ObjectDefinition dataSetObjectDefinition =
-			_objectDefinitionLocalService.fetchObjectDefinition(
-				themeDisplay.getCompanyId(), "DataSet");
+			_objectDefinitionLocalService.
+				fetchObjectDefinitionByExternalReferenceCode(
+					"L_DATA_SET", themeDisplay.getCompanyId());
 
 		String fdsName = ParamUtil.getString(resourceRequest, "name");
 
@@ -129,12 +130,15 @@ public class ImportSystemDataSetMVCResourceCommand
 				"restEndpoint", systemFDSEntry.getRESTEndpoint()
 			).put(
 				"restSchema", systemFDSEntry.getRESTSchema()
+			).put(
+				"snapshotsEnabled", systemFDSEntry.getSnapshotsEnabled()
 			).build(),
 			new ServiceContext());
 
 		ObjectDefinition dataSetActionObjectDefinition =
-			_objectDefinitionLocalService.fetchObjectDefinition(
-				themeDisplay.getCompanyId(), "DataSetAction");
+			_objectDefinitionLocalService.
+				fetchObjectDefinitionByExternalReferenceCode(
+					"L_DATA_SET_ACTION", themeDisplay.getCompanyId());
 
 		FDSCreationMenu fdsCreationMenu =
 			_fdsCreationMenuRegistry.getFDSCreationMenu(fdsName);

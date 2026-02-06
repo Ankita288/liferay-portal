@@ -7,13 +7,15 @@ import ClayBreadcrumb from '@clayui/breadcrumb';
 import {ClayButtonWithIcon} from '@clayui/button';
 import ClayDropDown, {ClayDropDownWithItems} from '@clayui/drop-down';
 import ClaySticker from '@clayui/sticker';
-import {openModal, openToast} from 'frontend-js-components-web';
+import {openToast} from 'frontend-js-components-web';
 import {navigate} from 'frontend-js-web';
 import React, {ComponentProps} from 'react';
 
 import DefaultPermissionModalContent from '../../main_view/default_permission/DefaultPermissionModalContent';
 import {DefaultPermissionModalContentProps} from '../../main_view/default_permission/DefaultPermissionTypes';
 import ApiHelper from '../services/ApiHelper';
+import {LogoColor} from '../types/Space';
+import {openCMSModal} from '../utils/openCMSModal';
 import {displayErrorToast} from '../utils/toastUtil';
 import SpaceSticker from './SpaceSticker';
 
@@ -28,14 +30,11 @@ export interface ActionDropdownItemProps {
 	target?: 'asyncDelete' | 'defaultPermissionsModal' | 'link' | 'modal';
 }
 
-interface Props
-	extends Pick<
-		React.ComponentProps<typeof ClaySticker>,
-		'displayType' | 'size'
-	> {
+interface Props extends Pick<React.ComponentProps<typeof ClaySticker>, 'size'> {
 	actionItems?: ComponentProps<typeof ClayDropDownWithItems>['items'] &
 		ActionDropdownItemProps;
 	breadcrumbItems: BreadcrumbItem[];
+	displayType?: LogoColor;
 	hideSpace?: boolean;
 }
 
@@ -59,14 +58,7 @@ function ActionDropdownItem({
 	...props
 }: {label: string} & ActionDropdownItemProps) {
 	const handleTargetAction = async () => {
-		if (target === 'modal') {
-			openModal({
-				size,
-				title: label,
-				url: href,
-			});
-		}
-		else if (target === 'asyncDelete') {
+		if (target === 'asyncDelete') {
 			const {error} = await ApiHelper.delete(href);
 
 			if (!error) {
@@ -91,16 +83,25 @@ function ActionDropdownItem({
 			target === 'defaultPermissionsModal' &&
 			defaultPermissionAdditionalProps
 		) {
-			openModal({
-				containerProps: {
-					className: '',
-				},
+			openCMSModal({
 				contentComponent: ({closeModal}: {closeModal: () => void}) =>
 					DefaultPermissionModalContent({
 						...defaultPermissionAdditionalProps,
 						closeModal,
 					}),
 				size: 'full-screen',
+			});
+		}
+		else if (target === 'modal') {
+			openCMSModal({
+				onClose: () => {
+					if (redirect) {
+						navigate(redirect);
+					}
+				},
+				size,
+				title: label,
+				url: href,
 			});
 		}
 		else {
@@ -110,7 +111,7 @@ function ActionDropdownItem({
 
 	const handleClick = () => {
 		if (confirmationMessage) {
-			openModal({
+			openCMSModal({
 				bodyHTML: confirmationMessage,
 				buttons: [
 					{
@@ -122,7 +123,11 @@ function ActionDropdownItem({
 					{
 						displayType: 'danger',
 						label: Liferay.Language.get('delete'),
-						onClick: ({processClose}) => {
+						onClick: ({
+							processClose,
+						}: {
+							processClose: () => void;
+						}) => {
 							processClose();
 							handleTargetAction();
 						},
@@ -155,7 +160,7 @@ export default function Breadcrumb({
 	const isTitle = breadcrumbItems.length === 1;
 
 	return (
-		<div
+		<section
 			aria-label={Liferay.Language.get('breadcrumb')}
 			className="autofit-row autofit-row-center cms-breadcrumb px-4"
 		>
@@ -209,6 +214,6 @@ export default function Breadcrumb({
 					</ClayDropDown>
 				</div>
 			)}
-		</div>
+		</section>
 	);
 }
