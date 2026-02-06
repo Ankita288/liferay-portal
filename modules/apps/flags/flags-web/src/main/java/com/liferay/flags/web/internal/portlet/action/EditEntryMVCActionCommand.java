@@ -5,6 +5,7 @@
 
 package com.liferay.flags.web.internal.portlet.action;
 
+import com.liferay.asset.kernel.exception.NoSuchEntryException;
 import com.liferay.asset.kernel.model.AssetEntry;
 import com.liferay.asset.kernel.service.AssetEntryLocalService;
 import com.liferay.captcha.util.CaptchaUtil;
@@ -26,11 +27,14 @@ import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.ServiceContextFactory;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.ParamUtil;
+import com.liferay.portal.kernel.util.Portal;
+import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.WebKeys;
 
 import jakarta.portlet.ActionRequest;
 import jakarta.portlet.ActionResponse;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
@@ -60,10 +64,7 @@ public class EditEntryMVCActionCommand extends BaseMVCActionCommand {
 			String className = ParamUtil.getString(actionRequest, "className");
 			long classPK = ParamUtil.getLong(actionRequest, "classPK");
 
-			ThemeDisplay themeDisplay =
-				(ThemeDisplay)actionRequest.getAttribute(WebKeys.THEME_DISPLAY);
-
-			User reporterUser = themeDisplay.getUser();
+			User reporterUser = portal.getUser(PortalUtil.getHttpServletRequest(actionRequest));
 
 			String reporterEmailAddress = reporterUser.getEmailAddress();
 
@@ -119,13 +120,13 @@ public class EditEntryMVCActionCommand extends BaseMVCActionCommand {
 	}
 
 	private long _getReportedUserId(String className, long classPK)
-		throws NoSuchModelException {
+		throws Exception {
 
 		AssetEntry assetEntry = _assetEntryLocalService.fetchEntry(
 			className, classPK);
 
 		if (assetEntry == null) {
-			throw new NoSuchModelException(
+			throw new NoSuchEntryException(
 				"Unable to find an asset entry for class PK " + classPK);
 		}
 
@@ -146,5 +147,8 @@ public class EditEntryMVCActionCommand extends BaseMVCActionCommand {
 
 	@Reference
 	private Language _language;
+
+	@Reference
+	protected Portal portal;
 
 }
