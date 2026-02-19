@@ -6,7 +6,6 @@
 package com.liferay.portal.search.elasticsearch7.internal.suggest;
 
 import com.liferay.portal.kernel.search.SearchContext;
-import com.liferay.portal.kernel.search.query.QueryTranslator;
 import com.liferay.portal.kernel.search.suggest.CompletionSuggester;
 import com.liferay.portal.kernel.search.suggest.PhraseSuggester;
 import com.liferay.portal.kernel.search.suggest.Suggester;
@@ -14,8 +13,7 @@ import com.liferay.portal.kernel.search.suggest.SuggesterTranslator;
 import com.liferay.portal.kernel.search.suggest.SuggesterVisitor;
 import com.liferay.portal.kernel.search.suggest.TermSuggester;
 import com.liferay.portal.kernel.util.Validator;
-import com.liferay.portal.search.elasticsearch7.internal.legacy.query.ElasticsearchQueryTranslator;
-import com.liferay.portal.search.index.IndexNameBuilder;
+import com.liferay.portal.search.elasticsearch7.internal.legacy.query.ElasticsearchQueryVisitor;
 
 import java.util.Set;
 
@@ -34,10 +32,6 @@ import org.elasticsearch.search.suggest.term.TermSuggestionBuilder;
 public class ElasticsearchSuggesterTranslator
 	implements SuggesterTranslator<SuggestionBuilder>,
 			   SuggesterVisitor<SuggestionBuilder> {
-
-	public ElasticsearchSuggesterTranslator(IndexNameBuilder indexNameBuilder) {
-		_queryTranslator = new ElasticsearchQueryTranslator(indexNameBuilder);
-	}
 
 	@Override
 	public SuggestionBuilder translate(
@@ -207,8 +201,9 @@ public class ElasticsearchSuggesterTranslator
 		PhraseSuggestionBuilder phraseSuggestionBuilder) {
 
 		if (collate != null) {
-			QueryBuilder queryBuilder = _queryTranslator.translate(
-				collate.getQuery(), null);
+			QueryBuilder queryBuilder =
+				ElasticsearchQueryVisitor.INSTANCE.translate(
+					collate.getQuery());
 
 			phraseSuggestionBuilder.collateParams(collate.getParams());
 
@@ -379,7 +374,5 @@ public class ElasticsearchSuggesterTranslator
 
 		return SortBy.SCORE;
 	}
-
-	private final QueryTranslator<QueryBuilder> _queryTranslator;
 
 }

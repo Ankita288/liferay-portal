@@ -25,11 +25,8 @@ import com.liferay.portal.kernel.settings.LocalizedValuesMap;
 public interface CookiesConsentConfiguration {
 
 	@ExtendedAttributeDefinition(requiredInput = true)
-	@Meta.AD(
-		deflt = "${language:cookie-configuration}", name = "title",
-		required = false
-	)
-	public LocalizedValuesMap title();
+	@Meta.AD(name = "cookie-policy-link", required = false)
+	public String cookiePolicyLink();
 
 	@ExtendedAttributeDefinition(requiredInput = true)
 	@Meta.AD(
@@ -39,8 +36,19 @@ public interface CookiesConsentConfiguration {
 	public LocalizedValuesMap description();
 
 	@ExtendedAttributeDefinition(requiredInput = true)
-	@Meta.AD(name = "cookie-policy-link", required = false)
-	public String cookiePolicyLink();
+	@Meta.AD(
+		deflt = "${language:cookies-description[CONSENT_TYPE_FUNCTIONAL]}",
+		name = "functional-cookies-description-field", required = false
+	)
+	public LocalizedValuesMap functionalCookiesDescription();
+
+	@ExtendedAttributeDefinition(requiredInput = true)
+	@Meta.AD(deflt = "false", name = "hide-from-end-user", required = false)
+	public boolean functionalCookiesHideFromEndUser();
+
+	@ExtendedAttributeDefinition(requiredInput = true)
+	@Meta.AD(deflt = "false", name = "prechecked", required = false)
+	public boolean functionalCookiesPrechecked();
 
 	@ExtendedAttributeDefinition(requiredInput = true)
 	@Meta.AD(
@@ -51,38 +59,12 @@ public interface CookiesConsentConfiguration {
 
 	@ExtendedAttributeDefinition(requiredInput = true)
 	@Meta.AD(
-		deflt = "${language:cookies-description[CONSENT_TYPE_NECESSARY]}",
-		name = "strictly-necessary-cookies-description-field", required = false
-	)
-	public LocalizedValuesMap strictlyNecessaryCookiesDescription();
-
-	@ExtendedAttributeDefinition(requiredInput = true)
-	@Meta.AD(
-		deflt = "${language:cookies-description[CONSENT_TYPE_FUNCTIONAL]}",
-		name = "functional-cookies-description-field", required = false
-	)
-	public LocalizedValuesMap functionalCookiesDescription();
-
-	@ExtendedAttributeDefinition(
-		featureFlagKey = "LPD-51356", requiredInput = true
-	)
-	@Meta.AD(deflt = "false", name = "hide-from-end-user", required = false)
-	public boolean functionalCookiesHideFromEndUser();
-
-	@ExtendedAttributeDefinition(requiredInput = true)
-	@Meta.AD(deflt = "false", name = "prechecked", required = false)
-	public boolean functionalCookiesPrechecked();
-
-	@ExtendedAttributeDefinition(requiredInput = true)
-	@Meta.AD(
 		deflt = "${language:cookies-description[CONSENT_TYPE_PERFORMANCE]}",
 		name = "performance-cookies-description-field", required = false
 	)
 	public LocalizedValuesMap performanceCookiesDescription();
 
-	@ExtendedAttributeDefinition(
-		featureFlagKey = "LPD-51356", requiredInput = true
-	)
+	@ExtendedAttributeDefinition(requiredInput = true)
 	@Meta.AD(deflt = "false", name = "hide-from-end-user", required = false)
 	public boolean performanceCookiesHideFromEndUser();
 
@@ -97,14 +79,26 @@ public interface CookiesConsentConfiguration {
 	)
 	public LocalizedValuesMap personalizationCookiesDescription();
 
-	@ExtendedAttributeDefinition(
-		featureFlagKey = "LPD-51356", requiredInput = true
-	)
+	@ExtendedAttributeDefinition(requiredInput = true)
 	@Meta.AD(deflt = "false", name = "hide-from-end-user", required = false)
 	public boolean personalizationCookiesHideFromEndUser();
 
 	@ExtendedAttributeDefinition(requiredInput = true)
 	@Meta.AD(deflt = "false", name = "prechecked", required = false)
 	public boolean personalizationCookiesPrechecked();
+
+	@ExtendedAttributeDefinition(requiredInput = true)
+	@Meta.AD(
+		deflt = "${language:cookies-description[CONSENT_TYPE_NECESSARY]}",
+		name = "strictly-necessary-cookies-description-field", required = false
+	)
+	public LocalizedValuesMap strictlyNecessaryCookiesDescription();
+
+	@ExtendedAttributeDefinition(requiredInput = true)
+	@Meta.AD(
+		deflt = "${language:cookie-configuration}", name = "title",
+		required = false
+	)
+	public LocalizedValuesMap title();
 
 }

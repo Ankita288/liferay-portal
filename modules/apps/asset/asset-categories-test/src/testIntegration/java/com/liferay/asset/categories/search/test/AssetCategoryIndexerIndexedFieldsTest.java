@@ -8,10 +8,13 @@ package com.liferay.asset.categories.search.test;
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.asset.kernel.model.AssetCategory;
 import com.liferay.asset.kernel.model.AssetVocabulary;
+import com.liferay.asset.kernel.model.AssetVocabularyConstants;
 import com.liferay.asset.kernel.service.AssetCategoryService;
 import com.liferay.asset.kernel.service.AssetVocabularyService;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.User;
@@ -27,7 +30,6 @@ import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.LocaleThreadLocal;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.StringUtil;
-import com.liferay.portal.search.document.DocumentBuilderFactory;
 import com.liferay.portal.search.model.uid.UIDFactory;
 import com.liferay.portal.search.searcher.SearchRequestBuilderFactory;
 import com.liferay.portal.search.searcher.Searcher;
@@ -37,6 +39,7 @@ import com.liferay.portal.search.test.util.IndexedFieldsFixture;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
+import com.liferay.portlet.asset.util.AssetVocabularySettingsHelper;
 import com.liferay.users.admin.test.util.search.GroupBlueprint;
 import com.liferay.users.admin.test.util.search.GroupSearchFixture;
 import com.liferay.users.admin.test.util.search.UserSearchFixture;
@@ -89,8 +92,7 @@ public class AssetCategoryIndexerIndexedFieldsTest {
 
 		_groups = groupSearchFixture.getGroups();
 		_indexedFieldsFixture = new IndexedFieldsFixture(
-			resourcePermissionLocalService, searchEngineHelper, uidFactory,
-			documentBuilderFactory);
+			resourcePermissionLocalService, searchEngineHelper, uidFactory);
 	}
 
 	@Test
@@ -156,9 +158,6 @@ public class AssetCategoryIndexerIndexedFieldsTest {
 	protected AssetVocabularyService assetVocabularyService;
 
 	@Inject
-	protected DocumentBuilderFactory documentBuilderFactory;
-
-	@Inject
 	protected ResourcePermissionLocalService resourcePermissionLocalService;
 
 	@Inject
@@ -212,6 +211,9 @@ public class AssetCategoryIndexerIndexedFieldsTest {
 			"assetCategoryTitle_ja_JP",
 			StringUtil.lowerCase(assetCategory.getName())
 		).put(
+			"classNameIds",
+			StringUtil.merge(_getClassNameIds(assetCategory.getVocabularyId()))
+		).put(
 			"externalReferenceCode", assetCategory.getExternalReferenceCode()
 		).put(
 			"groupExternalReferenceCode", _group.getExternalReferenceCode()
@@ -244,6 +246,26 @@ public class AssetCategoryIndexerIndexedFieldsTest {
 		_populateTitles(assetCategory.getName(), map);
 
 		return map;
+	}
+
+	private long[] _getClassNameIds(long vocabularyId) {
+		if (AssetVocabularyConstants.EMPTY_VOCABULARY_ID == vocabularyId) {
+			return null;
+		}
+
+		try {
+			AssetVocabulary assetVocabulary =
+				assetVocabularyService.getVocabulary(vocabularyId);
+
+			AssetVocabularySettingsHelper assetVocabularySettingsHelper =
+				new AssetVocabularySettingsHelper(
+					assetVocabulary.getSettings());
+
+			return assetVocabularySettingsHelper.getClassNameIds();
+		}
+		catch (PortalException portalException) {
+			throw new SystemException(portalException);
+		}
 	}
 
 	private void _populateDates(

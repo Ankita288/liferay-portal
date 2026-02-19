@@ -9,6 +9,7 @@ import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.model.ResourceConstants;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.upgrade.data.cleanup.DataCleanupPreupgradeProcess;
+import com.liferay.portal.kernel.upgrade.data.cleanup.FilterableAllTablesOrphanReferencesDataCleanupPreupgradeProcess;
 import com.liferay.portal.kernel.upgrade.data.cleanup.TableOrphanReferencesDataCleanupPreupgradeProcess;
 import com.liferay.portal.kernel.upgrade.data.cleanup.UserAllTablesOrphanReferencesDataCleanupPreupgradeProcess;
 import com.liferay.portal.kernel.util.PortletKeys;
@@ -24,38 +25,28 @@ public class UserDataCleanupPreupgradeProcess
 		upgrade(
 			new UserAllTablesOrphanReferencesDataCleanupPreupgradeProcess());
 		upgrade(
-			new TableOrphanReferencesDataCleanupPreupgradeProcess(
+			new FilterableAllTablesOrphanReferencesDataCleanupPreupgradeProcess(
 				StringBundler.concat(
 					"[$SOURCE_TABLE_ALIAS$].classNameId = (select classNameId ",
 					"from ClassName_ where value = '", User.class.getName(),
 					"')"),
-				"classPK", "AssetEntry", "userId", "User_"));
+				new String[] {"classNameId"}, "classPK",
+				new String[] {"userId"}, "User_"));
 		upgrade(
 			new TableOrphanReferencesDataCleanupPreupgradeProcess(
-				StringBundler.concat(
-					"[$SOURCE_TABLE_ALIAS$].classNameId = (select classNameId ",
-					"from ClassName_ where value = '", User.class.getName(),
-					"')"),
-				"classPK", "Contact_", "userId", "User_"));
-		upgrade(
-			new TableOrphanReferencesDataCleanupPreupgradeProcess(
-				StringBundler.concat(
-					"[$SOURCE_TABLE_ALIAS$].classNameId = (select classNameId ",
-					"from ClassName_ where value = '", User.class.getName(),
-					"')"),
-				"classPK", "Group_", "userId", "User_"));
-		upgrade(
-			new TableOrphanReferencesDataCleanupPreupgradeProcess(
+				null,
 				"[$SOURCE_TABLE_ALIAS$].ownerType = " +
 					PortletKeys.PREFS_OWNER_TYPE_USER,
 				"ownerId", "PortalPreferences", "userId", "User_"));
 		upgrade(
 			new TableOrphanReferencesDataCleanupPreupgradeProcess(
+				null,
 				"[$SOURCE_TABLE_ALIAS$].ownerType = " +
 					PortletKeys.PREFS_OWNER_TYPE_USER,
 				"ownerId", "PortletPreferences", "userId", "User_"));
 		upgrade(
 			new TableOrphanReferencesDataCleanupPreupgradeProcess(
+				null,
 				StringBundler.concat(
 					"[$SOURCE_TABLE_ALIAS$].scope = ",
 					ResourceConstants.SCOPE_INDIVIDUAL, " and ",

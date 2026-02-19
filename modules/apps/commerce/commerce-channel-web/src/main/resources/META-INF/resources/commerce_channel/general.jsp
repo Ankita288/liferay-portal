@@ -164,11 +164,9 @@ Map<String, String> contextParams = HashMapBuilder.<String, String>put(
 						<aui:input checked="<%= commerceChannelDisplayContext.isGuestCheckoutEnabled() %>" helpMessage="configures-whether-a-guest-may-check-out-by-providing-an-email-address-or-if-they-must-sign-in" label="guest-checkout" labelOff="disabled" labelOn="enabled" name="settings--guestCheckoutEnabled--" type="toggle-switch" />
 					</div>
 
-					<c:if test='<%= FeatureFlagManagerUtil.isEnabled("LPD-58472") %>'>
-						<div class="col-lg-6">
-							<aui:input checked="<%= commerceChannelDisplayContext.isOrderSelectionDisabled() %>" helpMessage="configures-whether-the-list-of-open-orders-can-be-hidden-from-the-account-selector" label="hide-orders-list-view-in-the-account-selector" labelOff="disabled" labelOn="enabled" name="settings--orderSelectionDisabled--" type="toggle-switch" />
-						</div>
-					</c:if>
+					<div class="col-lg-6">
+						<aui:input checked="<%= commerceChannelDisplayContext.isOrderSelectionDisabled() %>" helpMessage="configures-whether-the-list-of-open-orders-can-be-hidden-from-the-account-selector" label="hide-orders-list-view-in-the-account-selector" labelOff="disabled" labelOn="enabled" name="settings--orderSelectionDisabled--" type="toggle-switch" />
+					</div>
 
 					<div class="col-lg-6">
 						<aui:input checked="<%= commerceChannelDisplayContext.isRequestQuoteEnabled() %>" helpMessage="allow-buyers-to-request-a-quote-when-no-product-in-the-cart-is-priced-as-price-on-application" label="allow-request-a-quote-on-a-fully-priced-cart" labelOff="disabled" labelOn="enabled" name="orderSettings--requestQuoteEnabled--" type="toggle-switch" />
@@ -186,6 +184,10 @@ Map<String, String> contextParams = HashMapBuilder.<String, String>put(
 
 					<div class="col-lg-6">
 						<aui:input checked="<%= commerceChannelDisplayContext.isUndoCartItemDeletionDisabled() %>" helpMessage="configures-whether-a-buyer-can-undo-the-deletion-of-an-item-from-the-mini-cart" label="undo-cart-item-deletion-disabled" labelOff="disabled" labelOn="enabled" name="settings--undoCartItemDeletionDisabled--" type="toggle-switch" />
+					</div>
+
+					<div class="col-lg-6">
+						<aui:input checked="<%= commerceChannelDisplayContext.isUserNotificationScopeEnabled() %>" helpMessage="configures-whether-the-notifications-delivery-scope-applies-only-to-users,-regardless-of-the-order-visibility-scope" label="user-notification-scope-enabled" labelOff="disabled" labelOn="enabled" name="settings--userNotificationScopeEnabled--" type="toggle-switch" />
 					</div>
 
 					<div class="col-lg-6">
@@ -297,7 +299,6 @@ Map<String, String> contextParams = HashMapBuilder.<String, String>put(
 			contextParams="<%= contextParams %>"
 			dataProviderKey="<%= CommerceChannelFDSNames.CHANNEL_HEALTH_CHECK %>"
 			id="<%= CommerceChannelFDSNames.CHANNEL_HEALTH_CHECK %>"
-			itemsPerPage="<%= 10 %>"
 			showManagementBar="<%= false %>"
 		/>
 	</commerce-ui:panel>
@@ -332,7 +333,6 @@ Map<String, String> contextParams = HashMapBuilder.<String, String>put(
 			contextParams="<%= contextParams %>"
 			dataProviderKey="<%= CommerceChannelFDSNames.PAYMENT_METHOD %>"
 			id="<%= CommerceChannelFDSNames.PAYMENT_METHOD %>"
-			itemsPerPage="<%= 10 %>"
 			selectedItemsKey="key"
 			showManagementBar="<%= false %>"
 		/>
@@ -347,7 +347,6 @@ Map<String, String> contextParams = HashMapBuilder.<String, String>put(
 		contextParams="<%= contextParams %>"
 		dataProviderKey="<%= CommerceChannelFDSNames.SHIPPING_METHOD %>"
 		id="<%= CommerceChannelFDSNames.SHIPPING_METHOD %>"
-		itemsPerPage="<%= 10 %>"
 		selectedItemsKey="key"
 		showManagementBar="<%= false %>"
 	/>
@@ -361,7 +360,6 @@ Map<String, String> contextParams = HashMapBuilder.<String, String>put(
 		contextParams="<%= contextParams %>"
 		dataProviderKey="<%= CommerceChannelFDSNames.TAX_METHOD %>"
 		id="<%= CommerceChannelFDSNames.TAX_METHOD %>"
-		itemsPerPage="<%= 10 %>"
 		selectedItemsKey="key"
 		showManagementBar="<%= false %>"
 	/>

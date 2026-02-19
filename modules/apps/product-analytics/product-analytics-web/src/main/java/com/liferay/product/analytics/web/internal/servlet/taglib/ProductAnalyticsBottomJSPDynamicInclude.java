@@ -6,7 +6,6 @@
 package com.liferay.product.analytics.web.internal.servlet.taglib;
 
 import com.liferay.portal.configuration.module.configuration.ConfigurationProvider;
-import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.Group;
@@ -48,9 +47,7 @@ public class ProductAnalyticsBottomJSPDynamicInclude
 			HttpServletResponse httpServletResponse, String key)
 		throws IOException {
 
-		if (!FeatureFlagManagerUtil.isEnabled("LPD-51356") ||
-			LiferayWindowState.isPopUp(httpServletRequest)) {
-
+		if (LiferayWindowState.isPopUp(httpServletRequest)) {
 			return;
 		}
 
@@ -112,7 +109,8 @@ public class ProductAnalyticsBottomJSPDynamicInclude
 			Group group = layoutSet.getGroup();
 
 			return _configurationProvider.getGroupConfiguration(
-				ProductAnalyticsConfiguration.class, group.getGroupId());
+				ProductAnalyticsConfiguration.class, group.getCompanyId(),
+				group.getGroupId());
 		}
 
 		return _configurationProvider.getCompanyConfiguration(

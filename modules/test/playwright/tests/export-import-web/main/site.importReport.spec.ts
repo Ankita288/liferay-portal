@@ -23,6 +23,7 @@ export const test = mergeTests(
 	dataApiHelpersTest,
 	exportImportPagesTest,
 	featureFlagsTest({
+		'LPD-35443': {enabled: true},
 		'LPD-35914': {enabled: true},
 	}),
 	loginTest()
@@ -52,14 +53,12 @@ test('Can see error report and details', async ({
 
 	await exportImportPage.goToExport();
 
-	const exportName = `MyExport-${getRandomString()}`;
+	const taskName = `MyExport-${getRandomString()}`;
 
-	await exportImportPage.export(exportName, 'Tests 1 Items');
-
-	await expect(exportImportPage.taskSuccessLabel(exportName)).toBeVisible();
-
-	const exportFilePath =
-		await exportImportPage.downloadExportProcess(exportName);
+	const exportFilePath = await exportImportPage.export({
+		portletLabels: ['Tests 1 Items'],
+		taskName,
+	});
 
 	const objectFieldAPIClient =
 		await apiHelpers.buildRestClient(ObjectFieldAPI);
@@ -77,9 +76,12 @@ test('Can see error report and details', async ({
 
 	await exportImportPage.goToImport();
 
-	await exportImportPage.import(exportFilePath);
+	await exportImportPage.import({
+		filePath: exportFilePath,
+		taskStatus: 'completedWithErrors',
+	});
 
-	await exportImportPage.goToImportDetails(exportName);
+	await exportImportPage.goToImportDetails(taskName);
 
 	await expect(
 		page.getByRole('cell', {
@@ -87,7 +89,7 @@ test('Can see error report and details', async ({
 		})
 	).toBeVisible();
 
-	await exportImportPage.goToImportErrorDetails(
+	await exportImportPage.goToImportReportEntryDetails(
 		objectEntry.externalReferenceCode
 	);
 
@@ -110,7 +112,7 @@ test(
 	'Can download export report entries CSV',
 	{tag: '@LPD-65208'},
 	async ({apiHelpers, exportImportPage, page}) => {
-		const exportName = `MyExport-${getRandomString()}`;
+		const taskName = `MyExport-${getRandomString()}`;
 
 		await test.step('Setup', async () => {
 			const objectDefinitionAPIClient =
@@ -135,14 +137,10 @@ test(
 
 			await exportImportPage.goToExport();
 
-			await exportImportPage.export(exportName, 'Tests 1 Items');
-
-			await expect(
-				exportImportPage.taskSuccessLabel(exportName)
-			).toBeVisible();
-
-			const exportFilePath =
-				await exportImportPage.downloadExportProcess(exportName);
+			const exportFilePath = await exportImportPage.export({
+				portletLabels: ['Tests 1 Items'],
+				taskName,
+			});
 
 			// Add a mandatory field to Object Definition to generate report issues on import
 
@@ -162,11 +160,14 @@ test(
 
 			await exportImportPage.goToImport();
 
-			await exportImportPage.import(exportFilePath);
+			await exportImportPage.import({
+				filePath: exportFilePath,
+				taskStatus: 'completedWithErrors',
+			});
 		});
 
 		await test.step('Open Export Report Entries modal', async () => {
-			await exportImportPage.openExportReportEntriesModal(exportName);
+			await exportImportPage.openExportReportEntriesModal(taskName);
 
 			await checkAccessibility({
 				page,
@@ -187,7 +188,7 @@ test(
 			const suggestedFilename = download.suggestedFilename();
 
 			expect(suggestedFilename).toMatch(
-				new RegExp(`^${exportName}-(\\d+)_report_entries\\.zip$`)
+				new RegExp(`^${taskName}-(\\d+)_report_entries\\.zip$`)
 			);
 
 			const filePath = getTempFile(suggestedFilename);

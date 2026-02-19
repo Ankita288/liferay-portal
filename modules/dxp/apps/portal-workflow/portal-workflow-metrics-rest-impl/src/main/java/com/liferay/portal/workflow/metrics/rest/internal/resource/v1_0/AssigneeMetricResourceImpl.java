@@ -30,7 +30,7 @@ import com.liferay.portal.search.aggregation.metrics.AvgAggregationResult;
 import com.liferay.portal.search.aggregation.metrics.CardinalityAggregationResult;
 import com.liferay.portal.search.aggregation.metrics.ValueCountAggregationResult;
 import com.liferay.portal.search.aggregation.pipeline.BucketSelectorPipelineAggregation;
-import com.liferay.portal.search.engine.adapter.search.SearchRequestExecutor;
+import com.liferay.portal.search.engine.adapter.SearchEngineAdapter;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchRequest;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchResponse;
 import com.liferay.portal.search.index.IndexNameBuilder;
@@ -214,7 +214,8 @@ public class AssigneeMetricResourceImpl extends BaseAssigneeMetricResourceImpl {
 
 		BucketSelectorPipelineAggregation bucketSelectorPipelineAggregation =
 			_aggregations.bucketSelector(
-				"bucketSelector", _scripts.script("params.taskCount > 0"));
+				"bucketSelector",
+				Scripts.INSTANCE.script("params.taskCount > 0"));
 
 		bucketSelectorPipelineAggregation.addBucketPath(
 			"taskCount", "countFilter>taskCount.value");
@@ -369,7 +370,7 @@ public class AssigneeMetricResourceImpl extends BaseAssigneeMetricResourceImpl {
 				taskNames, userIds));
 
 		SearchSearchResponse searchSearchResponse =
-			_searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+			_searchEngineAdapter.execute(searchSearchRequest);
 
 		Map<String, AggregationResult> aggregationResultsMap =
 			searchSearchResponse.getAggregationResultsMap();
@@ -400,7 +401,7 @@ public class AssigneeMetricResourceImpl extends BaseAssigneeMetricResourceImpl {
 				taskNames, userIds));
 
 		SearchSearchResponse searchSearchResponse =
-			_searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+			_searchEngineAdapter.execute(searchSearchRequest);
 
 		Map<String, AggregationResult> aggregationResultsMap =
 			searchSearchResponse.getAggregationResultsMap();
@@ -586,10 +587,7 @@ public class AssigneeMetricResourceImpl extends BaseAssigneeMetricResourceImpl {
 	private ResourceHelper _resourceHelper;
 
 	@Reference
-	private Scripts _scripts;
-
-	@Reference
-	private SearchRequestExecutor _searchRequestExecutor;
+	private SearchEngineAdapter _searchEngineAdapter;
 
 	@Reference
 	private Sorts _sorts;

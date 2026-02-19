@@ -44,7 +44,7 @@ import java.util.function.Supplier;
  */
 @Generated("")
 @GraphQLName(
-	description = "A page on a site, which can be of type content or widget.",
+	description = "A page on a site, which can be of type content, embedded, link to page, link to URL, page set or widget.",
 	value = "SitePage"
 )
 @JsonFilter("Liferay.Vulcan")
@@ -1257,7 +1257,9 @@ public class SitePage implements Serializable {
 	@GraphQLName("Type")
 	public static enum Type {
 
-		CONTENT_PAGE("ContentPage"), WIDGET_PAGE("WidgetPage");
+		CONTENT_PAGE("ContentPage"), EMBEDDED_PAGE("EmbeddedPage"),
+		LINK_TO_PAGE_PAGE("LinkToPagePage"), LINK_TO_URL_PAGE("LinkToURLPage"),
+		PAGE_SET_PAGE("PageSetPage"), WIDGET_PAGE("WidgetPage");
 
 		@JsonCreator
 		public static Type create(String value) {

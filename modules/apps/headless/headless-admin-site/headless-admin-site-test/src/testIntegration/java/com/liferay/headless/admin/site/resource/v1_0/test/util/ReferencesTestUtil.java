@@ -17,6 +17,8 @@ import com.liferay.journal.model.JournalArticle;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.repository.model.FileEntry;
 import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.Validator;
+import com.liferay.segments.model.SegmentsEntry;
 import com.liferay.site.navigation.model.SiteNavigationMenu;
 
 import java.util.Map;
@@ -90,7 +92,7 @@ public class ReferencesTestUtil {
 		if (object instanceof AssetCategory) {
 			AssetCategory assetCategory = (AssetCategory)object;
 
-			return _getItemExternalReference(
+			return getItemExternalReference(
 				AssetCategory.class.getName(),
 				assetCategory.getExternalReferenceCode(),
 				assetCategory.getGroupId(), scopeGroupId);
@@ -99,7 +101,7 @@ public class ReferencesTestUtil {
 		if (object instanceof AssetVocabulary) {
 			AssetVocabulary assetVocabulary = (AssetVocabulary)object;
 
-			return _getItemExternalReference(
+			return getItemExternalReference(
 				AssetVocabulary.class.getName(),
 				assetVocabulary.getExternalReferenceCode(),
 				assetVocabulary.getGroupId(), scopeGroupId);
@@ -108,7 +110,7 @@ public class ReferencesTestUtil {
 		if (object instanceof FileEntry) {
 			FileEntry fileEntry = (FileEntry)object;
 
-			return _getItemExternalReference(
+			return getItemExternalReference(
 				FileEntry.class.getName(), fileEntry.getExternalReferenceCode(),
 				fileEntry.getGroupId(), scopeGroupId);
 		}
@@ -116,7 +118,7 @@ public class ReferencesTestUtil {
 		if (object instanceof JournalArticle) {
 			JournalArticle journalArticle = (JournalArticle)object;
 
-			return _getItemExternalReference(
+			return getItemExternalReference(
 				JournalArticle.class.getName(),
 				journalArticle.getExternalReferenceCode(),
 				journalArticle.getGroupId(), scopeGroupId);
@@ -125,7 +127,7 @@ public class ReferencesTestUtil {
 		if (object instanceof Layout) {
 			Layout layout = (Layout)object;
 
-			return _getItemExternalReference(
+			return getItemExternalReference(
 				Layout.class.getName(), layout.getExternalReferenceCode(),
 				layout.getGroupId(), scopeGroupId);
 		}
@@ -133,15 +135,24 @@ public class ReferencesTestUtil {
 		if (object instanceof Map) {
 			Map<String, String> map = (Map<String, String>)object;
 
-			return _getItemExternalReference(
+			return getItemExternalReference(
 				map.get("className"), map.get("externalReferenceCode"),
 				map.get("scopeExternalReferenceCode"));
+		}
+
+		if (object instanceof SegmentsEntry) {
+			SegmentsEntry segmentsEntry = (SegmentsEntry)object;
+
+			return getItemExternalReference(
+				SegmentsEntry.class.getName(),
+				segmentsEntry.getExternalReferenceCode(),
+				segmentsEntry.getGroupId(), scopeGroupId);
 		}
 
 		if (object instanceof SiteNavigationMenu) {
 			SiteNavigationMenu siteNavigationMenu = (SiteNavigationMenu)object;
 
-			return _getItemExternalReference(
+			return getItemExternalReference(
 				SiteNavigationMenu.class.getName(),
 				siteNavigationMenu.getExternalReferenceCode(),
 				siteNavigationMenu.getGroupId(), scopeGroupId);
@@ -150,7 +161,7 @@ public class ReferencesTestUtil {
 		return null;
 	}
 
-	private static ItemExternalReference _getItemExternalReference(
+	public static ItemExternalReference getItemExternalReference(
 		String className, String externalReferenceCode, long itemGroupId,
 		long scopeGroupId) {
 
@@ -165,7 +176,7 @@ public class ReferencesTestUtil {
 		return itemExternalReference;
 	}
 
-	private static ItemExternalReference _getItemExternalReference(
+	public static ItemExternalReference getItemExternalReference(
 		String className, String externalReferenceCode,
 		String scopeExternalReferenceCode) {
 
@@ -174,13 +185,16 @@ public class ReferencesTestUtil {
 
 		itemExternalReference.setClassName(className);
 		itemExternalReference.setExternalReferenceCode(externalReferenceCode);
-		itemExternalReference.setScope(
-			() -> new Scope() {
-				{
-					setExternalReferenceCode(scopeExternalReferenceCode);
-					setType(Type.SITE);
-				}
-			});
+
+		if (Validator.isNotNull(scopeExternalReferenceCode)) {
+			itemExternalReference.setScope(
+				() -> new Scope() {
+					{
+						setExternalReferenceCode(scopeExternalReferenceCode);
+						setType(Type.SITE);
+					}
+				});
+		}
 
 		return itemExternalReference;
 	}

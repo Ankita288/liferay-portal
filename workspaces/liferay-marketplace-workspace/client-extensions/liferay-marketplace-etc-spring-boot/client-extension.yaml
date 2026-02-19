@@ -25,7 +25,10 @@ liferay-marketplace-etc-spring-boot-oahs:
         -   Liferay.Headless.Commerce.Admin.Catalog.everything
         -   Liferay.Headless.Commerce.Admin.Order.everything
         -   Liferay.Headless.Commerce.Delivery.Catalog.everything
+        -   Liferay.Headless.Delivery.everything
         -   Liferay.Notification.REST.everything
+        -   c_publisherassetattachment.everything
+        -   c_publisherassets.everything
         -   c_trialextensionrequest.everything
     type: oAuthApplicationHeadlessServer
 liferay-marketplace-etc-spring-boot-oaua:
@@ -33,7 +36,7 @@ liferay-marketplace-etc-spring-boot-oaua:
     .serviceScheme: http
     name: Liferay Marketplace Etc Spring Boot OAuth Application User Agent
     scopes:
-        -   Liferay.Headless.Admin.User.read
+        -   Liferay.Headless.Admin.User.everything
     type: oAuthApplicationUserAgent
 liferay-marketplace-etc-spring-boot-trial-provisioning:
     name: Liferay Marketplace Etc Spring Boot Trial Provisioning

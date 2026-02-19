@@ -998,6 +998,7 @@ information.
 						<arg line="@{gradlejvmargs}" />
 						<arg value="tasks" />
 						<arg value="--all" />
+						<env key="GIT_DISCOVERY_ACROSS_FILESYSTEM" value="1" />
 						<redirector errorproperty="tasks.error" outputproperty="tasks.output" unless:blank="tasks.output" />
 					</exec>
 
@@ -1140,6 +1141,7 @@ information.
 								<arg line="@{gradlejvmargs}" />
 								<arg line="@{task}" />
 								<arg if:set="test.name" line="${test.name}" />
+								<env key="GIT_DISCOVERY_ACROSS_FILESYSTEM" value="1" />
 								<redirector errorproperty="${redirector.error.property}" outputproperty="${redirector.output.property}" unless:blank="${redirector.output.property}" />
 							</exec>
 						</try>
@@ -1177,6 +1179,7 @@ information.
 									<arg if:set="env.FIX_PACKS_RELEASE_ENVIRONMENT" value="-Dpatcher.hotfix.qualifier=${build.patcher.hotfix.qualifier}" />
 									<arg line="@{task}" />
 									<arg if:set="test.name" line="${test.name}" />
+									<env key="GIT_DISCOVERY_ACROSS_FILESYSTEM" value="1" />
 									<redirector errorproperty="${redirector.error.property}" outputproperty="${redirector.output.property}" unless:blank="${redirector.output.property}" />
 								</exec>
 							</echoxml>
@@ -1941,11 +1944,15 @@ artifact.url=${remote.repository.cdn.url}/com/liferay/portal/com.liferay.${proce
 		<attribute default="true" name="setupbinariescache" />
 
 		<sequential>
+			<lstopwatch action="start" name="setup.sdk" />
+
 			<antcall inheritAll="false" target="update-gradle-properties" />
 
 			<gradle-execute setupbinariescache="@{setupbinariescache}" task="setUpPortalTools">
 				<arg value="--build-file=${project.dir}/modules/util.gradle" />
 			</gradle-execute>
+
+			<lstopwatch action="total" name="setup.sdk" />
 		</sequential>
 	</macrodef>
 
@@ -2273,6 +2280,7 @@ rerun your task.
 					<propertyref name="compile.jsp.include" />
 					<propertyref name="git.working.branch.name" />
 					<propertyref if:set="gradle.update.file.versions.excludes" name="gradle.update.file.versions.excludes" unless:blank="${gradle.update.file.versions.excludes}" />
+					<propertyref name="gradle.yarn.install.network.timeout" />
 					<propertyref name="jacoco.agent.configuration" />
 					<propertyref name="jacoco.agent.jar" />
 					<propertyref name="jira.project.keys" />

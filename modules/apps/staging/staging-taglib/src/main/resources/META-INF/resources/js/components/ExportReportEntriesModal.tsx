@@ -17,7 +17,7 @@ import {
 } from '../hooks/useBatchEngineExportTask';
 import {downloadFile} from '../utils/downloadFile';
 
-import type {Observer} from '@clayui/modal/lib/types';
+import type {Observer} from '@clayui/modal/src/types';
 
 type StatusInfo = {
 	displayType: 'success' | 'info' | 'danger';
@@ -91,6 +91,13 @@ export function ExportReportEntriesModal({
 
 				<ClayProgressBar
 					aria-labelledby={`${importProcessId}status`}
+					messages={{
+						ariaLabelAttention: Liferay.Language.get(
+							'attention-value-is-at-x'
+						),
+						ariaLabelComplete: Liferay.Language.get('complete'),
+						ariaLabelInProgress: Liferay.Language.get('progress-x'),
+					}}
 					value={progress}
 				/>
 			</Modal.Body>

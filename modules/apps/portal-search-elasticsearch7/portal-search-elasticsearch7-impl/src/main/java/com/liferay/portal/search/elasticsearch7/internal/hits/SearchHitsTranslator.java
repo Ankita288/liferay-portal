@@ -11,15 +11,12 @@ import com.liferay.portal.search.document.Document;
 import com.liferay.portal.search.document.DocumentBuilder;
 import com.liferay.portal.search.document.DocumentBuilderFactory;
 import com.liferay.portal.search.elasticsearch7.internal.document.DocumentFieldsTranslator;
-import com.liferay.portal.search.geolocation.GeoBuilders;
 import com.liferay.portal.search.highlight.HighlightField;
-import com.liferay.portal.search.highlight.HighlightFieldBuilderFactory;
+import com.liferay.portal.search.highlight.HighlightFieldBuilder;
 import com.liferay.portal.search.hits.SearchHit;
 import com.liferay.portal.search.hits.SearchHitBuilder;
-import com.liferay.portal.search.hits.SearchHitBuilderFactory;
 import com.liferay.portal.search.hits.SearchHits;
 import com.liferay.portal.search.hits.SearchHitsBuilder;
-import com.liferay.portal.search.hits.SearchHitsBuilderFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,20 +32,6 @@ import org.elasticsearch.common.document.DocumentField;
  */
 public class SearchHitsTranslator {
 
-	public SearchHitsTranslator(
-		SearchHitBuilderFactory searchHitBuilderFactory,
-		SearchHitsBuilderFactory searchHitsBuilderFactory,
-		DocumentBuilderFactory documentBuilderFactory,
-		HighlightFieldBuilderFactory highlightFieldBuilderFactory,
-		GeoBuilders geoBuilders) {
-
-		_searchHitBuilderFactory = searchHitBuilderFactory;
-		_searchHitsBuilderFactory = searchHitsBuilderFactory;
-		_documentBuilderFactory = documentBuilderFactory;
-		_highlightFieldBuilderFactory = highlightFieldBuilderFactory;
-		_geoBuilders = geoBuilders;
-	}
-
 	public SearchHits translate(
 		org.elasticsearch.search.SearchHits elasticsearchSearchHits) {
 
@@ -59,8 +42,7 @@ public class SearchHitsTranslator {
 		org.elasticsearch.search.SearchHits elasticsearchSearchHits,
 		String alternateUidFieldName) {
 
-		SearchHitsBuilder searchHitsBuilder =
-			_searchHitsBuilderFactory.getSearchHitsBuilder();
+		SearchHitsBuilder searchHitsBuilder = new SearchHitsBuilder();
 
 		TotalHits totalHits = elasticsearchSearchHits.getTotalHits();
 
@@ -90,8 +72,7 @@ public class SearchHitsTranslator {
 		org.elasticsearch.search.SearchHit elasticsearchSearchHit,
 		String alternateUidFieldName) {
 
-		SearchHitBuilder searchHitBuilder =
-			_searchHitBuilderFactory.getSearchHitBuilder();
+		SearchHitBuilder searchHitBuilder = new SearchHitBuilder();
 
 		return searchHitBuilder.addHighlightFields(
 			_translateHighlightFields(elasticsearchSearchHit)
@@ -131,9 +112,9 @@ public class SearchHitsTranslator {
 		String alternateUidFieldName) {
 
 		DocumentFieldsTranslator documentFieldsTranslator =
-			new DocumentFieldsTranslator(_geoBuilders);
+			new DocumentFieldsTranslator();
 
-		DocumentBuilder documentBuilder = _documentBuilderFactory.builder();
+		DocumentBuilder documentBuilder = DocumentBuilderFactory.builder();
 
 		Map<String, Object> documentSourceMap =
 			elasticsearchSearchHit.getSourceAsMap();
@@ -155,7 +136,7 @@ public class SearchHitsTranslator {
 		org.elasticsearch.search.fetch.subphase.highlight.HighlightField
 			elasticsearchHighlightField) {
 
-		return _highlightFieldBuilderFactory.builder(
+		return new HighlightFieldBuilder(
 		).fragments(
 			TransformUtil.transformToList(
 				elasticsearchHighlightField.getFragments(),
@@ -183,11 +164,5 @@ public class SearchHitsTranslator {
 
 		return highlightFields;
 	}
-
-	private final DocumentBuilderFactory _documentBuilderFactory;
-	private final GeoBuilders _geoBuilders;
-	private final HighlightFieldBuilderFactory _highlightFieldBuilderFactory;
-	private final SearchHitBuilderFactory _searchHitBuilderFactory;
-	private final SearchHitsBuilderFactory _searchHitsBuilderFactory;
 
 }

@@ -76,6 +76,20 @@ public class CommentUtil {
 					() -> commentManager.getChildCommentsCount(
 						comment.getCommentId(),
 						WorkflowConstants.STATUS_APPROVED));
+				setParentCommentExternalReferenceCode(
+					() -> {
+						com.liferay.portal.kernel.comment.Comment
+							parentComment = commentManager.fetchComment(
+								comment.getParentCommentId());
+
+						if ((parentComment != null) &&
+							!parentComment.isRoot()) {
+
+							return parentComment.getExternalReferenceCode();
+						}
+
+						return null;
+					});
 				setParentCommentId(comment::getParentCommentId);
 				setText(comment::getBody);
 			}

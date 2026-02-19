@@ -5,6 +5,7 @@
 
 package com.liferay.portal.vulcan.scope;
 
+import com.liferay.portal.kernel.group.capability.GroupCapabilityUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
@@ -15,6 +16,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 /**
@@ -36,6 +38,22 @@ public class ScopeTest {
 		).thenReturn(
 			_EXTERNAL_REFERENCE_CODE
 		);
+	}
+
+	@Test
+	public void testScopeOfExportImportCompanyGroup() {
+		MockedStatic<GroupCapabilityUtil> groupCapabilityUtilMockedStatic =
+			Mockito.mockStatic(GroupCapabilityUtil.class);
+
+		groupCapabilityUtilMockedStatic.when(
+			() -> GroupCapabilityUtil.isSupportsScope(_group)
+		).thenReturn(
+			false
+		);
+
+		Assert.assertNull(Scope.of(_group, null));
+
+		groupCapabilityUtilMockedStatic.close();
 	}
 
 	@Test
@@ -63,6 +81,23 @@ public class ScopeTest {
 	public void testScopeOfTypeSite() {
 		Mockito.when(
 			_group.isSite()
+		).thenReturn(
+			true
+		);
+
+		_assertScope(Scope.of(_group, null), Scope.Type.SITE);
+	}
+
+	@Test
+	public void testScopeOfTypeSiteCompany() {
+		Mockito.when(
+			_group.isSite()
+		).thenReturn(
+			true
+		);
+
+		Mockito.when(
+			_group.isCompany()
 		).thenReturn(
 			true
 		);

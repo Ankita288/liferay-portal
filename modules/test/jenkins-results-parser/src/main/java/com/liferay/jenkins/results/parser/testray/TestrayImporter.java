@@ -210,6 +210,34 @@ public class TestrayImporter {
 			return null;
 		}
 
+		if (_pullRequests.size() == 1) {
+			return _pullRequests.get(0);
+		}
+
+		Map<String, String> buildParameters =
+			_topLevelBuildReport.getBuildParameters();
+
+		String githubReceiverUsername = buildParameters.get(
+			"GITHUB_RECEIVER_USERNAME");
+
+		String pullRequestNumber = buildParameters.get(
+			"GITHUB_PULL_REQUEST_NUMBER");
+
+		if (!JenkinsResultsParserUtil.isNullOrEmpty(githubReceiverUsername) &&
+			!JenkinsResultsParserUtil.isNullOrEmpty(pullRequestNumber)) {
+
+			for (PullRequest pullRequest : _pullRequests) {
+				if (Objects.equals(
+						pullRequest.getReceiverUsername(),
+						githubReceiverUsername) &&
+					Objects.equals(
+						pullRequest.getNumber(), pullRequestNumber)) {
+
+					return pullRequest;
+				}
+			}
+		}
+
 		return _pullRequests.get(0);
 	}
 
@@ -1364,9 +1392,17 @@ public class TestrayImporter {
 		TestrayBuild testrayBuild = getTestrayBuild(
 			axisTestClassGroup.getTestBaseDir());
 
-		TestrayRun testrayRun = TestrayFactory.newTestrayRun(
-			testrayBuild, axisTestClassGroup.getBatchName(),
-			job.getJobPropertiesFiles());
+		TestrayRun testrayRun;
+
+		if (axisTestClassGroup instanceof FunctionalAxisTestClassGroup) {
+			testrayRun = TestrayFactory.newTestrayRun(
+				testrayBuild, axisTestClassGroup, job.getJobPropertiesFiles());
+		}
+		else {
+			testrayRun = TestrayFactory.newTestrayRun(
+				testrayBuild, axisTestClassGroup.getBatchName(),
+				job.getJobPropertiesFiles());
+		}
 
 		long start = JenkinsResultsParserUtil.getCurrentTimeMillis();
 

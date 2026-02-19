@@ -11,10 +11,8 @@ import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.search.elasticsearch7.internal.connection.ElasticsearchClientResolver;
 import com.liferay.portal.search.elasticsearch7.internal.connection.ElasticsearchConnectionFixture;
-import com.liferay.portal.search.elasticsearch7.internal.search.engine.adapter.cluster.ClusterRequestExecutorFixture;
 import com.liferay.portal.search.engine.adapter.SearchEngineAdapter;
 import com.liferay.portal.search.engine.adapter.cluster.ClusterHealthStatus;
-import com.liferay.portal.search.engine.adapter.cluster.ClusterRequestExecutor;
 import com.liferay.portal.search.engine.adapter.cluster.HealthClusterRequest;
 import com.liferay.portal.search.engine.adapter.cluster.HealthClusterResponse;
 import com.liferay.portal.search.engine.adapter.cluster.StateClusterRequest;
@@ -24,6 +22,8 @@ import com.liferay.portal.search.engine.adapter.cluster.StatsClusterResponse;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.io.IOException;
+
+import java.util.Collections;
 
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.client.IndicesClient;
@@ -128,14 +128,17 @@ public class ElasticsearchSearchEngineAdapterClusterRequestTest {
 	protected static SearchEngineAdapter createSearchEngineAdapter(
 		ElasticsearchClientResolver elasticsearchClientResolver) {
 
-		SearchEngineAdapter searchEngineAdapter =
-			new ElasticsearchSearchEngineAdapterImpl();
+		ElasticsearchSearchEngineAdapterImpl
+			elasticsearchSearchEngineAdapterImpl =
+				new ElasticsearchSearchEngineAdapterImpl();
 
 		ReflectionTestUtil.setFieldValue(
-			searchEngineAdapter, "_clusterRequestExecutor",
-			_createClusterRequestExecutor(elasticsearchClientResolver));
+			elasticsearchSearchEngineAdapterImpl,
+			"_elasticsearchClientResolver", elasticsearchClientResolver);
 
-		return searchEngineAdapter;
+		elasticsearchSearchEngineAdapterImpl.activate(Collections.emptyMap());
+
+		return elasticsearchSearchEngineAdapterImpl;
 	}
 
 	protected JSONObject createJSONObject(String message) {
@@ -145,21 +148,6 @@ public class ElasticsearchSearchEngineAdapterClusterRequestTest {
 		catch (JSONException jsonException) {
 			throw new RuntimeException(jsonException);
 		}
-	}
-
-	private static ClusterRequestExecutor _createClusterRequestExecutor(
-		ElasticsearchClientResolver elasticsearchClientResolver) {
-
-		ClusterRequestExecutorFixture clusterRequestExecutorFixture =
-			new ClusterRequestExecutorFixture() {
-				{
-					setElasticsearchClientResolver(elasticsearchClientResolver);
-				}
-			};
-
-		clusterRequestExecutorFixture.setUp();
-
-		return clusterRequestExecutorFixture.getClusterRequestExecutor();
 	}
 
 	private void _assertClusterName(JSONObject jsonObject) {

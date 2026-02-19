@@ -5,13 +5,25 @@
 
 package com.liferay.portal.search.elasticsearch8.internal;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch.cat.ElasticsearchCatClient;
+import co.elastic.clients.elasticsearch.cat.RepositoriesResponse;
+import co.elastic.clients.elasticsearch.cat.repositories.RepositoriesRecord;
+import co.elastic.clients.elasticsearch.cluster.ElasticsearchClusterClient;
+import co.elastic.clients.elasticsearch.cluster.GetClusterSettingsResponse;
+import co.elastic.clients.elasticsearch.cluster.PutClusterSettingsRequest;
+import co.elastic.clients.elasticsearch.ingest.ElasticsearchIngestClient;
+import co.elastic.clients.elasticsearch.ingest.Processor;
+import co.elastic.clients.elasticsearch.ingest.PutPipelineRequest;
+import co.elastic.clients.json.JsonData;
+
 import com.liferay.petra.lang.SafeCloseable;
 import com.liferay.petra.lang.ThreadContextClassLoaderUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.events.StartupHelperUtil;
 import com.liferay.portal.kernel.exception.SystemException;
-import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.CompanyConstants;
@@ -48,17 +60,15 @@ import com.liferay.portal.search.engine.adapter.snapshot.CreateSnapshotRepositor
 import com.liferay.portal.search.engine.adapter.snapshot.CreateSnapshotRequest;
 import com.liferay.portal.search.engine.adapter.snapshot.CreateSnapshotResponse;
 import com.liferay.portal.search.engine.adapter.snapshot.DeleteSnapshotRequest;
-import com.liferay.portal.search.engine.adapter.snapshot.GetSnapshotRepositoriesRequest;
-import com.liferay.portal.search.engine.adapter.snapshot.GetSnapshotRepositoriesResponse;
 import com.liferay.portal.search.engine.adapter.snapshot.RestoreSnapshotRequest;
 import com.liferay.portal.search.engine.adapter.snapshot.SnapshotDetails;
-import com.liferay.portal.search.engine.adapter.snapshot.SnapshotRepositoryDetails;
 import com.liferay.portal.search.engine.adapter.snapshot.SnapshotState;
 import com.liferay.portal.search.index.IndexNameBuilder;
 
-import java.io.IOException;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonValue;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,20 +77,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.admin.cluster.settings.ClusterGetSettingsRequest;
-import org.elasticsearch.action.admin.cluster.settings.ClusterGetSettingsResponse;
-import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
-import org.elasticsearch.action.ingest.PutPipelineRequest;
-import org.elasticsearch.client.ClusterClient;
-import org.elasticsearch.client.IngestClient;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.xcontent.XContentType;
+import org.apache.http.HttpStatus;
 
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
@@ -171,11 +168,11 @@ public class ElasticsearchSearchEngine
 	public void initialize(long companyId) {
 		_waitForYellowStatus();
 
-		RestHighLevelClient restHighLevelClient =
-			_elasticsearchConnectionManager.getRestHighLevelClient();
+		ElasticsearchClient elasticsearchClient =
+			_elasticsearchConnectionManager.getElasticsearchClient();
 
 		boolean created = _indexFactory.initializeIndex(
-			companyId, restHighLevelClient.indices());
+			companyId, elasticsearchClient.indices());
 
 		_indexFactory.registerCompanyId(companyId);
 
@@ -234,10 +231,10 @@ public class ElasticsearchSearchEngine
 		setAutoCreateIndex(false);
 
 		try {
-			RestHighLevelClient restHighLevelClient =
-				_elasticsearchConnectionManager.getRestHighLevelClient();
+			ElasticsearchClient elasticsearchClient =
+				_elasticsearchConnectionManager.getElasticsearchClient();
 
-			_indexFactory.deleteIndex(companyId, restHighLevelClient.indices());
+			_indexFactory.deleteIndex(companyId, elasticsearchClient.indices());
 
 			_indexFactory.unregisterCompanyId(companyId);
 		}
@@ -284,48 +281,44 @@ public class ElasticsearchSearchEngine
 			return;
 		}
 
-		RestHighLevelClient restHighLevelClient =
-			_elasticsearchConnectionManager.getRestHighLevelClient();
+		ElasticsearchClient elasticsearchClient =
+			_elasticsearchConnectionManager.getElasticsearchClient();
 
-		ClusterClient clusterClient = restHighLevelClient.cluster();
-
-		ClusterUpdateSettingsRequest clusterUpdateSettingsRequest =
-			new ClusterUpdateSettingsRequest();
+		ElasticsearchClusterClient elasticsearchClusterClient =
+			elasticsearchClient.cluster();
 
 		try {
-			clusterUpdateSettingsRequest.persistentSettings(
-				Settings.builder(
-				).put(
-					"action.auto_create_index",
-					_createAutoCreateIndexSetting(enable)
-				));
+			JsonData jsonData = JsonData.of(
+				_createAutoCreateIndexSetting(enable));
 
-			clusterClient.putSettings(
-				clusterUpdateSettingsRequest, RequestOptions.DEFAULT);
+			elasticsearchClusterClient.putSettings(
+				PutClusterSettingsRequest.of(
+					putClusterSettingsRequest ->
+						putClusterSettingsRequest.persistent(
+							"action.auto_create_index", jsonData)));
 		}
-		catch (ElasticsearchStatusException elasticsearchStatusException) {
+		catch (ElasticsearchException elasticsearchException) {
 			if (Objects.equals(
-					elasticsearchStatusException.status(),
-					RestStatus.FORBIDDEN) ||
+					elasticsearchException.status(), HttpStatus.SC_FORBIDDEN) ||
 				Objects.equals(
-					elasticsearchStatusException.status(),
-					RestStatus.UNAUTHORIZED)) {
+					elasticsearchException.status(),
+					HttpStatus.SC_UNAUTHORIZED)) {
 
 				StringBundler sb = new StringBundler(4);
 
 				sb.append("Unable to update cluster auto create index ");
 				sb.append("setting due to lack of permissions. This can lead ");
 				sb.append("to incorrectly created index mappings: ");
-				sb.append(elasticsearchStatusException.getMessage());
+				sb.append(elasticsearchException.getMessage());
 
 				_log.error(sb.toString());
 
 				if (_log.isDebugEnabled()) {
-					_log.debug(elasticsearchStatusException);
+					_log.debug(elasticsearchException);
 				}
 			}
 			else {
-				_log.error(elasticsearchStatusException);
+				_log.error(elasticsearchException);
 			}
 		}
 		catch (IOException ioException) {
@@ -496,18 +489,29 @@ public class ElasticsearchSearchEngine
 	}
 
 	private String _getAutoCreateIndexSetting() throws IOException {
-		RestHighLevelClient restHighLevelClient =
-			_elasticsearchConnectionManager.getRestHighLevelClient();
+		ElasticsearchClient elasticsearchClient =
+			_elasticsearchConnectionManager.getElasticsearchClient();
 
-		ClusterClient clusterClient = restHighLevelClient.cluster();
+		ElasticsearchClusterClient elasticsearchClusterClient =
+			elasticsearchClient.cluster();
 
-		ClusterGetSettingsResponse clusterGetSettingsResponse =
-			clusterClient.getSettings(
-				new ClusterGetSettingsRequest(), RequestOptions.DEFAULT);
+		GetClusterSettingsResponse getClusterSettingsResponse =
+			elasticsearchClusterClient.getSettings();
 
-		Settings settings = clusterGetSettingsResponse.getPersistentSettings();
+		Map<String, JsonData> persistentSettings =
+			getClusterSettingsResponse.persistent();
 
-		return settings.get("action.auto_create_index");
+		JsonData jsonData = persistentSettings.get("action");
+
+		if (jsonData == null) {
+			return null;
+		}
+
+		JsonValue jsonValue = jsonData.toJson();
+
+		JsonObject jsonObject = jsonValue.asJsonObject();
+
+		return jsonObject.getString("auto_create_index");
 	}
 
 	private Collection<Long> _getIndexedCompanyIds() {
@@ -538,45 +542,59 @@ public class ElasticsearchSearchEngine
 	}
 
 	private boolean _hasBackupRepository() {
-		GetSnapshotRepositoriesRequest getSnapshotRepositoriesRequest =
-			new GetSnapshotRepositoriesRequest(_BACKUP_REPOSITORY_NAME);
+		ElasticsearchClient elasticsearchClient =
+			_elasticsearchConnectionManager.getElasticsearchClient();
 
-		GetSnapshotRepositoriesResponse getSnapshotRepositoriesResponse =
-			_searchEngineAdapter.execute(getSnapshotRepositoriesRequest);
+		ElasticsearchCatClient elasticsearchCatClient =
+			elasticsearchClient.cat();
 
-		List<SnapshotRepositoryDetails> snapshotRepositoryDetailsList =
-			getSnapshotRepositoriesResponse.getSnapshotRepositoryDetails();
+		try {
+			RepositoriesResponse repositoriesResponse =
+				elasticsearchCatClient.repositories();
 
-		return !snapshotRepositoryDetailsList.isEmpty();
+			List<RepositoriesRecord> repositoriesRecords =
+				repositoriesResponse.valueBody();
+
+			for (RepositoriesRecord repositoriesRecord : repositoriesRecords) {
+				if (Objects.equals(
+						repositoriesRecord.id(), _BACKUP_REPOSITORY_NAME)) {
+
+					return true;
+				}
+			}
+
+			return false;
+		}
+		catch (IOException ioException) {
+			throw new RuntimeException(ioException);
+		}
 	}
 
 	private void _putTimestampPipeline() {
-		String json = JSONUtil.put(
-			"description", "Adds timestamp to documents"
-		).put(
-			"processors",
-			JSONUtil.put(
-				JSONUtil.put(
-					"set",
-					JSONUtil.put(
-						"field", "_source.timestamp"
-					).put(
-						"value", "{{{_ingest.timestamp}}}"
-					)))
-		).toString();
+		PutPipelineRequest putPipelineRequest = new PutPipelineRequest.Builder(
+		).id(
+			"timestamp"
+		).description(
+			"Adds timestamp to documents"
+		).processors(
+			new Processor.Builder(
+			).set(
+				setProcessor -> setProcessor.field(
+					"_source.timestamp"
+				).value(
+					JsonData.of("{{{_ingest.timestamp}}}")
+				)
+			).build()
+		).build();
 
-		PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
-			"timestamp", new BytesArray(json.getBytes(StandardCharsets.UTF_8)),
-			XContentType.JSON);
+		ElasticsearchClient elasticsearchClient =
+			_elasticsearchConnectionManager.getElasticsearchClient();
 
-		RestHighLevelClient restHighLevelClient =
-			_elasticsearchConnectionManager.getRestHighLevelClient();
-
-		IngestClient ingestClient = restHighLevelClient.ingest();
+		ElasticsearchIngestClient elasticsearchIngestClient =
+			elasticsearchClient.ingest();
 
 		try {
-			ingestClient.putPipeline(
-				putPipelineRequest, RequestOptions.DEFAULT);
+			elasticsearchIngestClient.putPipeline(putPipelineRequest);
 		}
 		catch (Exception exception) {
 			_log.error("Unable to put timestamp pipeline", exception);
@@ -610,7 +628,7 @@ public class ElasticsearchSearchEngine
 		}
 
 		for (char c : backupName.toCharArray()) {
-			if (Strings.INVALID_FILENAME_CHARS.contains(c)) {
+			if (_invalidFileNameChars.contains(c)) {
 				throw new SearchException(
 					"Backup name must not contain invalid file name " +
 						"characters");
@@ -652,6 +670,8 @@ public class ElasticsearchSearchEngine
 		_crossClusterReplicationHelperSnapshot = new Snapshot(
 			ElasticsearchSearchEngine.class,
 			CrossClusterReplicationHelper.class, null, true);
+	private static final Set<Character> _invalidFileNameChars = Set.of(
+		'\\', '/', '*', '?', '"', '<', '>', '|', ' ', ',');
 
 	@Reference
 	private CompanyIndexHelper _companyIndexHelper;

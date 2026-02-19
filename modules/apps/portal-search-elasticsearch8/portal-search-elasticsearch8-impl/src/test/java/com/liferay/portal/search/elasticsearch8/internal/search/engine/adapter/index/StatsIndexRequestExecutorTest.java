@@ -5,11 +5,11 @@
 
 package com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.index;
 
+import co.elastic.clients.elasticsearch.indices.IndicesStatsRequest;
+
 import com.liferay.portal.search.elasticsearch8.internal.connection.ElasticsearchFixture;
 import com.liferay.portal.search.engine.adapter.index.StatsIndexRequest;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
-
-import org.elasticsearch.client.Request;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -45,14 +45,15 @@ public class StatsIndexRequestExecutorTest {
 			"liferay-1", "liferay-2", "liferay-3");
 
 		StatsIndexRequestExecutor statsIndexRequestExecutor =
-			new StatsIndexRequestExecutor(null, null);
+			new StatsIndexRequestExecutor(null);
 
-		Request request =
-			statsIndexRequestExecutor.getElasticsearchIndexRequest(
+		IndicesStatsRequest indicesStatsRequest =
+			statsIndexRequestExecutor.createIndicesStatsRequest(
 				statsIndexRequest);
 
 		Assert.assertEquals(
-			"/liferay-1,liferay-2,liferay-3/_stats", request.getEndpoint());
+			"[liferay-1, liferay-2, liferay-3]",
+			String.valueOf(indicesStatsRequest.index()));
 	}
 
 	@Test
@@ -61,13 +62,14 @@ public class StatsIndexRequestExecutorTest {
 			"liferay-1");
 
 		StatsIndexRequestExecutor statsIndexRequestExecutor =
-			new StatsIndexRequestExecutor(null, null);
+			new StatsIndexRequestExecutor(null);
 
-		Request request =
-			statsIndexRequestExecutor.getElasticsearchIndexRequest(
+		IndicesStatsRequest indicesStatsRequest =
+			statsIndexRequestExecutor.createIndicesStatsRequest(
 				statsIndexRequest);
 
-		Assert.assertEquals("/liferay-1/_stats", request.getEndpoint());
+		Assert.assertEquals(
+			"[liferay-1]", String.valueOf(indicesStatsRequest.index()));
 	}
 
 	@Test
@@ -75,13 +77,14 @@ public class StatsIndexRequestExecutorTest {
 		StatsIndexRequest statsIndexRequest = new StatsIndexRequest();
 
 		StatsIndexRequestExecutor statsIndexRequestExecutor =
-			new StatsIndexRequestExecutor(null, null);
+			new StatsIndexRequestExecutor(null);
 
-		Request request =
-			statsIndexRequestExecutor.getElasticsearchIndexRequest(
+		IndicesStatsRequest indicesStatsRequest =
+			statsIndexRequestExecutor.createIndicesStatsRequest(
 				statsIndexRequest);
 
-		Assert.assertEquals("/_all/_stats", request.getEndpoint());
+		Assert.assertEquals(
+			"[_all]", String.valueOf(indicesStatsRequest.index()));
 	}
 
 	private ElasticsearchFixture _elasticsearchFixture;

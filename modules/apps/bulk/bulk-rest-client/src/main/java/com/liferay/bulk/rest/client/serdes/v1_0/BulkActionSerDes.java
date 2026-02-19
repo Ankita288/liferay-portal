@@ -5,10 +5,15 @@
 
 package com.liferay.bulk.rest.client.serdes.v1_0;
 
+import com.liferay.bulk.rest.client.dto.v1_0.AssignToBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.BulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.BulkActionItem;
+import com.liferay.bulk.rest.client.dto.v1_0.CopyBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.DefaultPermissionBulkAction;
+import com.liferay.bulk.rest.client.dto.v1_0.DeleteAssetVersionBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.DeleteBulkAction;
+import com.liferay.bulk.rest.client.dto.v1_0.DueDateBulkAction;
+import com.liferay.bulk.rest.client.dto.v1_0.ExpireBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.KeywordBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.MoveBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.PermissionBulkAction;
@@ -54,14 +59,38 @@ public class BulkActionSerDes {
 		if (type != null) {
 			String typeString = type.toString();
 
+			if (typeString.equals("AssignToBulkAction")) {
+				return AssignToBulkActionSerDes.toJSON(
+					(AssignToBulkAction)bulkAction);
+			}
+
+			if (typeString.equals("CopyBulkAction")) {
+				return CopyBulkActionSerDes.toJSON((CopyBulkAction)bulkAction);
+			}
+
 			if (typeString.equals("DefaultPermissionBulkAction")) {
 				return DefaultPermissionBulkActionSerDes.toJSON(
 					(DefaultPermissionBulkAction)bulkAction);
 			}
 
+			if (typeString.equals("DeleteAssetVersionBulkAction")) {
+				return DeleteAssetVersionBulkActionSerDes.toJSON(
+					(DeleteAssetVersionBulkAction)bulkAction);
+			}
+
 			if (typeString.equals("DeleteBulkAction")) {
 				return DeleteBulkActionSerDes.toJSON(
 					(DeleteBulkAction)bulkAction);
+			}
+
+			if (typeString.equals("DueDateBulkAction")) {
+				return DueDateBulkActionSerDes.toJSON(
+					(DueDateBulkAction)bulkAction);
+			}
+
+			if (typeString.equals("ExpireBulkAction")) {
+				return ExpireBulkActionSerDes.toJSON(
+					(ExpireBulkAction)bulkAction);
 			}
 
 			if (typeString.equals("KeywordBulkAction")) {
@@ -178,12 +207,32 @@ public class BulkActionSerDes {
 			if (type != null) {
 				String typeString = type.toString();
 
+				if (typeString.equals("AssignToBulkAction")) {
+					return AssignToBulkAction.toDTO(json);
+				}
+
+				if (typeString.equals("CopyBulkAction")) {
+					return CopyBulkAction.toDTO(json);
+				}
+
 				if (typeString.equals("DefaultPermissionBulkAction")) {
 					return DefaultPermissionBulkAction.toDTO(json);
 				}
 
+				if (typeString.equals("DeleteAssetVersionBulkAction")) {
+					return DeleteAssetVersionBulkAction.toDTO(json);
+				}
+
 				if (typeString.equals("DeleteBulkAction")) {
 					return DeleteBulkAction.toDTO(json);
+				}
+
+				if (typeString.equals("DueDateBulkAction")) {
+					return DueDateBulkAction.toDTO(json);
+				}
+
+				if (typeString.equals("ExpireBulkAction")) {
+					return ExpireBulkAction.toDTO(json);
 				}
 
 				if (typeString.equals("KeywordBulkAction")) {

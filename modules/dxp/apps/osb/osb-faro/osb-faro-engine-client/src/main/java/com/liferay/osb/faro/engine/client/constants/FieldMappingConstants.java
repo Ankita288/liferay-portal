@@ -19,6 +19,8 @@ import java.util.Map;
  */
 public class FieldMappingConstants {
 
+	public static final String CONTEXT_ACCOUNT = "account";
+
 	public static final String CONTEXT_CUSTOM = "custom";
 
 	public static final String CONTEXT_DEMOGRAPHICS = "demographics";
@@ -163,6 +165,7 @@ public class FieldMappingConstants {
 	).build();
 	private static final List<FieldMappingMap> _defaultFieldMappingMaps =
 		Arrays.asList(
+			new FieldMappingMap(null, "country", TYPE_TEXT),
 			new FieldMappingMap(null, "email", TYPE_TEXT),
 			new FieldMappingMap(null, "familyName", TYPE_TEXT),
 			new FieldMappingMap(null, "givenName", TYPE_TEXT),
@@ -243,6 +246,7 @@ public class FieldMappingConstants {
 			new FieldMappingMap("suffix", "suffix", TYPE_TEXT),
 			new FieldMappingMap("title", "jobTitle", TYPE_TEXT));
 	private static final List<String> _searchFieldMappingNames = Arrays.asList(
-		"email", "familyName", "givenName", "image", "jobTitle", "worksFor");
+		"country", "email", "familyName", "givenName", "image", "jobTitle",
+		"worksFor");
 
 }

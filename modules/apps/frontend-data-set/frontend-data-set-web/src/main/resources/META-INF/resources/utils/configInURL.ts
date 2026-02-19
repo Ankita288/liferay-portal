@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
+import JsonURL from '@jsonurl/jsonurl';
+
 import {EConfigInURLBehavior, IConfigInURL} from './types';
 
 export const FDS_CONFIG_PARAM_NAME = '_fdsConfig';
@@ -12,10 +14,6 @@ function getConfigParamName(id: string): string {
 }
 
 export function readConfigFromURL(id: string): Partial<IConfigInURL> | null {
-	if (!Liferay.FeatureFlags['LPD-22473']) {
-		return null;
-	}
-
 	const params = new URLSearchParams(window.location.search);
 
 	const configParam = params.get(getConfigParamName(id));
@@ -27,7 +25,10 @@ export function readConfigFromURL(id: string): Partial<IConfigInURL> | null {
 	let config = {};
 
 	try {
-		config = JSON.parse(configParam);
+		config = JsonURL.parse(configParam, {
+			AQF: true,
+			noEmptyComposite: true,
+		});
 	}
 	catch (error) {
 		return null;
@@ -41,11 +42,7 @@ export function writeConfigInURL(
 	config: Partial<IConfigInURL>,
 	configInURLBehavior: EConfigInURLBehavior
 ) {
-	if (
-		!config ||
-		configInURLBehavior === EConfigInURLBehavior.OFF ||
-		!Liferay.FeatureFlags['LPD-22473']
-	) {
+	if (!config || configInURLBehavior === EConfigInURLBehavior.OFF) {
 		return;
 	}
 
@@ -69,14 +66,19 @@ export function writeConfigInURL(
 		return;
 	}
 
+	const fdsConfigParamName = getConfigParamName(id);
 	const params = new URLSearchParams(window.location.search);
 
 	params.set(
-		getConfigParamName(id),
-		JSON.stringify(sortObjectKeys({...(currentConfig || {}), ...config}))
+		fdsConfigParamName,
+		JsonURL.stringify(
+			sortObjectKeys({...(currentConfig || {}), ...config}),
+			{AQF: true, noEmptyComposite: true}
+		) || ''
 	);
 
-	const path = `${window.location.pathname}?${params.toString()}`;
+	const urlParams = decodeFdsConfigParam(fdsConfigParamName, params);
+	const path = `${window.location.pathname}?${urlParams}`;
 
 	const replaceState =
 		configInURLBehavior === EConfigInURLBehavior.REPLACE || !currentConfig;
@@ -124,6 +126,24 @@ export function contains(
 	}
 
 	return deepContains(a, b);
+}
+
+function decodeFdsConfigParam(
+	fdsConfigParamName: string,
+	params: URLSearchParams
+): string {
+	return params
+		.toString()
+		.replace(
+			new RegExp(`(${fdsConfigParamName}=)([^&]+)`),
+			(_, key, value) =>
+				key +
+				value
+					.replace(/%28/g, '(')
+					.replace(/%29/g, ')')
+					.replace(/%2C/g, ',')
+					.replace(/%3A/g, ':')
+		);
 }
 
 function deepContains(subset: any, superset: any) {

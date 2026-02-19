@@ -47,7 +47,8 @@ public class SegmentsExperienceWrapper
 		attributes.put("userName", getUserName());
 		attributes.put("createDate", getCreateDate());
 		attributes.put("modifiedDate", getModifiedDate());
-		attributes.put("segmentsEntryId", getSegmentsEntryId());
+		attributes.put("segmentsEntryERC", getSegmentsEntryERC());
+		attributes.put("segmentsEntryScopeERC", getSegmentsEntryScopeERC());
 		attributes.put("segmentsExperienceKey", getSegmentsExperienceKey());
 		attributes.put("plid", getPlid());
 		attributes.put("name", getName());
@@ -129,10 +130,17 @@ public class SegmentsExperienceWrapper
 			setModifiedDate(modifiedDate);
 		}
 
-		Long segmentsEntryId = (Long)attributes.get("segmentsEntryId");
+		String segmentsEntryERC = (String)attributes.get("segmentsEntryERC");
 
-		if (segmentsEntryId != null) {
-			setSegmentsEntryId(segmentsEntryId);
+		if (segmentsEntryERC != null) {
+			setSegmentsEntryERC(segmentsEntryERC);
+		}
+
+		String segmentsEntryScopeERC = (String)attributes.get(
+			"segmentsEntryScopeERC");
+
+		if (segmentsEntryScopeERC != null) {
+			setSegmentsEntryScopeERC(segmentsEntryScopeERC);
 		}
 
 		String segmentsExperienceKey = (String)attributes.get(
@@ -391,13 +399,38 @@ public class SegmentsExperienceWrapper
 	}
 
 	/**
-	 * Returns the segments entry ID of this segments experience.
+	 * Returns the segments entry erc of this segments experience.
 	 *
-	 * @return the segments entry ID of this segments experience
+	 * @return the segments entry erc of this segments experience
 	 */
+	@Override
+	public String getSegmentsEntryERC() {
+		return model.getSegmentsEntryERC();
+	}
+
+	@Override
+	public long getSegmentsEntryGroupId() {
+		return model.getSegmentsEntryGroupId();
+	}
+
 	@Override
 	public long getSegmentsEntryId() {
 		return model.getSegmentsEntryId();
+	}
+
+	@Override
+	public String getSegmentsEntryName(java.util.Locale locale) {
+		return model.getSegmentsEntryName(locale);
+	}
+
+	/**
+	 * Returns the segments entry scope erc of this segments experience.
+	 *
+	 * @return the segments entry scope erc of this segments experience
+	 */
+	@Override
+	public String getSegmentsEntryScopeERC() {
+		return model.getSegmentsEntryScopeERC();
 	}
 
 	/**
@@ -478,6 +511,11 @@ public class SegmentsExperienceWrapper
 	}
 
 	@Override
+	public boolean hasDefaultSegmentsEntry() {
+		return model.hasDefaultSegmentsEntry();
+	}
+
+	@Override
 	public boolean hasSegmentsExperiment() {
 		return model.hasSegmentsExperiment();
 	}
@@ -490,6 +528,11 @@ public class SegmentsExperienceWrapper
 	@Override
 	public boolean isActive() {
 		return model.isActive();
+	}
+
+	@Override
+	public boolean isDefault() {
+		return model.isDefault();
 	}
 
 	@Override
@@ -696,13 +739,23 @@ public class SegmentsExperienceWrapper
 	}
 
 	/**
-	 * Sets the segments entry ID of this segments experience.
+	 * Sets the segments entry erc of this segments experience.
 	 *
-	 * @param segmentsEntryId the segments entry ID of this segments experience
+	 * @param segmentsEntryERC the segments entry erc of this segments experience
 	 */
 	@Override
-	public void setSegmentsEntryId(long segmentsEntryId) {
-		model.setSegmentsEntryId(segmentsEntryId);
+	public void setSegmentsEntryERC(String segmentsEntryERC) {
+		model.setSegmentsEntryERC(segmentsEntryERC);
+	}
+
+	/**
+	 * Sets the segments entry scope erc of this segments experience.
+	 *
+	 * @param segmentsEntryScopeERC the segments entry scope erc of this segments experience
+	 */
+	@Override
+	public void setSegmentsEntryScopeERC(String segmentsEntryScopeERC) {
+		model.setSegmentsEntryScopeERC(segmentsEntryScopeERC);
 	}
 
 	/**

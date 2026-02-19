@@ -5,15 +5,17 @@
 
 package com.liferay.portal.search.elasticsearch8.internal.logging;
 
+import co.elastic.clients.elasticsearch._types.HealthStatus;
+
 import com.liferay.portal.kernel.search.generic.MatchAllQuery;
 import com.liferay.portal.search.elasticsearch8.internal.connection.ClusterHealthResponseUtil;
 import com.liferay.portal.search.elasticsearch8.internal.connection.ElasticsearchClientResolver;
 import com.liferay.portal.search.elasticsearch8.internal.connection.ElasticsearchConnectionFixture;
 import com.liferay.portal.search.elasticsearch8.internal.connection.HealthExpectations;
 import com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.ElasticsearchEngineAdapterFixture;
-import com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.search.CountSearchRequestExecutorImpl;
-import com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.search.MultisearchSearchRequestExecutorImpl;
-import com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.search.SearchSearchRequestExecutorImpl;
+import com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.search.CountSearchRequestExecutor;
+import com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.search.MultisearchSearchRequestExecutor;
+import com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.search.SearchSearchRequestExecutor;
 import com.liferay.portal.search.engine.adapter.SearchEngineAdapter;
 import com.liferay.portal.search.engine.adapter.search.CountSearchRequest;
 import com.liferay.portal.search.engine.adapter.search.MultisearchSearchRequest;
@@ -21,9 +23,6 @@ import com.liferay.portal.search.engine.adapter.search.SearchSearchRequest;
 import com.liferay.portal.search.test.util.logging.ExpectedLog;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
-import org.elasticsearch.cluster.health.ClusterHealthStatus;
-
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -79,13 +78,8 @@ public class ElasticsearchSearchEngineAdapterLoggingTest {
 			_elasticsearchEngineAdapterFixture.getSearchEngineAdapter();
 	}
 
-	@After
-	public void tearDown() {
-		_elasticsearchEngineAdapterFixture.tearDown();
-	}
-
 	@ExpectedLog(
-		expectedClass = CountSearchRequestExecutorImpl.class,
+		expectedClass = CountSearchRequestExecutor.class,
 		expectedLevel = ExpectedLog.Level.FINE,
 		expectedLog = "The search engine processed"
 	)
@@ -101,7 +95,7 @@ public class ElasticsearchSearchEngineAdapterLoggingTest {
 	}
 
 	@ExpectedLog(
-		expectedClass = MultisearchSearchRequestExecutorImpl.class,
+		expectedClass = MultisearchSearchRequestExecutor.class,
 		expectedLevel = ExpectedLog.Level.FINE,
 		expectedLog = "The search engine processed"
 	)
@@ -122,7 +116,7 @@ public class ElasticsearchSearchEngineAdapterLoggingTest {
 	}
 
 	@ExpectedLog(
-		expectedClass = SearchSearchRequestExecutorImpl.class,
+		expectedClass = SearchSearchRequestExecutor.class,
 		expectedLevel = ExpectedLog.Level.FINE,
 		expectedLog = "The search engine processed"
 	)
@@ -140,15 +134,15 @@ public class ElasticsearchSearchEngineAdapterLoggingTest {
 	private void _waitForElasticsearchToStart(
 		ElasticsearchClientResolver elasticsearchClientResolver) {
 
-		ClusterHealthResponseUtil.getClusterHealthResponse(
+		ClusterHealthResponseUtil.getHealthResponse(
 			elasticsearchClientResolver,
 			new HealthExpectations() {
 				{
 					setActivePrimaryShards(0);
 					setActiveShards(0);
+					setHealthStatus(HealthStatus.Green);
 					setNumberOfDataNodes(1);
 					setNumberOfNodes(1);
-					setStatus(ClusterHealthStatus.GREEN);
 					setUnassignedShards(0);
 				}
 			});

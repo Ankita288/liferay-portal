@@ -28,19 +28,25 @@ export type ObjectField = {
 	listTypeDefinitionId?: number;
 	localized: boolean;
 	name: string;
-	objectFieldSettings?: {name: string; value: boolean | string | number}[];
+	objectFieldSettings?: {
+		name: string;
+		value: boolean | string | number | StateFlowValue;
+	}[];
 	required: boolean;
 	system: boolean;
 };
 
 export type ObjectRelationship = {
 	deletionType: string;
+	edge?: boolean;
+	externalReferenceCode: string;
 	label: Liferay.Language.LocalizedValue<string>;
 	name: string;
 	objectDefinitionExternalReferenceCode1: string;
 	objectDefinitionExternalReferenceCode2: string;
 	objectDefinitionName2?: string;
-	type: string;
+	reverse?: boolean;
+	type: 'manyToMany' | 'oneToMany' | 'oneToOne';
 };
 
 export type ObjectDefinition = {
@@ -83,3 +89,14 @@ export type ObjectDefinitions = Record<
 	ObjectDefinition['externalReferenceCode'],
 	ObjectDefinition
 >;
+
+export type StateFlowValue = {
+	id: number;
+	objectStates: {
+		id: number;
+		key: string;
+		objectStateTransitions: {
+			key: string;
+		}[];
+	}[];
+};

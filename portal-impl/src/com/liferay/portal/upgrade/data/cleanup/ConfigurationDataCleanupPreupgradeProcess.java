@@ -8,6 +8,7 @@ package com.liferay.portal.upgrade.data.cleanup;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.dao.db.DBInspector;
+import com.liferay.portal.kernel.dao.jdbc.AutoBatchPreparedStatementUtil;
 import com.liferay.portal.kernel.instance.PortalInstancePool;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
@@ -51,8 +52,10 @@ public class ConfigurationDataCleanupPreupgradeProcess
 
 		try (PreparedStatement preparedStatement1 = connection.prepareStatement(
 				"select configurationId, dictionary from Configuration_");
-			PreparedStatement preparedStatement2 = connection.prepareStatement(
-				"delete from Configuration_ where configurationId = ?");
+			PreparedStatement preparedStatement2 =
+				AutoBatchPreparedStatementUtil.autoBatch(
+					connection,
+					"delete from Configuration_ where configurationId = ?");
 			ResultSet resultSet = preparedStatement1.executeQuery()) {
 
 			while (resultSet.next()) {
@@ -62,15 +65,14 @@ public class ConfigurationDataCleanupPreupgradeProcess
 
 				String configurationId = resultSet.getString("configurationId");
 
-				if (companyId > 0) {
-					if (!ArrayUtil.contains(companyIds, companyId) ||
-						(PropsValues.DATABASE_PARTITION_ENABLED &&
-						 (CompanyThreadLocal.getCompanyId() != companyId))) {
+				if ((companyId > 0) &&
+					(!ArrayUtil.contains(companyIds, companyId) ||
+					 (PropsValues.DATABASE_PARTITION_ENABLED &&
+					  (CompanyThreadLocal.getCompanyId() != companyId)))) {
 
-						_deleteConfiguration(
-							configurationId, dbInspector, "companyId",
-							"Company", companyId, preparedStatement2);
-					}
+					_deleteConfiguration(
+						configurationId, dbInspector, "companyId", "Company",
+						companyId, preparedStatement2);
 
 					continue;
 				}
@@ -122,6 +124,10 @@ public class ConfigurationDataCleanupPreupgradeProcess
 	}
 
 	private long _getPrimaryKey(String dictionary, Pattern pattern) {
+		if (dictionary == null) {
+			return -1;
+		}
+
 		Matcher matcher = pattern.matcher(dictionary);
 
 		if (matcher.find()) {

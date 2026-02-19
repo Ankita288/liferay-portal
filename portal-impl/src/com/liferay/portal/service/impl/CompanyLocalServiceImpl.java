@@ -6,6 +6,7 @@
 package com.liferay.portal.service.impl;
 
 import com.liferay.document.library.kernel.service.DLFileEntryTypeLocalService;
+import com.liferay.document.library.kernel.store.Store;
 import com.liferay.expando.kernel.model.ExpandoColumn;
 import com.liferay.expando.kernel.model.ExpandoTable;
 import com.liferay.expando.kernel.service.ExpandoColumnLocalService;
@@ -69,6 +70,7 @@ import com.liferay.portal.kernel.model.UserGroup;
 import com.liferay.portal.kernel.model.VirtualHost;
 import com.liferay.portal.kernel.model.role.RoleConstants;
 import com.liferay.portal.kernel.module.framework.service.IdentifiableOSGiServiceUtil;
+import com.liferay.portal.kernel.module.service.Snapshot;
 import com.liferay.portal.kernel.module.util.SystemBundleUtil;
 import com.liferay.portal.kernel.search.Hits;
 import com.liferay.portal.kernel.search.SearchContext;
@@ -858,11 +860,26 @@ public class CompanyLocalServiceImpl extends CompanyLocalServiceBaseImpl {
 		throws E {
 
 		if (CompanyThreadLocal.isLocked()) {
-			unsafeConsumer.accept(
-				companyLocalService.fetchCompanyById(
-					CompanyThreadLocal.getCompanyId()));
+			long[] companyIds = ListUtil.toLongArray(
+				companies, Company::getCompanyId);
 
-			return;
+			if (ListUtil.isEmpty(companies) ||
+				Arrays.equals(
+					new long[] {CompanyThreadLocal.getCompanyId()},
+					companyIds)) {
+
+				unsafeConsumer.accept(
+					companyLocalService.fetchCompanyById(
+						CompanyThreadLocal.getCompanyId()));
+
+				return;
+			}
+
+			throw new UnsupportedOperationException(
+				StringBundler.concat(
+					"Unable to iterate over the following company IDs ",
+					Arrays.toString(companyIds), " because company ID ",
+					CompanyThreadLocal.getCompanyId(), " is locked"));
 		}
 
 		for (Company company : companies) {
@@ -884,8 +901,7 @@ public class CompanyLocalServiceImpl extends CompanyLocalServiceBaseImpl {
 		long[] companyIds = null;
 
 		if (!CompanyThreadLocal.isLocked()) {
-			companyIds = ListUtil.toLongArray(
-				companyLocalService.getCompanies(), Company::getCompanyId);
+			companyIds = PortalInstancePool.getCompanyIds();
 		}
 
 		forEachCompanyId(unsafeConsumer, companyIds);
@@ -898,9 +914,21 @@ public class CompanyLocalServiceImpl extends CompanyLocalServiceBaseImpl {
 		throws E {
 
 		if (CompanyThreadLocal.isLocked()) {
-			unsafeConsumer.accept(CompanyThreadLocal.getCompanyId());
+			if (ArrayUtil.isEmpty(companyIds) ||
+				Arrays.equals(
+					new long[] {CompanyThreadLocal.getCompanyId()},
+					companyIds)) {
 
-			return;
+				unsafeConsumer.accept(CompanyThreadLocal.getCompanyId());
+
+				return;
+			}
+
+			throw new UnsupportedOperationException(
+				StringBundler.concat(
+					"Unable to iterate over the following company IDs ",
+					Arrays.toString(companyIds), " because company ID ",
+					CompanyThreadLocal.getCompanyId(), " is locked"));
 		}
 
 		for (long companyId : companyIds) {
@@ -1610,6 +1638,10 @@ public class CompanyLocalServiceImpl extends CompanyLocalServiceBaseImpl {
 			TransactionCommitCallbackUtil.registerCallback(
 				() -> {
 					_clearCache(companyId);
+
+					Store store = _storeSnapshot.get();
+
+					store.deleteDirectory(companyId);
 
 					PortalInstances.removeCompany(company.getCompanyId());
 
@@ -2603,6 +2635,8 @@ public class CompanyLocalServiceImpl extends CompanyLocalServiceBaseImpl {
 	private static final MethodHandler _methodHandler = new MethodHandler(
 		new MethodKey(
 			CompanyLocalServiceImpl.class, "_doSynchronizePortalInstances"));
+	private static final Snapshot<Store> _storeSnapshot = new Snapshot<>(
+		CompanyLocalServiceImpl.class, Store.class, "(default=true)");
 	private static final TransactionConfig _transactionConfig =
 		TransactionConfig.Factory.create(
 			Propagation.REQUIRES_NEW, new Class<?>[] {Exception.class});

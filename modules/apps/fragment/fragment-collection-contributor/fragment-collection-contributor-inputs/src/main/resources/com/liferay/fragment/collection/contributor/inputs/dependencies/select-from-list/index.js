@@ -38,6 +38,7 @@ const valueInputElement = document.getElementById(
 if (!input.readOnly) {
 	buttonElement.addEventListener('click', toggleDropdown);
 	buttonElement.addEventListener('blur', handleResultListBlur);
+	buttonElement.addEventListener('keydown', handleButtonPress);
 	uiInputElement.addEventListener('click', toggleDropdown);
 	uiInputElement.addEventListener('input', debounce(handleInputChange, 1000));
 	uiInputElement.addEventListener('blur', handleInputBlur);
@@ -322,6 +323,23 @@ function handleResultListClick(event, onChange, translationInput) {
 	}
 }
 
+function handleButtonPress(event) {
+	event.preventDefault();
+
+	if (checkIsOpenDropdown()) {
+		handleKeydown(event);
+
+		if (event.key === KEYS.Enter) {
+			closeDropdown();
+		}
+	}
+	else {
+		if (event.key === KEYS.Enter) {
+			openDropdown();
+		}
+	}
+}
+
 function handleInputBlur() {
 	if (!uiInputElement.value) {
 		labelInputElement.value = '';
@@ -347,14 +365,18 @@ function handleInputKeyDown(event) {
 		return;
 	}
 
-	const currentFocusedOption = document.getElementById(
-		optionListElement.getAttribute('aria-activedescendant')
-	);
-
 	if (KEYS[event.key]) {
 		openDropdown();
 		event.preventDefault();
 	}
+
+	handleKeydown(event);
+}
+
+function handleKeydown(event) {
+	const currentFocusedOption = document.getElementById(
+		optionListElement.getAttribute('aria-activedescendant')
+	);
 
 	if (event.key === KEYS.ArrowDown && !event.altKey) {
 		if (currentFocusedOption) {
@@ -488,7 +510,10 @@ function filterRemoteOptions(query, abortController) {
 		.then((response) => response.json())
 		.then((result) => {
 			return result.items.map((entry) => {
-				let label = entry[input.attributes.relationshipLabelFieldName];
+				const finalEntry = entry.embedded || entry;
+
+				let label =
+					finalEntry[input.attributes.relationshipLabelFieldName];
 
 				if (Array.isArray(label)) {
 					label = label.map((label) => label.name).join(', ');
@@ -501,7 +526,7 @@ function filterRemoteOptions(query, abortController) {
 					textContent: label,
 					textValue: label,
 					value: `${
-						entry[input.attributes.relationshipValueFieldName]
+						finalEntry[input.attributes.relationshipValueFieldName]
 					}`,
 				};
 			});

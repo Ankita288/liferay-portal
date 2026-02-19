@@ -14,8 +14,10 @@ import com.liferay.asset.kernel.service.AssetVocabularyLocalService;
 import com.liferay.bulk.rest.client.dto.v1_0.BulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.BulkActionItem;
 import com.liferay.bulk.rest.client.dto.v1_0.BulkActionTask;
+import com.liferay.bulk.rest.client.dto.v1_0.CopyBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.DefaultPermissionBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.DeleteBulkAction;
+import com.liferay.bulk.rest.client.dto.v1_0.ExpireBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.KeywordBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.PermissionBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.ResetPermissionBulkAction;
@@ -24,6 +26,7 @@ import com.liferay.bulk.rest.client.dto.v1_0.TaxonomyCategoryBulkAction;
 import com.liferay.bulk.rest.client.pagination.Page;
 import com.liferay.bulk.rest.client.pagination.Pagination;
 import com.liferay.bulk.rest.client.problem.Problem;
+import com.liferay.bulk.selection.constants.BulkSelectionActionStatusConstants;
 import com.liferay.depot.constants.DepotConstants;
 import com.liferay.depot.model.DepotEntry;
 import com.liferay.depot.service.DepotEntryLocalService;
@@ -51,6 +54,7 @@ import com.liferay.object.service.ObjectEntryFolderLocalService;
 import com.liferay.object.service.ObjectEntryLocalService;
 import com.liferay.object.service.ObjectFolderLocalService;
 import com.liferay.object.test.util.ObjectDefinitionTestUtil;
+import com.liferay.object.test.util.ObjectEntryFolderTestUtil;
 import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.sql.dsl.expression.Predicate;
 import com.liferay.petra.string.StringBundler;
@@ -86,6 +90,7 @@ import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.UnicodePropertiesBuilder;
+import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.test.rule.FeatureFlag;
 import com.liferay.portal.test.rule.FeatureFlags;
 import com.liferay.portal.test.rule.Inject;
@@ -157,9 +162,11 @@ public class BulkActionResourceTest extends BaseBulkActionResourceTestCase {
 	@Override
 	@Test
 	public void testPostBulkAction() throws Exception {
+		_testPostBulkActionWithTypeCopy();
 		_testPostBulkActionWithTypeDefaultPermission();
 		_testPostBulkActionWithTypeDefaultPermissionSingleRole();
 		_testPostBulkActionWithTypeDelete();
+		_testPostBulkActionWithTypeExpire();
 		_testPostBulkActionWithTypeKeyword();
 		_testPostBulkActionWithTypePermission();
 		_testPostBulkActionWithTypePermissionSingleRole();
@@ -186,7 +193,7 @@ public class BulkActionResourceTest extends BaseBulkActionResourceTestCase {
 		};
 
 		DepotEntry depotEntry = _depotEntryLocalService.addDepotEntry(
-			nameMap, null, DepotConstants.TYPE_ASSET_LIBRARY, serviceContext);
+			nameMap, null, DepotConstants.TYPE_SPACE, serviceContext);
 
 		return _depotEntryLocalService.updateDepotEntry(
 			depotEntry.getDepotEntryId(), nameMap, null, Collections.emptyMap(),
@@ -318,6 +325,17 @@ public class BulkActionResourceTest extends BaseBulkActionResourceTestCase {
 		Assert.assertNotNull(bulkActionTask.getId());
 
 		_waitForFinish(GetterUtil.getLong(bulkActionTask.getId()));
+
+		BulkActionItem[] bulkActionItems = bulkAction.getBulkActionItems();
+
+		ObjectEntry objectEntry = _objectEntryLocalService.getObjectEntry(
+			bulkActionTask.getId());
+
+		Map<String, Serializable> values = objectEntry.getValues();
+
+		Assert.assertEquals(
+			bulkActionItems.length,
+			GetterUtil.getInteger((String)values.get("numberOfItems")));
 	}
 
 	private void _testPostBulkActionItemPreviewPage(
@@ -539,6 +557,153 @@ public class BulkActionResourceTest extends BaseBulkActionResourceTestCase {
 			items.get(0), objectEntryFolder2.getObjectEntryFolderId(),
 			expectedDeletionType, 0L, null, objectEntryFolder2.getName(),
 			"FOLDER", null);
+	}
+
+	private void _testPostBulkActionWithTypeCopy() throws Exception {
+		CopyBulkAction copyBulkAction = new CopyBulkAction();
+
+		copyBulkAction.setType(BulkAction.Type.COPY_BULK_ACTION);
+
+		ObjectEntryFolder sourceObjectEntryFolder =
+			ObjectEntryFolderTestUtil.addObjectEntryFolder(
+				_depotEntry1.getGroupId());
+
+		ObjectEntry objectEntry = ObjectEntryTestUtil.addObjectEntry(
+			_depotEntry1.getGroupId(), _cmsBasicWebContentObjectDefinition,
+			sourceObjectEntryFolder.getObjectEntryFolderId(),
+			_getObjectEntryValues());
+
+		ObjectEntryFolder objectEntryFolder =
+			ObjectEntryFolderTestUtil.addObjectEntryFolder(
+				_depotEntry1.getGroupId(),
+				sourceObjectEntryFolder.getObjectEntryFolderId());
+
+		copyBulkAction.setBulkActionItems(
+			_toBulkActionItems(objectEntry, objectEntryFolder));
+
+		BulkActionTask bulkActionTask = bulkActionResource.postBulkAction(
+			null, null, null, null, null, null, null, null, copyBulkAction);
+
+		Assert.assertNotNull(bulkActionTask.getId());
+
+		_waitForFinish(GetterUtil.getLong(bulkActionTask.getId()));
+
+		ObjectEntry copyBulkActionObjectEntry =
+			_objectEntryLocalService.getObjectEntry(bulkActionTask.getId());
+
+		Map<String, Serializable> values =
+			copyBulkActionObjectEntry.getValues();
+
+		Assert.assertEquals(2, values.get("numberOfFailedItems"));
+
+		ObjectEntryFolder targetObjectEntryFolder =
+			ObjectEntryFolderTestUtil.addObjectEntryFolder(
+				_depotEntry1.getGroupId());
+
+		Assert.assertEquals(
+			1,
+			_objectEntryFolderLocalService.getObjectEntryFoldersCount(
+				sourceObjectEntryFolder.getGroupId(),
+				sourceObjectEntryFolder.getCompanyId(),
+				sourceObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			1,
+			_objectEntryLocalService.getObjectEntryFolderObjectEntriesCount(
+				sourceObjectEntryFolder.getGroupId(),
+				sourceObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			0,
+			_objectEntryFolderLocalService.getObjectEntryFoldersCount(
+				targetObjectEntryFolder.getGroupId(),
+				targetObjectEntryFolder.getCompanyId(),
+				targetObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			0,
+			_objectEntryLocalService.getObjectEntryFolderObjectEntriesCount(
+				targetObjectEntryFolder.getGroupId(),
+				targetObjectEntryFolder.getObjectEntryFolderId()));
+
+		copyBulkAction.setObjectEntryFolderId(
+			targetObjectEntryFolder.getObjectEntryFolderId());
+
+		_postBulkAction(copyBulkAction);
+
+		Assert.assertEquals(
+			1,
+			_objectEntryFolderLocalService.getObjectEntryFoldersCount(
+				sourceObjectEntryFolder.getGroupId(),
+				sourceObjectEntryFolder.getCompanyId(),
+				sourceObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			1,
+			_objectEntryLocalService.getObjectEntryFolderObjectEntriesCount(
+				sourceObjectEntryFolder.getGroupId(),
+				sourceObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			1,
+			_objectEntryFolderLocalService.getObjectEntryFoldersCount(
+				targetObjectEntryFolder.getGroupId(),
+				targetObjectEntryFolder.getCompanyId(),
+				targetObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			1,
+			_objectEntryLocalService.getObjectEntryFolderObjectEntriesCount(
+				targetObjectEntryFolder.getGroupId(),
+				targetObjectEntryFolder.getObjectEntryFolderId()));
+
+		targetObjectEntryFolder =
+			ObjectEntryFolderTestUtil.addObjectEntryFolder(
+				_depotEntry2.getGroupId());
+
+		Assert.assertEquals(
+			0,
+			_objectEntryFolderLocalService.getObjectEntryFoldersCount(
+				targetObjectEntryFolder.getGroupId(),
+				targetObjectEntryFolder.getCompanyId(),
+				targetObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			0,
+			_objectEntryLocalService.getObjectEntryFolderObjectEntriesCount(
+				targetObjectEntryFolder.getGroupId(),
+				targetObjectEntryFolder.getObjectEntryFolderId()));
+
+		copyBulkAction.setObjectEntryFolderId(
+			targetObjectEntryFolder.getObjectEntryFolderId());
+
+		_postBulkAction(copyBulkAction);
+
+		Assert.assertEquals(
+			1,
+			_objectEntryFolderLocalService.getObjectEntryFoldersCount(
+				sourceObjectEntryFolder.getGroupId(),
+				sourceObjectEntryFolder.getCompanyId(),
+				sourceObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			1,
+			_objectEntryLocalService.getObjectEntryFolderObjectEntriesCount(
+				sourceObjectEntryFolder.getGroupId(),
+				sourceObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			1,
+			_objectEntryFolderLocalService.getObjectEntryFoldersCount(
+				targetObjectEntryFolder.getGroupId(),
+				targetObjectEntryFolder.getCompanyId(),
+				targetObjectEntryFolder.getObjectEntryFolderId()));
+
+		Assert.assertEquals(
+			1,
+			_objectEntryLocalService.getObjectEntryFolderObjectEntriesCount(
+				targetObjectEntryFolder.getGroupId(),
+				targetObjectEntryFolder.getObjectEntryFolderId()));
 	}
 
 	private void _testPostBulkActionWithTypeDefaultPermission()
@@ -897,6 +1062,37 @@ public class BulkActionResourceTest extends BaseBulkActionResourceTestCase {
 				objectEntry.getObjectEntryId()));
 	}
 
+	private void _testPostBulkActionWithTypeExpire() throws Exception {
+		BulkAction bulkAction = new ExpireBulkAction();
+
+		bulkAction.setType(BulkAction.Type.EXPIRE_BULK_ACTION);
+
+		ObjectEntry objectEntry = ObjectEntryTestUtil.addObjectEntry(
+			_depotEntry2.getGroupId(), _cmsBasicWebContentObjectDefinition,
+			_getObjectEntryValues());
+
+		ObjectEntryFolder objectEntryFolder =
+			ObjectEntryFolderTestUtil.addObjectEntryFolder();
+
+		bulkAction.setBulkActionItems(
+			_toBulkActionItems(objectEntry, objectEntryFolder));
+
+		_postBulkAction(bulkAction);
+
+		objectEntry = _objectEntryLocalService.fetchObjectEntry(
+			objectEntry.getObjectEntryId());
+
+		Assert.assertEquals(
+			WorkflowConstants.STATUS_EXPIRED, objectEntry.getStatus());
+
+		objectEntryFolder =
+			_objectEntryFolderLocalService.fetchObjectEntryFolder(
+				objectEntryFolder.getObjectEntryFolderId());
+
+		Assert.assertEquals(
+			WorkflowConstants.STATUS_APPROVED, objectEntryFolder.getStatus());
+	}
+
 	private void _testPostBulkActionWithTypeKeyword() throws Exception {
 		KeywordBulkAction keywordBulkAction = new KeywordBulkAction();
 
@@ -973,7 +1169,7 @@ public class BulkActionResourceTest extends BaseBulkActionResourceTestCase {
 						ObjectFieldConstants.BUSINESS_TYPE_TEXT,
 						ObjectFieldConstants.DB_TYPE_STRING,
 						RandomTestUtil.randomString(), "text")),
-				Collections.emptyList());
+				Collections.emptyList(), new ServiceContext());
 
 		objectDefinition =
 			_objectDefinitionLocalService.publishCustomObjectDefinition(
@@ -1524,20 +1720,36 @@ public class BulkActionResourceTest extends BaseBulkActionResourceTestCase {
 		};
 	}
 
-	private BulkActionItem[] _toBulkActionItems(ObjectEntry... objectEntries)
+	private BulkActionItem[] _toBulkActionItems(Object... objects)
 		throws Exception {
 
 		return TransformUtil.transform(
-			objectEntries,
-			objectEntry -> new BulkActionItem() {
+			objects,
+			object -> new BulkActionItem() {
 				{
-					setClassExternalReferenceCode(
-						objectEntry::getExternalReferenceCode);
-					setClassName(
-						() ->
-							_cmsBasicWebContentObjectDefinition.getClassName());
-					setClassPK(objectEntry::getObjectEntryId);
-					setName(objectEntry::getTitleValue);
+					if (object instanceof ObjectEntry) {
+						ObjectEntry objectEntry = (ObjectEntry)object;
+
+						setClassExternalReferenceCode(
+							objectEntry::getExternalReferenceCode);
+
+						setClassName(
+							() ->
+								_cmsBasicWebContentObjectDefinition.
+									getClassName());
+						setClassPK(objectEntry::getObjectEntryId);
+						setName(objectEntry::getTitleValue);
+					}
+					else if (object instanceof ObjectEntryFolder) {
+						ObjectEntryFolder objectEntryFolder =
+							(ObjectEntryFolder)object;
+
+						setClassExternalReferenceCode(
+							objectEntryFolder::getExternalReferenceCode);
+						setClassName(objectEntryFolder::getModelClassName);
+						setClassPK(objectEntryFolder::getObjectEntryFolderId);
+						setName(objectEntryFolder::getName);
+					}
 				}
 			},
 			BulkActionItem.class);
@@ -1552,10 +1764,16 @@ public class BulkActionResourceTest extends BaseBulkActionResourceTestCase {
 
 			String executionStatus = (String)values.get("executionStatus");
 
-			if (StringUtil.equals(executionStatus, "completed") ||
-				StringUtil.equals(executionStatus, "failed")) {
+			if (StringUtil.equals(
+					executionStatus,
+					BulkSelectionActionStatusConstants.COMPLETED) ||
+				StringUtil.equals(
+					executionStatus,
+					BulkSelectionActionStatusConstants.FAILED)) {
 
-				Assert.assertEquals("completed", executionStatus);
+				Assert.assertEquals(
+					BulkSelectionActionStatusConstants.COMPLETED,
+					executionStatus);
 
 				return;
 			}

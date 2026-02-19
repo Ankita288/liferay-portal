@@ -52,6 +52,7 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -138,8 +139,8 @@ public class FDSAdminFragmentRenderer implements FragmentRenderer {
 				try {
 					ObjectDefinition dataSetObjectDefinition =
 						_dataSetObjectDefinitionLocalService.
-							fetchObjectDefinition(
-								fragmentEntryLink.getCompanyId(), "DataSet");
+							fetchObjectDefinitionByExternalReferenceCode(
+								"L_DATA_SET", fragmentEntryLink.getCompanyId());
 
 					DefaultObjectEntryManager defaultObjectEntryManager =
 						DefaultObjectEntryManagerProvider.provide(
@@ -183,6 +184,8 @@ public class FDSAdminFragmentRenderer implements FragmentRenderer {
 				return;
 			}
 
+			Map<String, Object> properties = dataSetObjectEntry.getProperties();
+
 			if (!FeatureFlagManagerUtil.isEnabled(
 					_portal.getCompanyId(httpServletRequest), "LPD-38564")) {
 
@@ -190,6 +193,8 @@ public class FDSAdminFragmentRenderer implements FragmentRenderer {
 					HashMapBuilder.<String, Object>put(
 						"namespace",
 						fragmentRendererContext.getFragmentElementId()
+					).put(
+						"snapshotsEnabled", properties.get("snapshotsEnabled")
 					).put(
 						"style", "fluid"
 					).build(),
@@ -203,8 +208,9 @@ public class FDSAdminFragmentRenderer implements FragmentRenderer {
 			DefaultFragmentEntryProcessorContext
 				defaultFragmentEntryProcessorContext =
 					_getDefaultFragmentEntryProcessorContext(
+						fragmentEntryLink.getCompanyId(),
 						fragmentRendererContext, httpServletRequest,
-						httpServletResponse);
+						httpServletResponse, fragmentEntryLink.getGroupId());
 
 			boolean hasTokens = _hasTokens(
 				externalReferenceCode, httpServletRequest);
@@ -230,6 +236,8 @@ public class FDSAdminFragmentRenderer implements FragmentRenderer {
 					HashMapBuilder.<String, Object>put(
 						"namespace",
 						fragmentRendererContext.getFragmentElementId()
+					).put(
+						"snapshotsEnabled", properties.get("snapshotsEnabled")
 					).put(
 						"style", "fluid"
 					).put(
@@ -264,16 +272,16 @@ public class FDSAdminFragmentRenderer implements FragmentRenderer {
 
 	private DefaultFragmentEntryProcessorContext
 		_getDefaultFragmentEntryProcessorContext(
-			FragmentRendererContext fragmentRendererContext,
+			long companyId, FragmentRendererContext fragmentRendererContext,
 			HttpServletRequest httpServletRequest,
-			HttpServletResponse httpServletResponse) {
+			HttpServletResponse httpServletResponse, long scopeGroupId) {
 
 		DefaultFragmentEntryProcessorContext
 			defaultFragmentEntryProcessorContext =
 				new DefaultFragmentEntryProcessorContext(
-					httpServletRequest, httpServletResponse,
-					fragmentRendererContext.getMode(),
-					fragmentRendererContext.getLocale());
+					companyId, httpServletRequest, httpServletResponse,
+					fragmentRendererContext.getLocale(),
+					fragmentRendererContext.getMode(), scopeGroupId);
 
 		defaultFragmentEntryProcessorContext.setAttributes(
 			fragmentRendererContext.getAttributes());

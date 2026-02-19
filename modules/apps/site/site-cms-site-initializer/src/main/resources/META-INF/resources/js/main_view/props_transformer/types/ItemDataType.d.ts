@@ -19,21 +19,25 @@ interface ItemData {
 	};
 	embedded: {
 		content: string;
+		content_i18n: {[locale: string]: string};
 		creator: {
 			contentType: string;
 			id: number;
 			image?: string;
 			name: string;
 		};
+		defaultLanguageId: string;
 		externalReferenceCode: string;
 		file?: any;
 		id: number;
+		keywords?: string[];
 		objectEntryFolderExternalReferenceCode?: string;
 		objectEntryFolderId: number;
 		parentObjectEntryFolderExternalReferenceCode?: string;
 		scopeId: number;
 		systemProperties?: any;
 		title: string;
+		title_i18n: {[locale: string]: string};
 	};
 	entryClassName: string;
 	id: number;

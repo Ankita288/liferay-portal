@@ -19,24 +19,31 @@ export default function ({namespace}) {
 				`input[type='checkbox'][name='${namespace}explicitConsentMode']`
 			);
 
+			const storeConsent = document.querySelector(
+				`input[type='checkbox'][name='${namespace}storeConsent']`
+			);
+
 			if (event.delegateTarget.id === `${namespace}enabled`) {
 				if (event.delegateTarget.checked) {
-					if (Liferay.FeatureFlags['LPD-65277']) {
-						consentRenewalPeriod.removeAttribute('disabled');
-						consentRenewalPeriod.required = true;
-					}
-
+					consentRenewalPeriod.removeAttribute('disabled');
+					consentRenewalPeriod.required = true;
 					explicitConsentMode.removeAttribute('disabled');
+
+					if (Liferay.FeatureFlags['LPD-75032']) {
+						storeConsent.removeAttribute('disabled');
+					}
 				}
 				else {
-					if (Liferay.FeatureFlags['LPD-65277']) {
-						consentRenewalPeriod.required = false;
-						consentRenewalPeriod.setAttribute('disabled', '');
-						consentRenewalPeriod.value = 12;
-					}
-
+					consentRenewalPeriod.required = false;
+					consentRenewalPeriod.setAttribute('disabled', '');
+					consentRenewalPeriod.value = 12;
 					explicitConsentMode.checked = true;
 					explicitConsentMode.setAttribute('disabled', '');
+
+					if (Liferay.FeatureFlags['LPD-75032']) {
+						storeConsent.checked = false;
+						storeConsent.setAttribute('disabled', '');
+					}
 				}
 			}
 		}

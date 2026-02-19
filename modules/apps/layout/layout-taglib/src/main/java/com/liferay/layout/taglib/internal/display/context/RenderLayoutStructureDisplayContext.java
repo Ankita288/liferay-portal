@@ -23,6 +23,7 @@ import com.liferay.info.form.InfoForm;
 import com.liferay.info.item.ClassPKInfoItemIdentifier;
 import com.liferay.info.item.ERCInfoItemIdentifier;
 import com.liferay.info.item.InfoItemDetails;
+import com.liferay.info.item.InfoItemFieldValues;
 import com.liferay.info.item.InfoItemIdentifier;
 import com.liferay.info.item.InfoItemReference;
 import com.liferay.info.item.InfoItemServiceRegistry;
@@ -171,8 +172,7 @@ public class RenderLayoutStructureDisplayContext {
 			linkJSONObject = localizedJSONObject;
 		}
 
-		String value = _getFieldValue(
-			_getInfoItemReference(linkJSONObject), linkJSONObject);
+		String value = _getFieldValue(linkJSONObject);
 
 		if (Validator.isNotNull(value)) {
 			return value;
@@ -484,10 +484,24 @@ public class RenderLayoutStructureDisplayContext {
 		LayoutStructureRulesHelper layoutStructureRulesHelper =
 			ServletContextUtil.getLayoutStructureRulesHelper();
 
+		InfoItemFieldValues infoItemFieldValues = null;
+
+		Object infoItem = _httpServletRequest.getAttribute(
+			InfoDisplayWebKeys.INFO_ITEM);
+
+		InfoItemFieldValuesProvider infoItemFieldValuesProvider =
+			_getInfoFieldValuesProvider(infoItem);
+
+		if (infoItemFieldValuesProvider != null) {
+			infoItemFieldValues =
+				infoItemFieldValuesProvider.getInfoItemFieldValues(infoItem);
+		}
+
 		LayoutStructureRulesHelper.LayoutStructureRulesResult
 			layoutStructureRulesResult =
 				layoutStructureRulesHelper.processLayoutStructureRules(
-					_themeDisplay.getScopeGroupId(), _layoutStructure,
+					_themeDisplay.getScopeGroupId(), infoItemFieldValues,
+					_layoutStructure, _themeDisplay.getLocale(),
 					_themeDisplay.getPermissionChecker(),
 					_getSegmentsEntryIds());
 
@@ -589,11 +603,7 @@ public class RenderLayoutStructureDisplayContext {
 		JSONObject backgroundImageJSONObject =
 			styledLayoutStructureItem.getBackgroundImageJSONObject();
 
-		InfoItemReference infoItemReference = _getInfoItemReference(
-			backgroundImageJSONObject);
-
-		long fileEntryId = _getFileEntryId(
-			infoItemReference, backgroundImageJSONObject);
+		long fileEntryId = _getFileEntryId(backgroundImageJSONObject);
 
 		if (fileEntryId != 0) {
 			sb.append("--background-image-file-entry-id:");
@@ -602,7 +612,7 @@ public class RenderLayoutStructureDisplayContext {
 		}
 
 		String backgroundImageURL = _getBackgroundImage(
-			infoItemReference, backgroundImageJSONObject);
+			backgroundImageJSONObject);
 
 		if (Validator.isNotNull(backgroundImageURL)) {
 			sb.append("--lfr-background-image-");
@@ -727,14 +737,12 @@ public class RenderLayoutStructureDisplayContext {
 		return false;
 	}
 
-	private String _getBackgroundImage(
-		InfoItemReference infoItemReference, JSONObject jsonObject) {
-
+	private String _getBackgroundImage(JSONObject jsonObject) {
 		if (jsonObject == null) {
 			return StringPool.BLANK;
 		}
 
-		String value = _getFieldValue(infoItemReference, jsonObject);
+		String value = _getFieldValue(jsonObject);
 
 		if (Validator.isNotNull(value)) {
 			return value;
@@ -749,9 +757,7 @@ public class RenderLayoutStructureDisplayContext {
 		return StringPool.BLANK;
 	}
 
-	private String _getFieldValue(
-		InfoItemReference infoItemReference, JSONObject jsonObject) {
-
+	private String _getFieldValue(JSONObject jsonObject) {
 		String collectionFieldId = jsonObject.getString("collectionFieldId");
 
 		if (Validator.isNotNull(collectionFieldId)) {
@@ -767,25 +773,13 @@ public class RenderLayoutStructureDisplayContext {
 			Object infoItem = _httpServletRequest.getAttribute(
 				InfoDisplayWebKeys.INFO_ITEM);
 
-			InfoItemDetails infoItemDetails =
-				(InfoItemDetails)_httpServletRequest.getAttribute(
-					InfoDisplayWebKeys.INFO_ITEM_DETAILS);
+			InfoItemFieldValuesProvider infoItemFieldValuesProvider =
+				_getInfoFieldValuesProvider(infoItem);
 
-			if ((infoItem != null) && (infoItemDetails != null)) {
-				InfoItemServiceRegistry infoItemServiceRegistry =
-					ServletContextUtil.getInfoItemServiceRegistry();
-
-				InfoItemFieldValuesProvider<Object>
-					infoItemFieldValuesProvider =
-						infoItemServiceRegistry.getFirstInfoItemService(
-							InfoItemFieldValuesProvider.class,
-							infoItemDetails.getClassName());
-
-				if (infoItemFieldValuesProvider != null) {
-					return _parseInfoFieldValue(
-						infoItemFieldValuesProvider.getInfoFieldValue(
-							infoItem, mappedField));
-				}
+			if (infoItemFieldValuesProvider != null) {
+				return _parseInfoFieldValue(
+					infoItemFieldValuesProvider.getInfoFieldValue(
+						infoItem, mappedField));
 			}
 
 			return StringPool.BLANK;
@@ -794,33 +788,28 @@ public class RenderLayoutStructureDisplayContext {
 		String fieldId = jsonObject.getString("fieldId");
 
 		if (Validator.isNotNull(fieldId)) {
-			return _getValue(fieldId, infoItemReference);
+			return _getValue(fieldId, _getInfoItemReference(jsonObject));
 		}
 
 		return StringPool.BLANK;
 	}
 
-	private long _getFileEntryId(
-			InfoItemReference infoItemReference, JSONObject jsonObject)
-		throws Exception {
-
+	private long _getFileEntryId(JSONObject jsonObject) throws Exception {
 		if (jsonObject.has("fileEntryId")) {
 			return jsonObject.getLong("fileEntryId");
 		}
 
-		if ((infoItemReference != null) && jsonObject.has("fieldId")) {
-			FragmentEntryProcessorHelper fragmentEntryProcessorHelper =
-				ServletContextUtil.getFragmentEntryProcessorHelper();
+		FragmentEntryProcessorHelper fragmentEntryProcessorHelper =
+			ServletContextUtil.getFragmentEntryProcessorHelper();
 
+		if (jsonObject.has("fieldId")) {
 			return fragmentEntryProcessorHelper.getFileEntryId(
-				infoItemReference, jsonObject.getString("fieldId"),
+				jsonObject.getString("fieldId"),
+				_themeDisplay.getScopeGroupId(), jsonObject,
 				_themeDisplay.getLocale());
 		}
 
 		if (jsonObject.has("collectionFieldId")) {
-			FragmentEntryProcessorHelper fragmentEntryProcessorHelper =
-				ServletContextUtil.getFragmentEntryProcessorHelper();
-
 			return fragmentEntryProcessorHelper.getFileEntryId(
 				(InfoItemReference)_httpServletRequest.getAttribute(
 					InfoDisplayWebKeys.INFO_ITEM_REFERENCE),
@@ -832,7 +821,8 @@ public class RenderLayoutStructureDisplayContext {
 			return _getFileEntryId(jsonObject.getString("mappedField"));
 		}
 
-		return 0;
+		return fragmentEntryProcessorHelper.getFileEntryId(
+			_themeDisplay.getScopeGroupId(), jsonObject);
 	}
 
 	private long _getFileEntryId(String fieldId) throws Exception {
@@ -972,6 +962,25 @@ public class RenderLayoutStructureDisplayContext {
 		}
 
 		return redirect;
+	}
+
+	private InfoItemFieldValuesProvider _getInfoFieldValuesProvider(
+		Object infoItem) {
+
+		InfoItemDetails infoItemDetails =
+			(InfoItemDetails)_httpServletRequest.getAttribute(
+				InfoDisplayWebKeys.INFO_ITEM_DETAILS);
+
+		if ((infoItem != null) && (infoItemDetails != null)) {
+			InfoItemServiceRegistry infoItemServiceRegistry =
+				ServletContextUtil.getInfoItemServiceRegistry();
+
+			return infoItemServiceRegistry.getFirstInfoItemService(
+				InfoItemFieldValuesProvider.class,
+				infoItemDetails.getClassName());
+		}
+
+		return null;
 	}
 
 	private Object _getInfoItem(InfoItemReference infoItemReference) {

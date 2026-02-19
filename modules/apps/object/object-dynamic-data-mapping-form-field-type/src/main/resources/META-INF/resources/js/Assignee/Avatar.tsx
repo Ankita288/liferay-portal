@@ -21,19 +21,29 @@ function getInitials(name: string): string {
 	return normalizedName.substring(0, 2).toUpperCase();
 }
 
-export default function Avatar({image, name}: {image?: string; name: string}) {
+export default function Avatar({
+	name,
+	portrait,
+}: {
+	name: string;
+	portrait?: string;
+}) {
+	const initials = getInitials(name);
+
 	return (
 		<>
-			{image ? (
+			{portrait ? (
 				<img
 					alt={Liferay.Language.get('user-profile-image')}
 					className="object-field__assignee-image"
-					src={image}
+					src={portrait}
 				/>
 			) : (
-				<span className="object-field__assignee-initials">
-					{getInitials(name)}
-				</span>
+				initials && (
+					<span className="object-field__assignee-initials">
+						{initials}
+					</span>
+				)
 			)}
 		</>
 	);

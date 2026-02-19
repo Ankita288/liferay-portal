@@ -102,7 +102,9 @@ export class ClaySamplePage extends POM {
 				name: 'EMBEDDED',
 			}),
 
-			[TabName.BADGES]: this.page.getByText('Primary'),
+			[TabName.BADGES]: this.page.getByText(
+				'Badges help highlight important information such as notifications or new and unread messages. Badges have circular borders and are only used to specify a number.'
+			),
 
 			[TabName.BUTTONS]: this.page.getByRole('heading', {name: 'TYPES'}),
 
@@ -174,6 +176,7 @@ export class ClaySamplePage extends POM {
 		await clickAndExpectToBeVisible({
 			autoClick: true,
 			target,
+			timeout: 2000,
 			trigger: tabHeading,
 		});
 	}

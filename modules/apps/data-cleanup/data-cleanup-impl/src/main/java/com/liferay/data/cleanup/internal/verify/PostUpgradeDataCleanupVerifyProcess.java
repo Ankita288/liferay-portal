@@ -5,11 +5,18 @@
 
 package com.liferay.data.cleanup.internal.verify;
 
+import com.liferay.object.service.ObjectDefinitionLocalService;
+import com.liferay.portal.kernel.dependency.manager.DependencyManagerSyncUtil;
 import com.liferay.portal.kernel.module.framework.ModuleServiceLifecycle;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
+import com.liferay.portal.kernel.service.CompanyLocalService;
 import com.liferay.portal.kernel.service.ResourceActionLocalService;
 import com.liferay.portal.kernel.service.ServiceComponentLocalService;
+import com.liferay.portal.kernel.util.ClassUtil;
 import com.liferay.portal.kernel.util.ListUtil;
+import com.liferay.portal.kernel.util.LoggingTimer;
+import com.liferay.portal.search.index.IndexInformation;
+import com.liferay.portal.search.index.IndexNameBuilder;
 import com.liferay.portal.tools.DBUpgrader;
 import com.liferay.portal.verify.VerifyException;
 import com.liferay.portal.verify.VerifyProcess;
@@ -29,31 +36,43 @@ public class PostUpgradeDataCleanupVerifyProcess extends VerifyProcess {
 
 	@Override
 	public void verify() throws VerifyException {
-		try {
-			super.verify();
-		}
-		finally {
-			DBUpgrader.stopUpgradeLogAppender();
-		}
+		DependencyManagerSyncUtil.registerSyncCallable(
+			() -> {
+				try {
+					super.verify();
+				}
+				finally {
+					DBUpgrader.stopUpgradeLogAppender();
+				}
+
+				return null;
+			});
 	}
 
 	@Override
 	protected void doVerify() throws Exception {
 		for (PostUpgradeDataCleanupProcess postUpgradeDataCleanupProcess :
-				_getPostUpgradedataCleanupProcesses()) {
+				_getPostUpgradeDataCleanupProcesses()) {
 
-			postUpgradeDataCleanupProcess.cleanUp();
+			try (LoggingTimer loggingTimer = new LoggingTimer(
+					ClassUtil.getClassName(postUpgradeDataCleanupProcess))) {
+
+				postUpgradeDataCleanupProcess.cleanUp();
+			}
 		}
 	}
 
 	private List<PostUpgradeDataCleanupProcess>
-		_getPostUpgradedataCleanupProcesses() {
+		_getPostUpgradeDataCleanupProcesses() {
 
 		return ListUtil.fromArray(
 			new ClassNamePostUpgradeDataCleanupProcess(
-				_classNameLocalService, connection),
+				_classNameLocalService, _companyLocalService, connection,
+				_objectDefinitionLocalService),
 			new ResourceActionPostUpgradeDataCleanupProcess(
 				connection, _resourceActionLocalService),
+			new SearchIndexPostUpgradeDataCleanupProcess(
+				_indexInformation, _indexNameBuilder),
 			new ServiceComponentPostUpgradeDataCleanupProcess(
 				connection, _serviceComponentLocalService));
 	}
@@ -61,8 +80,20 @@ public class PostUpgradeDataCleanupVerifyProcess extends VerifyProcess {
 	@Reference
 	private ClassNameLocalService _classNameLocalService;
 
+	@Reference
+	private CompanyLocalService _companyLocalService;
+
+	@Reference
+	private IndexInformation _indexInformation;
+
+	@Reference
+	private IndexNameBuilder _indexNameBuilder;
+
 	@Reference(target = ModuleServiceLifecycle.PORTLETS_INITIALIZED)
 	private ModuleServiceLifecycle _moduleServiceLifecycle;
+
+	@Reference
+	private ObjectDefinitionLocalService _objectDefinitionLocalService;
 
 	@Reference
 	private ResourceActionLocalService _resourceActionLocalService;

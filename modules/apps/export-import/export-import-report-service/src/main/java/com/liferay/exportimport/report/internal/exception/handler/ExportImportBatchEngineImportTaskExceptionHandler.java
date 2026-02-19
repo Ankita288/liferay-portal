@@ -9,7 +9,6 @@ import com.liferay.batch.engine.BatchEngineTaskItemDelegate;
 import com.liferay.batch.engine.exception.handler.BatchEngineImportTaskExceptionHandler;
 import com.liferay.batch.engine.model.BatchEngineImportTask;
 import com.liferay.exportimport.kernel.lar.ExportImportThreadLocal;
-import com.liferay.exportimport.report.constants.ExportImportReportEntryConstants;
 import com.liferay.exportimport.report.internal.util.ExportImportReportEntryUtil;
 import com.liferay.exportimport.report.service.ExportImportReportEntryLocalService;
 import com.liferay.portal.kernel.log.Log;
@@ -38,7 +37,7 @@ public class ExportImportBatchEngineImportTaskExceptionHandler
 	public void handle(
 		BatchEngineImportTask batchEngineImportTask,
 		BatchEngineTaskItemDelegate<?> batchEngineTaskItemDelegate,
-		Exception exception, Object item) {
+		Exception exception, Object item, String message) {
 
 		if (!ExportImportThreadLocal.isImportInProcess()) {
 			return;
@@ -61,9 +60,8 @@ public class ExportImportBatchEngineImportTaskExceptionHandler
 			_getId(item),
 			GetterUtil.getLong(
 				ExportImportThreadLocal.getExportImportConfigurationId()),
-			exception.getMessage(), _getErrorStackTrace(exception),
-			batchEngineImportTask.getParameterValue("modelNameLanguageKey"),
-			ExportImportReportEntryConstants.ORIGIN_BATCH);
+			message, _getErrorStackTrace(exception),
+			batchEngineImportTask.getParameterValue("modelNameLanguageKey"));
 	}
 
 	private String _getErrorStackTrace(Throwable throwable) {

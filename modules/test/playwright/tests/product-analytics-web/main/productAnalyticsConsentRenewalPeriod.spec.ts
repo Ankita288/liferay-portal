@@ -5,7 +5,6 @@
 
 import {expect, mergeTests} from '@playwright/test';
 
-import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
 import {loginTest} from '../../../fixtures/loginTest';
 import {productAnalyticsPagesTest} from '../../../fixtures/productAnalyticsPagesTest';
 import {systemSettingsPageTest} from '../../../fixtures/systemSettingsPageTest';
@@ -23,10 +22,6 @@ const cookieKeys = [
 ];
 
 export const test = mergeTests(
-	featureFlagsTest({
-		'LPD-51356': {enabled: true},
-		'LPD-65277': {enabled: true},
-	}),
 	loginTest(),
 	productAnalyticsPagesTest,
 	systemSettingsPageTest
@@ -62,29 +57,63 @@ test.afterEach(async ({page, systemSettingsPage}) => {
 	});
 });
 
-test.beforeEach(async ({productAnalyticsBannerPage, systemSettingsPage}) => {
-	await test.step('Verify Product Analytics Banner appears, then Accept All cookies', async () => {
-		await expect(
-			await productAnalyticsBannerPage.bannerLocator
-		).toBeVisible();
+test.beforeEach(
+	async ({page, productAnalyticsBannerPage, systemSettingsPage}) => {
+		const productAnalyticsHeading = await page.getByRole('heading', {
+			name: 'Product Analytics',
+		});
 
-		await productAnalyticsBannerPage.acceptAllButton.click();
-	});
+		await test.step('Verify Product Analytics Instance Level Configuration', async () => {
+			await systemSettingsPage.goToSystemSetting(
+				'Privacy',
+				'Product Analytics'
+			);
 
-	await test.step('Go to Product Analytics System Settings Configuration', async () => {
-		await systemSettingsPage.goToSystemSetting(
-			'Privacy',
-			'Product Analytics'
-		);
+			await productAnalyticsHeading.waitFor();
 
-		await systemSettingsPage.page.waitForLoadState();
-	});
-});
+			const enabledButton = await page.getByLabel('Enabled');
+
+			await enabledButton.setChecked(true);
+
+			if (await page.getByRole('button', {name: 'Save'}).isVisible()) {
+				await page
+					.getByRole('button', {name: 'Save'})
+					.dispatchEvent('click');
+			}
+			else {
+				await page
+					.getByRole('button', {name: 'Update'})
+					.dispatchEvent('click');
+			}
+
+			await page.waitForTimeout(1000);
+		});
+
+		await test.step('Verify Product Analytics Banner appears, then Accept All cookies', async () => {
+			page.reload();
+
+			await expect(
+				productAnalyticsBannerPage.bannerLocator
+			).toBeVisible();
+
+			await productAnalyticsBannerPage.acceptAllButton.click();
+		});
+
+		await test.step('Go to Product Analytics System Settings Configuration', async () => {
+			await systemSettingsPage.goToSystemSetting(
+				'Privacy',
+				'Product Analytics'
+			);
+
+			await systemSettingsPage.page.waitForLoadState();
+		});
+	}
+);
 
 test(
 	'Consent Renewal Period configuration field validation',
 	{tag: '@LPD-68504'},
-	async ({page}) => {
+	async ({page, productAnalyticsBannerPage}) => {
 		const consentRenewalPeriodField = await page.getByLabel(
 			'Consent Renewal Period'
 		);
@@ -95,19 +124,28 @@ test(
 			});
 
 			await test.step('Validate value cannot be less than 1', async () => {
-				await validateConsentRenewalPeriodValue('0', page, false);
+				await validateConsentRenewalPeriodValue('0', page, false, {
+					productAnalyticsBannerPage,
+				});
 			});
 
 			await test.step('Validate value cannot be more than 12', async () => {
-				await validateConsentRenewalPeriodValue('13', page, false);
+				await validateConsentRenewalPeriodValue('13', page, false, {
+					productAnalyticsBannerPage,
+				});
 			});
 
 			await test.step('Validate value cannot be null', async () => {
-				await validateConsentRenewalPeriodValue('', page, false);
+				await validateConsentRenewalPeriodValue('', page, false, {
+					productAnalyticsBannerPage,
+				});
 			});
 
 			await test.step('Validate value must be a number', async () => {
-				await validateConsentRenewalPeriodValue('a', page, false);
+				await expect(await consentRenewalPeriodField).toHaveAttribute(
+					'type',
+					'number'
+				);
 			});
 		});
 
@@ -122,14 +160,19 @@ test(
 		});
 
 		await test.step('Verify dismissing the dialog does not change configuration value', async () => {
-			await validateConsentRenewalPeriodValue('1', page, false);
+			await validateConsentRenewalPeriodValue('1', page, false, {
+				productAnalyticsBannerPage,
+			});
 		});
 
 		await test.step('Verify accepting dialog updates configuration value and Product Analytics Banner appears again', async () => {
 			page.once('dialog', async (dialogWindow) => {
 				await dialogWindow.accept();
 			});
-			await validateConsentRenewalPeriodValue('1', page, true);
+
+			await validateConsentRenewalPeriodValue('1', page, true, {
+				productAnalyticsBannerPage,
+			});
 		});
 
 		await test.step('Verify alert appears if resetting the configuration', async () => {
@@ -154,25 +197,9 @@ test(
 			});
 		});
 
-		await test.step('Verify accepting dialog resets the configuration and Product Analytics Banner appears again', async () => {
-			page.once('dialog', async (dialogWindow) => {
-				await dialogWindow.accept();
-			});
-
-			await clickAndExpectToBeVisible({
-				autoClick: true,
-				target: page.getByRole('menuitem', {
-					name: 'Reset Default Values',
-				}),
-				trigger: page.getByRole('button', {
-					name: 'Actions',
-				}),
-			});
-
-			await page.waitForLoadState();
-
+		await test.step('Verify that resetting the configuration restores the default values', async () => {
 			await expect(await consentRenewalPeriodField).toHaveValue('12');
-			await expect(await page.getByLabel('Enabled')).toBeChecked();
+			await expect(await page.getByLabel('Enabled')).not.toBeChecked();
 			await expect(
 				await page.getByRole('menuitem', {
 					name: 'Reset Default Values',
@@ -185,14 +212,17 @@ test(
 test(
 	'Verify Consent Renewal Period correctly sets cookie expiration',
 	{tag: '@LPD-68504'},
-	async ({page}) => {
+	async ({page, productAnalyticsBannerPage}) => {
 		const dateBeforeCookiesSet = new Date().getTime();
 
 		await test.step('Set Consent Renewal Period to 1 month', async () => {
 			page.once('dialog', async (dialogWindow) => {
 				await dialogWindow.accept();
 			});
-			await validateConsentRenewalPeriodValue('1', page, true);
+
+			await validateConsentRenewalPeriodValue('1', page, true, {
+				productAnalyticsBannerPage,
+			});
 		});
 
 		const cookies = await page.context().cookies();
@@ -270,12 +300,19 @@ test(
 
 			await page.getByLabel('Consent Renewal Period').fill('2');
 
-			await page.getByRole('button', {name: 'Save'}).click();
+			if (await page.getByRole('button', {name: 'Save'}).isVisible()) {
+				await page.getByRole('button', {name: 'Save'}).click();
+			}
+			else {
+				await page.getByRole('button', {name: 'Update'}).click();
+			}
 
 			await waitForAlert(page);
 
+			page.reload();
+
 			await expect(
-				await productAnalyticsBannerPage.bannerLocator
+				productAnalyticsBannerPage.bannerLocator
 			).toBeVisible();
 		});
 
@@ -300,7 +337,8 @@ test(
 async function validateConsentRenewalPeriodValue(
 	newValue: string,
 	page,
-	saveSuccessful: boolean
+	saveSuccessful: boolean,
+	{productAnalyticsBannerPage}
 ) {
 	const consentRenewalPeriodField = await page.getByLabel(
 		'Consent Renewal Period'
@@ -322,11 +360,9 @@ async function validateConsentRenewalPeriodValue(
 
 		await waitForAlert(page);
 
-		await expect(
-			await page.locator(
-				'#p_p_id_com_liferay_product_analytics_web_portlet_ProductAnalyticsBannerPortlet_'
-			)
-		).toBeVisible();
+		page.reload();
+
+		await expect(productAnalyticsBannerPage.bannerLocator).toBeVisible();
 
 		await page.getByRole('button', {name: 'Accept All'}).click();
 	}

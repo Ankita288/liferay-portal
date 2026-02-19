@@ -10,10 +10,15 @@ exports[`AssetAppearsOnCard should render 1`] = `
     <div
       class="card-header align-items-center d-flex justify-content-between"
     >
-      <div
-        class="card-title"
-      >
-        Asset Appears On
+      <div>
+        <div
+          class="card-title"
+        >
+          Asset Appears On
+        </div>
+        <span
+          class="text-4 text-secondary"
+        />
       </div>
       <div
         class="d-flex"
@@ -361,6 +366,7 @@ exports[`AssetAppearsOnCard should render 1`] = `
           >
             <div
               class="page-link"
+              data-testid="prevArrow"
             >
               <svg
                 class="lexicon-icon lexicon-icon-angle-left"
@@ -439,6 +445,7 @@ exports[`AssetAppearsOnCard should render 1`] = `
             <a
               aria-label="Go to the next page, 2"
               class="page-link"
+              data-testid="nextArrow"
               role="button"
               tabindex="0"
             >

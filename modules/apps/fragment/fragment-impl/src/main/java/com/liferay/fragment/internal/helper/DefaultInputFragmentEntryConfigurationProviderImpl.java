@@ -78,8 +78,11 @@ public class DefaultInputFragmentEntryConfigurationProviderImpl
 			JSONObject defaultInputFragmentEntryKeysJSONObject, long groupId)
 		throws Exception {
 
+		Group group = _groupLocalService.fetchGroup(groupId);
+
 		_configurationProvider.saveGroupConfiguration(
-			DefaultInputFragmentEntryConfiguration.class, groupId,
+			DefaultInputFragmentEntryConfiguration.class, group.getCompanyId(),
+			groupId,
 			HashMapDictionaryBuilder.<String, Object>put(
 				"defaultInputFragmentEntryKeys",
 				defaultInputFragmentEntryKeysJSONObject.toString()
@@ -98,7 +101,7 @@ public class DefaultInputFragmentEntryConfigurationProviderImpl
 				defaultInputFragmentEntryConfiguration =
 					_configurationProvider.getGroupConfiguration(
 						DefaultInputFragmentEntryConfiguration.class,
-						group.getGroupId());
+						group.getCompanyId(), group.getGroupId());
 
 			String defaultInputFragmentEntryKeys =
 				defaultInputFragmentEntryConfiguration.
@@ -144,7 +147,7 @@ public class DefaultInputFragmentEntryConfigurationProviderImpl
 			JSONUtil.put("key", "INPUTS-textarea")
 		).put(
 			MultiselectInfoFieldType.INSTANCE.getName(),
-			JSONUtil.put("key", "INPUTS-multiselect-list")
+			JSONUtil.put("key", "INPUTS-multiselector-dropdown")
 		).put(
 			NumberInfoFieldType.INSTANCE.getName(),
 			JSONUtil.put("key", "INPUTS-numeric-input")

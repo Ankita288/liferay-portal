@@ -52,23 +52,14 @@ public class CookiesPreferenceHandlingConfigurationFormRenderer
 	public Map<String, Object> getRequestParameters(
 		HttpServletRequest httpServletRequest) {
 
-		HashMapBuilder.HashMapWrapper<String, Object> hashMapWrapper =
-			HashMapBuilder.<String, Object>put(
-				"enabled", ParamUtil.getBoolean(httpServletRequest, "enabled")
-			).put(
-				"explicitConsentMode",
-				ParamUtil.getBoolean(httpServletRequest, "explicitConsentMode")
-			);
-
-		if (!FeatureFlagManagerUtil.isEnabled(
-				_portal.getCompanyId(httpServletRequest), "LPD-65277")) {
-
-			return hashMapWrapper.build();
-		}
-
-		return hashMapWrapper.put(
+		return HashMapBuilder.<String, Object>put(
 			"consentRenewalPeriod",
-			ParamUtil.getInteger(httpServletRequest, "consentRenewalPeriod")
+			ParamUtil.getInteger(httpServletRequest, "consentRenewalPeriod", 12)
+		).put(
+			"enabled", ParamUtil.getBoolean(httpServletRequest, "enabled")
+		).put(
+			"explicitConsentMode",
+			ParamUtil.getBoolean(httpServletRequest, "explicitConsentMode")
 		).put(
 			"modifiedDate",
 			() -> {
@@ -76,6 +67,19 @@ public class CookiesPreferenceHandlingConfigurationFormRenderer
 
 				return ParamUtil.getLong(
 					httpServletRequest, "modifiedDate", now.getTime());
+			}
+		).put(
+			"storeConsent",
+			() -> {
+				if (FeatureFlagManagerUtil.isEnabled(
+						_portal.getCompanyId(httpServletRequest),
+						"LPD-75032")) {
+
+					return ParamUtil.getBoolean(
+						httpServletRequest, "storeConsent");
+				}
+
+				return null;
 			}
 		).build();
 	}

@@ -5,12 +5,14 @@
 
 package com.liferay.jenkins.results.parser;
 
+import com.liferay.jenkins.results.parser.history.TestClassHistory;
 import com.liferay.jenkins.results.parser.test.clazz.TestClass;
 
 import java.io.IOException;
 
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
+import java.net.URL;
 
 import java.util.Date;
 import java.util.Objects;
@@ -71,19 +73,24 @@ public class JUnitTestResult extends BaseTestResult {
 					getTestReportURL(), getDisplayName()));
 		}
 
-		TestHistory testHistory = getTestHistory();
+		TestClassHistory testClassHistory = getTestClassHistory();
 
-		if (testHistory != null) {
-			downstreamBuildListItemElement.addText(" - ");
+		if (testClassHistory != null) {
+			URL testrayCaseURL = testClassHistory.getTestrayCaseURL();
 
-			downstreamBuildListItemElement.add(
-				Dom4JUtil.getNewAnchorElement(
-					testHistory.getTestrayCaseResultURL(),
-					JenkinsResultsParserUtil.combine(
-						"Failed ",
-						String.valueOf(testHistory.getFailureCount()),
-						" of last ",
-						String.valueOf(testHistory.getTestCount()))));
+			String summaryContent = JenkinsResultsParserUtil.combine(
+				"Failed ", String.valueOf(testClassHistory.getFailureCount()),
+				" of last ", String.valueOf(testClassHistory.getTestCount()));
+
+			if (testrayCaseURL != null) {
+				Dom4JUtil.addToElement(
+					downstreamBuildListItemElement, " - ",
+					Dom4JUtil.getNewAnchorElement(
+						String.valueOf(testrayCaseURL), summaryContent));
+			}
+			else {
+				downstreamBuildListItemElement.addText(" - " + summaryContent);
+			}
 		}
 
 		String errorStackTrace = getErrorStackTrace();

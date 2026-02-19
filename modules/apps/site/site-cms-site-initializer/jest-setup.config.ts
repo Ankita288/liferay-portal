@@ -30,6 +30,7 @@ jest.mock('@ckeditor/ckeditor5-style/dist/index', () => ({}));
 jest.mock('@ckeditor/ckeditor5-table/dist/index', () => ({}));
 jest.mock('@ckeditor/ckeditor5-ui/dist/index', () => ({}));
 jest.mock('@ckeditor/ckeditor5-widget/dist/index', () => ({}));
+jest.mock('@jsonurl/jsonurl', () => ({}));
 
 class MockBroadcastChannel {
 	name: string;

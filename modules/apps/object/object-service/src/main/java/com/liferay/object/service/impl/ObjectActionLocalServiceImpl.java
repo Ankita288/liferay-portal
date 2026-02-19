@@ -54,6 +54,7 @@ import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
+import com.liferay.portal.kernel.lazy.referencing.LazyReferencingThreadLocal;
 import com.liferay.portal.kernel.lock.LockManagerUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
@@ -574,8 +575,10 @@ public class ObjectActionLocalServiceImpl
 				notificationTemplate.getType(),
 				NotificationConstants.TYPE_EMAIL) &&
 			(Objects.equals(
-				objectActionTriggerKey,
-				ObjectActionTriggerConstants.KEY_ON_AFTER_ADD) ||
+				objectActionTriggerKey, DestinationNames.CMP_COMMENT_ADDED) ||
+			 Objects.equals(
+				 objectActionTriggerKey,
+				 ObjectActionTriggerConstants.KEY_ON_AFTER_ADD) ||
 			 Objects.equals(
 				 objectActionTriggerKey,
 				 ObjectActionTriggerConstants.KEY_ON_AFTER_UPDATE))) {
@@ -826,6 +829,9 @@ public class ObjectActionLocalServiceImpl
 
 			if (StringUtil.equals(
 					objectActionTriggerKey,
+					DestinationNames.CMP_COMMENT_ADDED) ||
+				StringUtil.equals(
+					objectActionTriggerKey,
 					DestinationNames.COMMERCE_ORDER_STATUS) ||
 				StringUtil.equals(
 					objectActionTriggerKey,
@@ -896,24 +902,27 @@ public class ObjectActionLocalServiceImpl
 					"objectDefinitionExternalReferenceCode"));
 
 			if (Validator.isNotNull(objectDefinitionExternalReferenceCode)) {
-				objectDefinition = _objectDefinitionPersistence.fetchByERC_C(
-					objectDefinitionExternalReferenceCode, companyId);
+				try (SafeCloseable safeCloseable =
+						LazyReferencingThreadLocal.setEnabledWithSafeCloseable(
+							true)) {
 
-				if (objectDefinition == null) {
 					ObjectFolder defaultObjectFolder =
 						_objectFolderLocalService.getOrAddDefaultObjectFolder(
 							companyId);
 
 					objectDefinition =
-						ObjectDefinitionLocalServiceUtil.addObjectDefinition(
-							objectDefinitionExternalReferenceCode, userId,
-							defaultObjectFolder.getObjectFolderId(), true,
-							ObjectDefinitionConstants.SCOPE_COMPANY, false);
-				}
+						ObjectDefinitionLocalServiceUtil.
+							getOrAddEmptyObjectDefinition(
+								objectDefinitionExternalReferenceCode,
+								companyId, userId,
+								defaultObjectFolder.getObjectFolderId(), true,
+								ObjectDefinitionConstants.SCOPE_COMPANY, false);
 
-				parametersUnicodeProperties.put(
-					"objectDefinitionId",
-					String.valueOf(objectDefinition.getObjectDefinitionId()));
+					parametersUnicodeProperties.put(
+						"objectDefinitionId",
+						String.valueOf(
+							objectDefinition.getObjectDefinitionId()));
+				}
 			}
 			else {
 				objectDefinition =

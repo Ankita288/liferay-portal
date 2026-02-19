@@ -9,6 +9,7 @@ import com.liferay.portal.aop.AopService;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.messaging.Message;
 import com.liferay.portal.kernel.messaging.MessageBus;
+import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.ResourceConstants;
 import com.liferay.portal.kernel.model.SystemEventConstants;
 import com.liferay.portal.kernel.model.User;
@@ -24,6 +25,7 @@ import com.liferay.portal.kernel.search.QueryConfig;
 import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
 import com.liferay.portal.kernel.search.Sort;
+import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.ResourceLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.UserLocalService;
@@ -34,6 +36,7 @@ import com.liferay.portal.kernel.util.GroupThreadLocal;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.OrderByComparator;
 import com.liferay.portal.kernel.util.Portal;
+import com.liferay.portal.kernel.util.ScopeUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.segments.constants.SegmentsEntryConstants;
@@ -200,8 +203,19 @@ public class SegmentsEntryLocalServiceImpl
 		// Segments entry
 
 		if (!GroupThreadLocal.isDeleteInProcess()) {
-			int count = _segmentsExperiencePersistence.countBySegmentsEntryId(
-				segmentsEntry.getSegmentsEntryId());
+			int count = _segmentsExperiencePersistence.countBySEERC_SESERC(
+				segmentsEntry.getExternalReferenceCode(),
+				ScopeUtil.getItemScopeExternalReferenceCode(
+					segmentsEntry.getGroupId(), 0));
+
+			if (count == 0) {
+				count = _segmentsExperiencePersistence.countByG_SEERC_SESERC(
+					segmentsEntry.getGroupId(),
+					segmentsEntry.getExternalReferenceCode(),
+					ScopeUtil.getItemScopeExternalReferenceCode(
+						segmentsEntry.getGroupId(),
+						segmentsEntry.getGroupId()));
+			}
 
 			if (count > 0) {
 				throw new RequiredSegmentsEntryException.
@@ -219,8 +233,20 @@ public class SegmentsEntryLocalServiceImpl
 
 		// Segments experiences
 
+		Group group = _groupLocalService.fetchGroup(segmentsEntry.getGroupId());
+
+		if ((group != null) &&
+			Validator.isNotNull(group.getExternalReferenceCode())) {
+
+			_segmentsExperienceLocalService.
+				deleteSegmentsEntrySegmentsExperiences(
+					segmentsEntry.getExternalReferenceCode(),
+					group.getExternalReferenceCode());
+		}
+
 		_segmentsExperienceLocalService.deleteSegmentsEntrySegmentsExperiences(
-			segmentsEntry.getSegmentsEntryId());
+			segmentsEntry.getGroupId(),
+			segmentsEntry.getExternalReferenceCode(), null);
 
 		// Segments rels
 
@@ -573,6 +599,9 @@ public class SegmentsEntryLocalServiceImpl
 				"Name is null for locale " + defaultLocale.getDisplayName());
 		}
 	}
+
+	@Reference
+	private GroupLocalService _groupLocalService;
 
 	@Reference
 	private MessageBus _messageBus;

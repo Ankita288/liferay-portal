@@ -11,6 +11,7 @@ import com.liferay.batch.engine.BatchEngineTaskExecuteStatus;
 import com.liferay.batch.engine.BatchEngineTaskItemDelegate;
 import com.liferay.batch.engine.BatchEngineTaskItemDelegateRegistry;
 import com.liferay.batch.engine.ItemClassRegistry;
+import com.liferay.batch.engine.action.ExportTaskPostAction;
 import com.liferay.batch.engine.configuration.BatchEngineTaskCompanyConfiguration;
 import com.liferay.batch.engine.csv.ColumnDescriptorProvider;
 import com.liferay.batch.engine.internal.writer.BatchEngineExportTaskItemWriter;
@@ -19,11 +20,14 @@ import com.liferay.batch.engine.model.BatchEngineExportTask;
 import com.liferay.batch.engine.pagination.Page;
 import com.liferay.batch.engine.pagination.Pagination;
 import com.liferay.batch.engine.service.BatchEngineExportTaskLocalService;
+import com.liferay.osgi.service.tracker.collections.list.ServiceTrackerList;
+import com.liferay.osgi.service.tracker.collections.list.ServiceTrackerListFactory;
 import com.liferay.petra.io.unsync.UnsyncByteArrayInputStream;
 import com.liferay.petra.io.unsync.UnsyncByteArrayOutputStream;
 import com.liferay.petra.lang.SafeCloseable;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.configuration.module.configuration.ConfigurationProvider;
+import com.liferay.portal.kernel.backgroundtask.BackgroundTaskStatusMessageSender;
 import com.liferay.portal.kernel.change.tracking.CTCollectionThreadLocal;
 import com.liferay.portal.kernel.dao.jdbc.OutputBlob;
 import com.liferay.portal.kernel.exception.PortalException;
@@ -65,7 +69,10 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.osgi.framework.BundleContext;
+import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
 
 /**
@@ -181,6 +188,19 @@ public class BatchEngineExportTaskExecutorImpl
 		return null;
 	}
 
+	@Activate
+	protected void activate(
+		BundleContext bundleContext, Map<String, Object> properties) {
+
+		_exportTaskPostActions = ServiceTrackerListFactory.open(
+			bundleContext, ExportTaskPostAction.class);
+	}
+
+	@Deactivate
+	protected void deactivate() {
+		_exportTaskPostActions.close();
+	}
+
 	private InputStream _exportItems(
 			BatchEngineExportTask batchEngineExportTask, Settings settings)
 		throws Exception {
@@ -198,25 +218,6 @@ public class BatchEngineExportTaskExecutorImpl
 					batchEngineExportTask, parameters, settings,
 					unsyncByteArrayOutputStream)) {
 
-			oldNestedFieldsContext =
-				NestedFieldsContextThreadLocal.getNestedFieldsContext();
-
-			NestedFieldsContextThreadLocal.setNestedFieldsContext(
-				new NestedFieldsContext(
-					NestedFieldsContextUtil.limitDepth(
-						GetterUtil.getInteger(
-							parameters.get("batchNestedFieldsDepth"))),
-					NestedFieldsContextUtil.toList(
-						MapUtil.getString(parameters, "batchNestedFields"))));
-
-			int maxItems = settings.getMaxItems();
-
-			int exportBatchSize = Math.min(
-				maxItems,
-				_getExportBatchSize(batchEngineExportTask.getCompanyId()));
-
-			batchEngineExportTask.setProcessedItemsCount(0);
-
 			BatchEngineTaskItemDelegate<?> batchEngineTaskItemDelegate =
 				_batchEngineTaskItemDelegateRegistry.
 					getBatchEngineTaskItemDelegate(
@@ -229,6 +230,26 @@ public class BatchEngineExportTaskExecutorImpl
 					"No batch engine delegate available for class name " +
 						batchEngineExportTask.getClassName());
 			}
+
+			oldNestedFieldsContext =
+				NestedFieldsContextThreadLocal.getNestedFieldsContext();
+
+			NestedFieldsContextThreadLocal.setNestedFieldsContext(
+				new NestedFieldsContext(
+					NestedFieldsContextUtil.limitDepth(
+						GetterUtil.getInteger(
+							parameters.get("batchNestedFieldsDepth"))),
+					NestedFieldsContextUtil.toList(
+						MapUtil.getString(parameters, "batchNestedFields")),
+					batchEngineTaskItemDelegate.getVersion()));
+
+			int maxItems = settings.getMaxItems();
+
+			int exportBatchSize = Math.min(
+				maxItems,
+				_getExportBatchSize(batchEngineExportTask.getCompanyId()));
+
+			batchEngineExportTask.setProcessedItemsCount(0);
 
 			User user = _userLocalService.getUser(
 				batchEngineExportTask.getUserId());
@@ -253,14 +274,43 @@ public class BatchEngineExportTaskExecutorImpl
 			batchEngineExportTask.setTotalItemsCount(
 				Math.toIntExact(page.getTotalCount()));
 
+			int lastReportedItemsCount = 0;
+
 			Collection<?> items = page.getItems();
 
 			while (!items.isEmpty()) {
+				BatchEngineExportTask finalBatchEngineExportTask =
+					batchEngineExportTask;
+
+				for (ExportTaskPostAction exportTaskPostAction :
+						_exportTaskPostActions) {
+
+					for (Object item : items) {
+						exportTaskPostAction.run(
+							finalBatchEngineExportTask,
+							batchEngineTaskItemDelegate, item);
+					}
+				}
+
 				batchEngineExportTaskItemWriter.write(items);
 
 				batchEngineExportTask.setProcessedItemsCount(
 					batchEngineExportTask.getProcessedItemsCount() +
 						items.size());
+
+				int currentItemsProcessedCount =
+					batchEngineExportTask.getProcessedItemsCount();
+
+				int itemsSinceLastReport =
+					currentItemsProcessedCount - lastReportedItemsCount;
+
+				if (itemsSinceLastReport >= exportBatchSize) {
+					BatchEngineTaskExecutorUtil.sendBatchProgressMessage(
+						_backgroundTaskStatusMessageSender,
+						currentItemsProcessedCount);
+
+					lastReportedItemsCount = currentItemsProcessedCount;
+				}
 
 				if (settings.isPersist()) {
 					batchEngineExportTask =
@@ -286,6 +336,14 @@ public class BatchEngineExportTaskExecutorImpl
 					(String)parameters.get("search"));
 
 				items = page.getItems();
+			}
+
+			if (batchEngineExportTask.getProcessedItemsCount() >
+					lastReportedItemsCount) {
+
+				BatchEngineTaskExecutorUtil.sendBatchProgressMessage(
+					_backgroundTaskStatusMessageSender,
+					batchEngineExportTask.getProcessedItemsCount());
 			}
 		}
 		finally {
@@ -529,6 +587,10 @@ public class BatchEngineExportTaskExecutorImpl
 		BatchEngineExportTaskExecutorImpl.class);
 
 	@Reference
+	private BackgroundTaskStatusMessageSender
+		_backgroundTaskStatusMessageSender;
+
+	@Reference
 	private BatchEngineExportTaskLocalService
 		_batchEngineExportTaskLocalService;
 
@@ -544,6 +606,8 @@ public class BatchEngineExportTaskExecutorImpl
 
 	@Reference
 	private ConfigurationProvider _configurationProvider;
+
+	private ServiceTrackerList<ExportTaskPostAction> _exportTaskPostActions;
 
 	@Reference(
 		target = "(result.class.name=com.liferay.portal.kernel.search.filter.Filter)"

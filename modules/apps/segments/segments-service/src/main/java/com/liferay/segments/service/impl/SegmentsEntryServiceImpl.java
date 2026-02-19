@@ -108,6 +108,22 @@ public class SegmentsEntryServiceImpl extends SegmentsEntryServiceBaseImpl {
 	}
 
 	@Override
+	public SegmentsEntry fetchSegmentsEntryByExternalReferenceCode(
+			String segmentsEntryERC, long groupId)
+		throws PortalException {
+
+		SegmentsEntry segmentsEntry =
+			segmentsEntryLocalService.fetchSegmentsEntryByExternalReferenceCode(
+				segmentsEntryERC, groupId);
+
+		_segmentsEntryResourcePermission.check(
+			getPermissionChecker(), segmentsEntry.getSegmentsEntryId(),
+			ActionKeys.VIEW);
+
+		return segmentsEntry;
+	}
+
+	@Override
 	public List<SegmentsEntry> getSegmentsEntries(long groupId) {
 		return segmentsEntryPersistence.filterFindByGroupId(
 			_portal.getCurrentAndAncestorSiteGroupIds(groupId));
@@ -138,6 +154,22 @@ public class SegmentsEntryServiceImpl extends SegmentsEntryServiceBaseImpl {
 
 		_segmentsEntryResourcePermission.check(
 			getPermissionChecker(), segmentsEntryId, ActionKeys.VIEW);
+
+		return segmentsEntry;
+	}
+
+	@Override
+	public SegmentsEntry getSegmentsEntryByExternalReferenceCode(
+			String segmentsEntryERC, long groupId)
+		throws PortalException {
+
+		SegmentsEntry segmentsEntry =
+			segmentsEntryLocalService.getSegmentsEntryByExternalReferenceCode(
+				segmentsEntryERC, groupId);
+
+		_segmentsEntryResourcePermission.check(
+			getPermissionChecker(), segmentsEntry.getSegmentsEntryId(),
+			ActionKeys.VIEW);
 
 		return segmentsEntry;
 	}

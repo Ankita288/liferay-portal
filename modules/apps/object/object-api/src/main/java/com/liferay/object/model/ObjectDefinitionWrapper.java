@@ -730,6 +730,16 @@ public class ObjectDefinitionWrapper
 	}
 
 	@Override
+	public com.liferay.object.model.bag.ObjectFieldBag getObjectFieldBag() {
+		return model.getObjectFieldBag();
+	}
+
+	@Override
+	public ObjectFolder getObjectFolder() {
+		return model.getObjectFolder();
+	}
+
+	@Override
 	public String getObjectFolderExternalReferenceCode() {
 		return model.getObjectFolderExternalReferenceCode();
 	}
@@ -1048,6 +1058,11 @@ public class ObjectDefinitionWrapper
 	@Override
 	public boolean isApproved() {
 		return model.isApproved();
+	}
+
+	@Override
+	public boolean isCMP() {
+		return model.isCMP();
 	}
 
 	@Override
@@ -1575,6 +1590,18 @@ public class ObjectDefinitionWrapper
 		java.util.List<ObjectDefinitionSetting> objectDefinitionSettings) {
 
 		model.setObjectDefinitionSettings(objectDefinitionSettings);
+	}
+
+	@Override
+	public void setObjectFieldBag(
+		com.liferay.object.model.bag.ObjectFieldBag objectFieldBag) {
+
+		model.setObjectFieldBag(objectFieldBag);
+	}
+
+	@Override
+	public void setObjectFolder(ObjectFolder objectFolder) {
+		model.setObjectFolder(objectFolder);
 	}
 
 	/**

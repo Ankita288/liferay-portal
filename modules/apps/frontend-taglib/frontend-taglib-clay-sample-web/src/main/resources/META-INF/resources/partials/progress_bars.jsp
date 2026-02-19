@@ -12,18 +12,27 @@
 </blockquote>
 
 <clay:progressbar
-	maxValue="<%= 100 %>"
-	minValue="<%= 0 %>"
+	messages='<%=
+		HashMapBuilder.<String, String>put(
+			"ariaLabelAttention", "Warning! Value is at {0}"
+		).put(
+			"ariaLabelComplete", "Finished"
+		).put(
+			"ariaLabelInProgress", "Processing {0}"
+		).build()
+	%>'
+	value="<%= 50 %>"
+/>
+
+<clay:progressbar
 	value="<%= 30 %>"
 />
 
 <clay:progressbar
-	maxValue="<%= 100 %>"
-	minValue="<%= 0 %>"
-	status="warning"
 	value="<%= 70 %>"
+	warn="<%= true %>"
 />
 
 <clay:progressbar
-	status="complete"
+	value="<%= 100 %>"
 />

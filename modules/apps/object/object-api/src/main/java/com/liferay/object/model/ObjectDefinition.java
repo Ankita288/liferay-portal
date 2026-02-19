@@ -59,6 +59,10 @@ public interface ObjectDefinition
 	public java.util.List<ObjectDefinitionSetting>
 		getObjectDefinitionSettings();
 
+	public com.liferay.object.model.bag.ObjectFieldBag getObjectFieldBag();
+
+	public ObjectFolder getObjectFolder();
+
 	public String getObjectFolderExternalReferenceCode();
 
 	public String getOSGiJaxRsName();
@@ -81,6 +85,8 @@ public interface ObjectDefinition
 
 	public boolean isApproved();
 
+	public boolean isCMP();
+
 	public boolean isCMS();
 
 	public boolean isDefaultStorageType();
@@ -101,5 +107,10 @@ public interface ObjectDefinition
 
 	public void setObjectDefinitionSettings(
 		java.util.List<ObjectDefinitionSetting> objectDefinitionSettings);
+
+	public void setObjectFieldBag(
+		com.liferay.object.model.bag.ObjectFieldBag objectFieldBag);
+
+	public void setObjectFolder(ObjectFolder objectFolder);
 
 }

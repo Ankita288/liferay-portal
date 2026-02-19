@@ -61,7 +61,6 @@ import com.liferay.portal.configuration.metatype.bnd.util.ConfigurableUtil;
 import com.liferay.portal.configuration.module.configuration.ConfigurationProvider;
 import com.liferay.portal.kernel.backgroundtask.BackgroundTaskThreadLocal;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
-import com.liferay.portal.kernel.exception.NoSuchLayoutException;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
@@ -121,6 +120,7 @@ import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.PropsValues;
+import com.liferay.portal.kernel.util.ScopeUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
 import com.liferay.portal.kernel.util.UnicodePropertiesBuilder;
@@ -674,10 +674,12 @@ public class LayoutStagedModelDataHandler
 			else {
 				importedLayout.setCreateDate(layout.getCreateDate());
 				importedLayout.setModifiedDate(layout.getModifiedDate());
-				importedLayout.setLayoutPrototypeUuid(
-					layout.getLayoutPrototypeUuid());
-				importedLayout.setLayoutPrototypeLinkEnabled(
-					layout.isLayoutPrototypeLinkEnabled());
+				importedLayout.setPortletLayoutPageTemplateEntryERC(
+					layout.getPortletLayoutPageTemplateEntryERC());
+				importedLayout.setPortletLayoutPageTemplateEntryScopeERC(
+					layout.getPortletLayoutPageTemplateEntryScopeERC());
+				importedLayout.setPortletLayoutPageTemplateEntryLinkEnabled(
+					layout.isPortletLayoutPageTemplateEntryLinkEnabled());
 				importedLayout.setLayoutSetPrototypeLayoutERC(
 					layout.getLayoutSetPrototypeLayoutERC());
 			}
@@ -842,7 +844,9 @@ public class LayoutStagedModelDataHandler
 
 		importedLayout.setCompanyId(portletDataContext.getCompanyId());
 
-		if (layout.getLayoutPrototypeUuid() != null) {
+		if (Validator.isNotNull(
+				layout.getPortletLayoutPageTemplateEntryERC())) {
+
 			importedLayout.setModifiedDate(new Date());
 		}
 
@@ -887,7 +891,8 @@ public class LayoutStagedModelDataHandler
 		if (layoutsImportMode.equals(
 				PortletDataHandlerKeys.
 					LAYOUTS_IMPORT_MODE_MERGE_BY_LAYOUT_UUID) &&
-			(layout.getLayoutPrototypeUuid() != null)) {
+			Validator.isNotNull(
+				layout.getPortletLayoutPageTemplateEntryERC())) {
 
 			_resetLastMergeTime(importedLayout, layout);
 		}
@@ -934,19 +939,26 @@ public class LayoutStagedModelDataHandler
 			}
 		}
 
-		importedLayout.setLayoutPrototypeUuid(
-			_getLayoutPrototypeUuid(
-				portletDataContext.getCompanyId(), layout, layoutElement));
-		importedLayout.setLayoutPrototypeLinkEnabled(
-			layout.isLayoutPrototypeLinkEnabled());
+		LayoutPageTemplateEntry layoutPageTemplateEntry =
+			_getPortletLayoutPageTemplateEntry(
+				portletDataContext.getCompanyId(), layoutElement);
+
+		importedLayout.setPortletLayoutPageTemplateEntryERC(
+			_getPortletLayoutPageTemplateEntryERC(
+				layout, layoutPageTemplateEntry));
+		importedLayout.setPortletLayoutPageTemplateEntryScopeERC(
+			_getPortletLayoutPageTemplateEntryScopeERC(
+				layout, layoutPageTemplateEntry, groupId));
+
+		importedLayout.setPortletLayoutPageTemplateEntryLinkEnabled(
+			layout.isPortletLayoutPageTemplateEntryLinkEnabled());
 
 		ServiceContext serviceContext = portletDataContext.createServiceContext(
 			layout);
 
 		importedLayout.setExpandoBridgeAttributes(serviceContext);
 
-		_importFaviconFileEntry(
-			layout, layoutElement, importedLayout, portletDataContext);
+		_importFaviconFileEntry(layout, layoutElement, importedLayout);
 
 		_importClientExtensionEntryRels(
 			importedLayout, layout, portletDataContext);
@@ -1314,15 +1326,17 @@ public class LayoutStagedModelDataHandler
 			PortletDataContext portletDataContext)
 		throws Exception {
 
-		if (layout.getFaviconFileEntryId() <= 0) {
+		if (Validator.isNull(layout.getFaviconFileEntryERC())) {
 			return;
 		}
 
 		FileEntry faviconFileEntry = null;
 
 		try {
-			faviconFileEntry = _dlAppLocalService.getFileEntry(
-				layout.getFaviconFileEntryId());
+			faviconFileEntry =
+				_dlAppLocalService.getFileEntryByExternalReferenceCode(
+					layout.getFaviconFileEntryERC(),
+					layout.getFaviconFileEntryGroupId());
 		}
 		catch (PortalException portalException) {
 			if (_log.isWarnEnabled()) {
@@ -1587,34 +1601,16 @@ public class LayoutStagedModelDataHandler
 			PortletDataContext portletDataContext)
 		throws Exception {
 
-		UnicodeProperties typeSettingsUnicodeProperties =
-			layout.getTypeSettingsProperties();
+		Layout linkedLayout = _getLinkedLayout(
+			portletDataContext.getScopeGroupId(), layout);
 
-		long linkToLayoutId = GetterUtil.getLong(
-			typeSettingsUnicodeProperties.getProperty(
-				"linkToLayoutId", StringPool.BLANK));
+		if (linkedLayout != null) {
+			StagedModelDataHandlerUtil.exportReferenceStagedModel(
+				portletDataContext, layout, linkedLayout,
+				PortletDataContext.REFERENCE_TYPE_STRONG);
 
-		if (linkToLayoutId > 0) {
-			try {
-				Layout linkedToLayout = _layoutLocalService.getLayout(
-					portletDataContext.getScopeGroupId(),
-					layout.isPrivateLayout(), linkToLayoutId);
-
-				StagedModelDataHandlerUtil.exportReferenceStagedModel(
-					portletDataContext, layout, linkedToLayout,
-					PortletDataContext.REFERENCE_TYPE_STRONG);
-
-				layoutElement.addAttribute(
-					"linked-to-layout-uuid", linkedToLayout.getUuid());
-			}
-			catch (NoSuchLayoutException noSuchLayoutException) {
-
-				// LPS-52675
-
-				if (_log.isDebugEnabled()) {
-					_log.debug(noSuchLayoutException);
-				}
-			}
+			layoutElement.addAttribute(
+				"linked-to-layout-uuid", linkedLayout.getUuid());
 		}
 	}
 
@@ -1856,26 +1852,46 @@ public class LayoutStagedModelDataHandler
 			layoutFriendlyURL.getPlid());
 	}
 
-	private String _getLayoutPrototypeUuid(
-		long companyId, Layout layout, Element layoutElement) {
+	private Layout _getLinkedLayout(long groupId, Layout layout) {
+		UnicodeProperties typeSettingsUnicodeProperties =
+			layout.getTypeSettingsProperties();
 
-		boolean preloaded = GetterUtil.getBoolean(
-			layoutElement.attributeValue("preloaded"));
+		String linkToLayoutExternalReferenceCode =
+			typeSettingsUnicodeProperties.getProperty(
+				"linkToLayoutExternalReferenceCode");
 
-		if (preloaded) {
-			String layoutPrototypeName = GetterUtil.getString(
-				layoutElement.attributeValue("layout-prototype-name"));
-
-			LayoutPrototype layoutPrototype =
-				_layoutPrototypeLocalService.fetchLayoutProtoype(
-					companyId, layoutPrototypeName);
-
-			if (layoutPrototype != null) {
-				return layoutPrototype.getUuid();
+		if (Validator.isNotNull(linkToLayoutExternalReferenceCode)) {
+			try {
+				return _layoutLocalService.getLayoutByExternalReferenceCode(
+					linkToLayoutExternalReferenceCode, groupId);
+			}
+			catch (PortalException portalException) {
+				if (_log.isDebugEnabled()) {
+					_log.debug(portalException);
+				}
 			}
 		}
 
-		return layout.getLayoutPrototypeUuid();
+		long linkToLayoutId = GetterUtil.getLong(
+			typeSettingsUnicodeProperties.getProperty(
+				"linkToLayoutId", StringPool.BLANK));
+
+		if (linkToLayoutId > 0) {
+			try {
+				return _layoutLocalService.getLayout(
+					groupId, layout.isPrivateLayout(), linkToLayoutId);
+			}
+			catch (PortalException portalException) {
+
+				// LPS-52675
+
+				if (_log.isDebugEnabled()) {
+					_log.debug(portalException);
+				}
+			}
+		}
+
+		return null;
 	}
 
 	private Map<String, Object[]> _getPortletIds(
@@ -2011,6 +2027,66 @@ public class LayoutStagedModelDataHandler
 		return portletIds;
 	}
 
+	private LayoutPageTemplateEntry _getPortletLayoutPageTemplateEntry(
+		long companyId, Element layoutElement) {
+
+		boolean preloaded = GetterUtil.getBoolean(
+			layoutElement.attributeValue("preloaded"));
+
+		if (preloaded) {
+			String layoutPrototypeName = GetterUtil.getString(
+				layoutElement.attributeValue("layout-prototype-name"));
+
+			LayoutPrototype layoutPrototype =
+				_layoutPrototypeLocalService.fetchLayoutProtoype(
+					companyId, layoutPrototypeName);
+
+			if (layoutPrototype == null) {
+				return null;
+			}
+
+			LayoutPageTemplateEntry layoutPageTemplateEntry =
+				_layoutPageTemplateEntryLocalService.
+					fetchLayoutPageTemplateEntry(
+						layoutPrototype.getLayoutPrototypeId());
+
+			if (layoutPageTemplateEntry != null) {
+				return layoutPageTemplateEntry;
+			}
+		}
+
+		return null;
+	}
+
+	private String _getPortletLayoutPageTemplateEntryERC(
+		Layout layout, LayoutPageTemplateEntry layoutPageTemplateEntry) {
+
+		if (layoutPageTemplateEntry == null) {
+			return layout.getPortletLayoutPageTemplateEntryERC();
+		}
+
+		return layoutPageTemplateEntry.getExternalReferenceCode();
+	}
+
+	private String _getPortletLayoutPageTemplateEntryScopeERC(
+			Layout layout, LayoutPageTemplateEntry layoutPageTemplateEntry,
+			long scopeGroupId)
+		throws Exception {
+
+		if (layoutPageTemplateEntry == null) {
+			return layout.getPortletLayoutPageTemplateEntryScopeERC();
+		}
+
+		if (layoutPageTemplateEntry.getGroupId() == scopeGroupId) {
+			return StringPool.BLANK;
+		}
+
+		Group group = _groupLocalService.getGroup(
+			layoutPageTemplateEntry.getGroupId());
+
+		return group.getExternalReferenceCode();
+	}
+
 	private String _getUniqueFriendlyURL(
 		Layout existingLayout, String friendlyURL,
 		PortletDataContext portletDataContext) {
@@ -2075,22 +2151,15 @@ public class LayoutStagedModelDataHandler
 	}
 
 	private void _importFaviconFileEntry(
-		Layout layout, Element layoutElement, Layout importedLayout,
-		PortletDataContext portletDataContext) {
+		Layout layout, Element layoutElement, Layout importedLayout) {
 
-		Map<Long, Long> fileEntryIds =
-			(Map<Long, Long>)portletDataContext.getNewPrimaryKeysMap(
-				FileEntry.class);
-
-		long faviconFileEntryId = MapUtil.getLong(
-			fileEntryIds, layout.getFaviconFileEntryId(), 0);
+		String faviconFileEntryERC = layout.getFaviconFileEntryERC();
+		String faviconFileEntryScopeERC = layout.getFaviconFileEntryScopeERC();
 
 		String faviconFileEntryUuid = layoutElement.attributeValue(
 			"favicon-file-entry-uuid");
 
-		if ((faviconFileEntryId == 0) &&
-			Validator.isNotNull(faviconFileEntryUuid)) {
-
+		if (Validator.isNotNull(faviconFileEntryUuid)) {
 			long faviconFileEntryGroupId = GetterUtil.getLong(
 				layoutElement.attributeValue("favicon-file-entry-group-id"));
 
@@ -2099,7 +2168,19 @@ public class LayoutStagedModelDataHandler
 					_dlAppLocalService.getFileEntryByUuidAndGroupId(
 						faviconFileEntryUuid, faviconFileEntryGroupId);
 
-				faviconFileEntryId = faviconFileEntry.getFileEntryId();
+				faviconFileEntryERC =
+					faviconFileEntry.getExternalReferenceCode();
+
+				if (layout.getGroupId() != faviconFileEntryGroupId) {
+					Group faviconFileEntryGroup = _groupLocalService.getGroup(
+						faviconFileEntryGroupId);
+
+					faviconFileEntryScopeERC =
+						faviconFileEntryGroup.getExternalReferenceCode();
+				}
+				else {
+					faviconFileEntryScopeERC = null;
+				}
 			}
 			catch (PortalException portalException) {
 				if (_log.isDebugEnabled()) {
@@ -2108,7 +2189,8 @@ public class LayoutStagedModelDataHandler
 			}
 		}
 
-		importedLayout.setFaviconFileEntryId(faviconFileEntryId);
+		importedLayout.setFaviconFileEntryERC(faviconFileEntryERC);
+		importedLayout.setFaviconFileEntryScopeERC(faviconFileEntryScopeERC);
 	}
 
 	private void _importFriendlyURLEntries(
@@ -2914,15 +2996,37 @@ public class LayoutStagedModelDataHandler
 		layoutElement.addAttribute(
 			"layout-priority", String.valueOf(layout.getPriority()));
 
-		String layoutPrototypeUuid = layout.getLayoutPrototypeUuid();
+		if (Validator.isNull(layout.getPortletLayoutPageTemplateEntryERC())) {
+			return;
+		}
 
-		if (Validator.isNull(layoutPrototypeUuid)) {
+		Long groupId = ScopeUtil.getItemGroupId(
+			layout.getCompanyId(),
+			layout.getPortletLayoutPageTemplateEntryScopeERC(),
+			layout.getGroupId());
+
+		if (Validator.isNull(groupId)) {
+			return;
+		}
+
+		LayoutPageTemplateEntry layoutPrototypeLayoutPageTemplateEntry =
+			_layoutPageTemplateEntryLocalService.
+				fetchLayoutPageTemplateEntryByExternalReferenceCode(
+					layout.getPortletLayoutPageTemplateEntryERC(), groupId);
+
+		if (layoutPrototypeLayoutPageTemplateEntry == null) {
+			return;
+		}
+
+		long layoutPrototypeId =
+			layoutPrototypeLayoutPageTemplateEntry.getLayoutPrototypeId();
+
+		if (layoutPrototypeId == 0) {
 			return;
 		}
 
 		LayoutPrototype layoutPrototype =
-			_layoutPrototypeLocalService.getLayoutPrototypeByUuidAndCompanyId(
-				layoutPrototypeUuid, layout.getCompanyId());
+			_layoutPrototypeLocalService.getLayoutPrototype(layoutPrototypeId);
 
 		long guestUserId = _userLocalService.getGuestUserId(
 			layout.getCompanyId());
@@ -2932,7 +3036,7 @@ public class LayoutStagedModelDataHandler
 		}
 
 		layoutElement.addAttribute(
-			"layout-prototype-uuid", layoutPrototypeUuid);
+			"layout-prototype-uuid", layoutPrototype.getUuid());
 		layoutElement.addAttribute(
 			"layout-prototype-name",
 			layoutPrototype.getName(LocaleUtil.getDefault()));

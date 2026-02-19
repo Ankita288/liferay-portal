@@ -96,8 +96,6 @@ public class ElasticsearchSearchEngineFixture implements SearchEngineFixture {
 	public void tearDown() throws Exception {
 		_elasticsearchConnectionFixture.destroyNode();
 
-		_elasticsearchEngineAdapterFixture.tearDown();
-
 		if (_indexFactory != null) {
 			_indexFactory.close();
 
@@ -170,7 +168,8 @@ public class ElasticsearchSearchEngineFixture implements SearchEngineFixture {
 		ReflectionTestUtil.setFieldValue(
 			elasticsearchSearchEngine, "_indexFactory",
 			_createIndexFactory(
-				elasticsearchConfigurationWrapper, indexNameBuilder));
+				elasticsearchConfigurationWrapper,
+				elasticsearchConnectionManager, indexNameBuilder));
 		ReflectionTestUtil.setFieldValue(
 			elasticsearchSearchEngine, "_indexNameBuilder", indexNameBuilder);
 		ReflectionTestUtil.setFieldValue(
@@ -197,6 +196,7 @@ public class ElasticsearchSearchEngineFixture implements SearchEngineFixture {
 
 	private IndexFactory _createIndexFactory(
 		ElasticsearchConfigurationWrapper elasticsearchConfigurationWrapper,
+		ElasticsearchConnectionManager elasticsearchConnectionManager,
 		IndexNameBuilder indexNameBuilder) {
 
 		_companyIndexHelper = new CompanyIndexHelper();
@@ -204,6 +204,9 @@ public class ElasticsearchSearchEngineFixture implements SearchEngineFixture {
 		ReflectionTestUtil.setFieldValue(
 			_companyIndexHelper, "_elasticsearchConfigurationWrapper",
 			elasticsearchConfigurationWrapper);
+		ReflectionTestUtil.setFieldValue(
+			_companyIndexHelper, "_elasticsearchConnectionManager",
+			elasticsearchConnectionManager);
 		ReflectionTestUtil.setFieldValue(
 			_companyIndexHelper, "_indexNameBuilder", indexNameBuilder);
 		ReflectionTestUtil.setFieldValue(
@@ -219,8 +222,7 @@ public class ElasticsearchSearchEngineFixture implements SearchEngineFixture {
 
 		_indexFactory = new IndexFactory(
 			_companyIndexHelper, Mockito.mock(CompanyLocalService.class),
-			elasticsearchConfigurationWrapper,
-			Mockito.mock(ElasticsearchConnectionManager.class));
+			elasticsearchConfigurationWrapper, elasticsearchConnectionManager);
 
 		return _indexFactory;
 	}

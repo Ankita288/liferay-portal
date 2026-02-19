@@ -121,7 +121,7 @@ portletDisplay.setURLBack(String.valueOf(renderResponse.createRenderURL()));
 										).build()
 									%>'
 									actionLabel='<%= Objects.equals(commerceReturn.getReturnStatus(), "draft") ? LanguageUtil.get(request, Validator.isNull(note) ? "add" : "edit") : null %>'
-									actionUrl='<%= Objects.equals(commerceReturn.getReturnStatus(), "draft") ? editCommerceReturnNoteURL : null %>'
+									actionURL='<%= Objects.equals(commerceReturn.getReturnStatus(), "draft") ? editCommerceReturnNoteURL : null %>'
 									elementClasses="py-3"
 									title='<%= LanguageUtil.get(request, "note") %>'
 								>
@@ -158,7 +158,6 @@ portletDisplay.setURLBack(String.valueOf(renderResponse.createRenderURL()));
 							fdsActionDropdownItems="<%= commerceReturnContentDisplayContext.getCommerceReturnItemFDSActionDropdownItems() %>"
 							formName="fm"
 							id="<%= ((commerceReturn == null) || Objects.equals(commerceReturn.getReturnStatus(), CommerceReturnConstants.RETURN_STATUS_DRAFT)) ? CommerceOrderFDSNames.DRAFT_RETURN_ITEMS : CommerceOrderFDSNames.RETURN_ITEMS %>"
-							itemsPerPage="<%= 10 %>"
 							propsTransformer="{commerceReturnItemsPropsTransformer} from commerce-order-content-web"
 							style="stacked"
 						/>

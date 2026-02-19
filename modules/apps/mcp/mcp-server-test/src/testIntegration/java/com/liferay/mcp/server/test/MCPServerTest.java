@@ -6,7 +6,9 @@
 package com.liferay.mcp.server.test;
 
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
+import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
+import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.PropsValues;
@@ -15,7 +17,7 @@ import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
+import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.io.UnsupportedEncodingException;
@@ -47,12 +49,17 @@ public class MCPServerTest {
 	@Test
 	public void test() throws Exception {
 		McpSyncClient mcpSyncClient = McpClient.sync(
-			HttpClientSseClientTransport.builder(
-				"http://localhost:8080/o/mcp/"
-			).sseEndpoint(
-				"sse"
+			HttpClientStreamableHttpTransport.builder(
+				"http://localhost:8080/o/"
 			).customizeRequest(
 				builder -> builder.header("Authorization", _getAuthorization())
+			).endpoint(
+				"mcp"
+			).build()
+		).capabilities(
+			McpSchema.ClientCapabilities.builder(
+			).elicitation(
+				true, true
 			).build()
 		).build();
 
@@ -89,20 +96,23 @@ public class MCPServerTest {
 				"get-openapi",
 				HashMapBuilder.<String, Object>put(
 					"url",
-					JSONFactoryUtil.createJSONObject(
-						content.text()
-					).getJSONArray(
-						"/test"
-					).getString(
-						0
-					)
+					() -> {
+						JSONObject jsonObject =
+							JSONFactoryUtil.createJSONObject(content.text());
+
+						JSONArray jsonArray = jsonObject.getJSONArray("/test");
+
+						return jsonArray.getString(0);
+					}
 				).build()));
 
 		contents = callToolResult.content();
 
-		content = (McpSchema.TextContent)contents.get(0);
+		McpSchema.TextContent newContent = (McpSchema.TextContent)contents.get(
+			0);
 
-		Assert.assertThat(content.text(), CoreMatchers.containsString("/test"));
+		Assert.assertThat(
+			newContent.text(), CoreMatchers.containsString("/test"));
 
 		callToolResult = mcpSyncClient.callTool(
 			new McpSchema.CallToolRequest(
@@ -115,11 +125,11 @@ public class MCPServerTest {
 
 		contents = callToolResult.content();
 
-		content = (McpSchema.TextContent)contents.get(0);
+		newContent = (McpSchema.TextContent)contents.get(0);
 
 		Assert.assertNotNull(
 			JSONFactoryUtil.createJSONObject(
-				content.text()
+				newContent.text()
 			).getJSONArray(
 				"items"
 			));

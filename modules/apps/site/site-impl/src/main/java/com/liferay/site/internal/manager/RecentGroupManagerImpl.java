@@ -10,6 +10,7 @@ import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.model.GroupConstants;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.LayoutConstants;
 import com.liferay.portal.kernel.model.User;
@@ -47,6 +48,7 @@ import jakarta.servlet.http.HttpSessionListener;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
@@ -87,7 +89,8 @@ public class RecentGroupManagerImpl implements RecentGroupManager {
 		Group liveGroup = _groupLocalService.fetchGroup(liveGroupId);
 
 		if (liveGroup.isCMS() || liveGroup.isLayoutPrototype() ||
-			liveGroup.isLayoutSetPrototype()) {
+			liveGroup.isLayoutSetPrototype() ||
+			Objects.equals(GroupConstants.DSR, liveGroup.getGroupKey())) {
 
 			return;
 		}
@@ -202,7 +205,7 @@ public class RecentGroupManagerImpl implements RecentGroupManager {
 		for (long groupId : groupIds) {
 			Group group = _groupLocalService.fetchGroup(groupId);
 
-			if ((group == null) ||
+			if ((group == null) || group.isCompany() ||
 				!GroupPermissionUtil.contains(
 					permissionChecker, group.getGroupId(), ActionKeys.VIEW) ||
 				!_groupLocalService.isLiveGroupActive(group)) {
@@ -210,27 +213,33 @@ public class RecentGroupManagerImpl implements RecentGroupManager {
 				continue;
 			}
 
-			if (!group.isCompany()) {
-				Layout layout = _layoutLocalService.fetchFirstLayout(
-					group.getGroupId(), false,
+			Layout privateLayout = null;
+
+			Layout layout = _layoutLocalService.fetchFirstLayout(
+				group.getGroupId(), false,
+				LayoutConstants.DEFAULT_PARENT_LAYOUT_ID);
+
+			if (layout == null) {
+				privateLayout = _layoutLocalService.fetchFirstLayout(
+					group.getGroupId(), true,
 					LayoutConstants.DEFAULT_PARENT_LAYOUT_ID);
-
-				if (layout == null) {
-					layout = _layoutLocalService.fetchFirstLayout(
-						group.getGroupId(), true,
-						LayoutConstants.DEFAULT_PARENT_LAYOUT_ID);
-
-					if ((layout == null) ||
-						!LayoutPermissionUtil.contains(
-							permissionChecker, layout, true, ActionKeys.VIEW)) {
-
-						continue;
-					}
-				}
 			}
 
-			portletRequest.setAttribute(
-				SiteWebKeys.GROUP_URL_PROVIDER_CONTROL_PANEL, Boolean.TRUE);
+			boolean hasLayout = false;
+
+			if ((layout != null) ||
+				((privateLayout != null) &&
+				 LayoutPermissionUtil.contains(
+					 permissionChecker, privateLayout, true,
+					 ActionKeys.VIEW))) {
+
+				hasLayout = true;
+			}
+
+			if (hasLayout) {
+				portletRequest.setAttribute(
+					SiteWebKeys.GROUP_URL_PROVIDER_CONTROL_PANEL, Boolean.TRUE);
+			}
 
 			if (Validator.isNull(
 					_groupURLProvider.getGroupURL(group, portletRequest))) {

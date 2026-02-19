@@ -5,6 +5,11 @@
 
 package com.liferay.portal.search.elasticsearch8.internal.index;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch.indices.GetIndexResponse;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.configuration.metatype.bnd.util.ConfigurableUtil;
 import com.liferay.portal.json.JSONFactoryImpl;
@@ -22,10 +27,6 @@ import com.liferay.portal.search.engine.SearchEngineInformation;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.util.Collections;
-
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.indices.GetIndexResponse;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -129,7 +130,7 @@ public class CompanyIdIndexNameBuilderTest {
 		_assertIndexNamePrefix(StringPool.BLANK, StringPool.BLANK);
 	}
 
-	@Test(expected = ElasticsearchStatusException.class)
+	@Test(expected = ElasticsearchException.class)
 	public void testIndexNamePrefixInvalidIndexName() throws Exception {
 		createIndices(StringPool.SLASH, 0);
 	}
@@ -166,6 +167,21 @@ public class CompanyIdIndexNameBuilderTest {
 		};
 	}
 
+	protected ElasticsearchConnectionManager
+		createElasticsearchConnectionManager() {
+
+		ElasticsearchConnectionManager elasticsearchConnectionManager =
+			Mockito.mock(ElasticsearchConnectionManager.class);
+
+		Mockito.when(
+			elasticsearchConnectionManager.getJsonpMapper(Mockito.any())
+		).thenReturn(
+			new JacksonJsonpMapper()
+		);
+
+		return elasticsearchConnectionManager;
+	}
+
 	protected void createIndices(String indexNamePrefix, long companyId)
 		throws Exception {
 
@@ -179,6 +195,9 @@ public class CompanyIdIndexNameBuilderTest {
 		ReflectionTestUtil.setFieldValue(
 			_companyIndexHelper, "_elasticsearchConfigurationWrapper",
 			createElasticsearchConfigurationWrapper());
+		ReflectionTestUtil.setFieldValue(
+			_companyIndexHelper, "_elasticsearchConnectionManager",
+			createElasticsearchConnectionManager());
 		ReflectionTestUtil.setFieldValue(
 			_companyIndexHelper, "_indexNameBuilder",
 			companyIdIndexNameBuilder);
@@ -196,12 +215,12 @@ public class CompanyIdIndexNameBuilderTest {
 		_indexFactory = new IndexFactory(
 			_companyIndexHelper, Mockito.mock(CompanyLocalService.class),
 			createElasticsearchConfigurationWrapper(),
-			Mockito.mock(ElasticsearchConnectionManager.class));
+			createElasticsearchConnectionManager());
 
-		RestHighLevelClient restHighLevelClient =
-			_elasticsearchFixture.getRestHighLevelClient();
+		ElasticsearchClient elasticsearchClient =
+			_elasticsearchFixture.getElasticsearchClient();
 
-		_indexFactory.initializeIndex(companyId, restHighLevelClient.indices());
+		_indexFactory.initializeIndex(companyId, elasticsearchClient.indices());
 	}
 
 	private void _assertIndexNamePrefix(
@@ -217,8 +236,7 @@ public class CompanyIdIndexNameBuilderTest {
 		GetIndexResponse getIndexResponse = _elasticsearchFixture.getIndex(
 			expectedIndexName);
 
-		Assert.assertArrayEquals(
-			new String[] {expectedIndexName}, getIndexResponse.getIndices());
+		Assert.assertTrue(getIndexResponse.get(expectedIndexName) != null);
 	}
 
 	private SearchEngineInformation _createSearchEngineInformation() {

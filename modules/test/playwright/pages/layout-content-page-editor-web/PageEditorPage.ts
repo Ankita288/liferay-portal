@@ -5,12 +5,13 @@
 
 import {Locator, Page, expect} from '@playwright/test';
 
+import {captureScreenshot} from '../../utils/captureScreenshot';
 import {clickAndExpectToBeHidden} from '../../utils/clickAndExpectToBeHidden';
 import {clickAndExpectToBeVisible} from '../../utils/clickAndExpectToBeVisible';
 import {collapseSection} from '../../utils/collapseSection';
-import dragAndDropElement from '../../utils/dragAndDropElement';
 import {expandSection} from '../../utils/expandSection';
 import fillAndClickOutside from '../../utils/fillAndClickOutside';
+import getRandomString from '../../utils/getRandomString';
 import {hoverAndExpectToBeVisible} from '../../utils/hoverAndExpectToBeVisible';
 import {selectElement} from '../../utils/selectElement';
 import {waitForAlert} from '../../utils/waitForAlert';
@@ -99,7 +100,12 @@ export class PageEditorPage {
 		);
 	}
 
-	async addFragment(setName: string, name: string, dropTarget?: Locator) {
+	async addFragment(
+		setName: string,
+		name: string,
+		dropTarget?: Locator,
+		timeout: number = 2000
+	) {
 		await this.goToSidebarTab('Components');
 
 		await this.page
@@ -114,7 +120,7 @@ export class PageEditorPage {
 		await expandSection(header);
 
 		if (dropTarget) {
-			await dragAndDropElement({
+			await this.dragAndDropFragment({
 				dragTarget: this.page.getByRole('menuitem', {name}).first(),
 				dropTarget,
 				page: this.page,
@@ -128,7 +134,7 @@ export class PageEditorPage {
 		}
 
 		if (name !== 'Stepper') {
-			await this.waitForChangesSaved({timeout: 2000});
+			await this.waitForChangesSaved({timeout});
 		}
 	}
 
@@ -156,10 +162,12 @@ export class PageEditorPage {
 		actions,
 		conditions,
 		name,
+		saveRule = true,
 	}: {
 		actions: {label: string; option: string}[][];
 		conditions: {label: string; option: string}[][];
 		name: string;
+		saveRule?: boolean;
 	}) {
 		const addActionOrCondition = async ({index, label, option}) => {
 			const trigger = this.page.getByLabel(label).nth(index);
@@ -181,7 +189,10 @@ export class PageEditorPage {
 
 		const modal = await this.openRulesModal();
 
-		await modal.getByLabel('Rule Name').fill(name);
+		const nameInput = modal.getByLabel('Rule Name');
+
+		await nameInput.waitFor();
+		await nameInput.fill(name);
 
 		for (const [index, condition] of conditions.entries()) {
 			if (index) {
@@ -207,12 +218,16 @@ export class PageEditorPage {
 			}
 		}
 
-		await modal.getByRole('button', {exact: true, name: 'Save'}).click();
+		if (saveRule) {
+			await modal
+				.getByRole('button', {exact: true, name: 'Save'})
+				.click();
 
-		await waitForAlert(
-			this.page,
-			'Success:The rule was created successfully.'
-		);
+			await waitForAlert(
+				this.page,
+				'Success:The rule was created successfully.'
+			);
+		}
 	}
 
 	async addRandomRuleAction() {
@@ -256,7 +271,7 @@ export class PageEditorPage {
 		await expandSection(header);
 
 		if (dropTarget) {
-			await dragAndDropElement({
+			await this.dragAndDropFragment({
 				dragTarget: this.page.getByRole('menuitem', {name}).first(),
 				dropTarget,
 				page: this.page,
@@ -459,6 +474,70 @@ export class PageEditorPage {
 		await this.waitForChangesSaved();
 	}
 
+	async changeWidgetPermission(
+		widgetId: string,
+		permission: string,
+		value: boolean
+	) {
+		const permissionsIFrame = this.page.frameLocator(
+			'iframe[title="Permissions"]'
+		);
+
+		const checkbox = permissionsIFrame.locator(permission);
+
+		const openPermissionsModal = async () => {
+			await this.selectFragment(widgetId);
+
+			await this.clickFragmentOption(widgetId, 'Permissions');
+
+			await checkbox.waitFor({timeout: 3000});
+		};
+
+		const closePermissionsModal = async () => {
+			await clickAndExpectToBeHidden({
+				target: this.page
+					.locator('.modal-header')
+					.getByLabel('Close', {exact: true}),
+				timeout: 2000,
+				trigger: this.page
+					.locator('.modal-header')
+					.getByLabel('Close', {exact: true}),
+			});
+		};
+
+		await expect(async () => {
+
+			// Open permissions modal and change permission
+
+			await openPermissionsModal();
+
+			await checkbox.setChecked(value, {timeout: 2000});
+
+			await permissionsIFrame
+				.getByRole('button', {name: 'Save'})
+				.click({timeout: 1000});
+
+			await waitForAlert(permissionsIFrame, 'successfully', {
+				timeout: 2000,
+			});
+
+			await closePermissionsModal();
+
+			// Open the modal to double check
+
+			await openPermissionsModal();
+
+			if (value === true) {
+				await expect(checkbox).toBeChecked({timeout: 1500});
+			}
+			else {
+				await expect(checkbox).not.toBeChecked({timeout: 1500});
+			}
+
+			await closePermissionsModal();
+		}).toPass();
+	}
+
 	async chooseCollectionDisplayCollection(
 		type: string,
 		title: string,
@@ -497,15 +576,15 @@ export class PageEditorPage {
 	) {
 		await this.selectFragment(fragmentId, isDesktop);
 
-		await this.page
-			.locator('.page-editor__topper__item')
-			.getByRole('button', {name: 'Options'})
-			.click();
-
-		await this.page
-			.locator('.dropdown-menu.show')
-			.getByText(name, {exact: true})
-			.click();
+		await clickAndExpectToBeVisible({
+			autoClick: true,
+			target: this.page
+				.locator('.dropdown-menu.show')
+				.getByText(name, {exact: true}),
+			trigger: this.page
+				.locator('.page-editor__topper__item')
+				.getByRole('button', {name: 'Options'}),
+		});
 	}
 
 	async clickPageAction(action: string) {
@@ -587,7 +666,9 @@ export class PageEditorPage {
 
 		await expect(nameInput).toHaveAttribute('required');
 
-		await fillAndClickOutside(this.page, nameInput, name);
+		await nameInput.click();
+
+		await nameInput.fill(name || getRandomString());
 
 		await this.page.locator('.modal-footer').getByText('Save').click();
 
@@ -704,6 +785,39 @@ export class PageEditorPage {
 
 			await this.waitForChangesSaved();
 		}
+	}
+
+	async dragAndDropFragment({
+		dragTarget,
+		dropTarget,
+		force = false,
+		page,
+		timeout,
+	}: {
+		dragTarget: Locator;
+		dropTarget: Locator;
+		force?: boolean;
+		page: Page;
+		timeout?: number;
+	}) {
+		await dragTarget.hover({force, timeout});
+
+		await page.mouse.down();
+
+		const boundingClientRect = await dropTarget.evaluate((element) =>
+			element.getBoundingClientRect()
+		);
+
+		await dropTarget.hover({
+			force,
+			position: {
+				x: boundingClientRect.width / 2,
+				y: boundingClientRect.height / 2,
+			},
+			timeout,
+		});
+
+		await page.mouse.up();
 	}
 
 	async dragTreeNode({
@@ -885,7 +999,7 @@ export class PageEditorPage {
 		await expect(async () => {
 			await this.page.keyboard.press('Escape');
 
-			await this.waitForChangesSaved();
+			await this.waitForChangesSaved({timeout: 2000});
 
 			await expect(editor).not.toBeVisible({
 				timeout: 1000,
@@ -1264,11 +1378,9 @@ export class PageEditorPage {
 	async openRulesModal() {
 		const modal = this.page.locator('.modal-dialog');
 
-		await clickAndExpectToBeVisible({
-			target: modal.getByRole('heading', {name: 'New Rule'}),
-			timeout: 3000,
-			trigger: this.newRuleButton,
-		});
+		await this.newRuleButton.click();
+
+		await expect(modal).toBeVisible();
 
 		return modal;
 	}
@@ -1294,9 +1406,14 @@ export class PageEditorPage {
 		const button = isMaster ? this.publishMasterButton : this.publishButton;
 
 		await button.waitFor();
-		await button.click();
 
-		await waitForAlert(this.page, 'successfully');
+		await expect(async () => {
+			if (await button.isVisible()) {
+				await button.click({timeout: 1000});
+
+				await waitForAlert(this.page, 'successfully', {timeout: 2000});
+			}
+		}).toPass();
 	}
 
 	async redoAction() {
@@ -1755,6 +1872,11 @@ export class PageEditorPage {
 				.getByLabel('Configuration Panel')
 				.locator('header', {hasText: fragmentName})
 		).toBeVisible();
+
+		await this.page
+			.getByLabel('Configuration Panel')
+			.locator('header', {hasText: fragmentName})
+			.click();
 	}
 
 	async switchExperience(experience: string) {
@@ -1781,13 +1903,27 @@ export class PageEditorPage {
 			.click();
 	}
 
-	async switchViewport(viewport: Viewport) {
-		await this.page.getByLabel(viewport, {exact: true}).click();
+	async switchViewport(
+		viewport: Viewport,
+		{timeout}: {timeout?: number} = {}
+	) {
+		await this.page.getByLabel(viewport, {exact: true}).click({timeout});
+
 		await this.page
 			.locator(
 				`.page-editor__layout-viewport--size-${VIEWPORTS_CLASSNAMES[viewport]}`
 			)
-			.waitFor();
+			.waitFor({timeout});
+
+		const resizer = this.page.locator(
+			'.page-editor__layout-viewport__resizer'
+		);
+
+		const loadingIndicator = resizer.locator('.loading-animation');
+
+		if (await loadingIndicator.isVisible()) {
+			await loadingIndicator.waitFor({state: 'hidden'});
+		}
 	}
 
 	async undoAction() {
@@ -1847,5 +1983,54 @@ export class PageEditorPage {
 					.frameLocator('.page-editor__global-context-iframe')
 					.locator(`.lfr-layout-structure-item-topper-${fragmentId}`)
 					.first();
+	}
+
+	async captureScreenshot({
+		layoutName,
+		layoutOptions = {editMode: false},
+		mask = [],
+		name,
+		siteUrl,
+	}: {
+		layoutName: string;
+		layoutOptions?: {editMode?: boolean};
+		mask?: Locator[];
+		name: string;
+		siteUrl?: Site['friendlyUrlPath'];
+	}) {
+		const PAGE_EDITOR_SIDEBAR_WIDTH = 322;
+
+		let banner: Locator = this.page.locator('#banner .navbar-top');
+		const controlMenu: Locator = this.page.locator('.control-menu');
+
+		const {editMode} = layoutOptions;
+
+		await this.page.goto(
+			`/web${siteUrl || '/guest'}/${layoutName}?${editMode ? 'p_l_mode=edit' : ''}`
+		);
+
+		if (editMode) {
+			await this.page.waitForFunction((sidebarWidth) => {
+				const wrapper = document.querySelector('.page-editor__wrapper');
+
+				if (!wrapper) {
+					return false;
+				}
+
+				const paddingLeft = parseFloat(
+					getComputedStyle(wrapper).paddingLeft
+				);
+
+				return paddingLeft >= sidebarWidth;
+			}, PAGE_EDITOR_SIDEBAR_WIDTH);
+
+			banner = this.page.locator('#banner.page-editor__disabled-area');
+		}
+
+		return captureScreenshot({
+			mask: [...mask, banner, controlMenu],
+			name,
+			page: this.page,
+		});
 	}
 }

@@ -13,9 +13,11 @@ import {HomePage} from '../pages/HomePage';
 import {InfoPanelPage} from '../pages/InfoPanelPage';
 import {PicklistBuilderPage} from '../pages/PicklistBuilderPage';
 import {RecycleBinPage} from '../pages/RecycleBinPage';
+import {SharedWithMePage} from '../pages/SharedWithMePage';
 import {SpaceSummaryPage} from '../pages/SpaceSummaryPage';
 import {StructuresPage} from '../pages/StructuresPage';
 import {TagsPage} from '../pages/TagsPage';
+import {TasksPage} from '../pages/TasksPage';
 import {VocabulariesPage} from '../pages/VocabulariesPage';
 
 const cmsPagesTest = test.extend<{
@@ -27,9 +29,11 @@ const cmsPagesTest = test.extend<{
 	infoPanelPage: InfoPanelPage;
 	picklistBuilderPage: PicklistBuilderPage;
 	recycleBinPage: RecycleBinPage;
+	sharedWithMePage: SharedWithMePage;
 	spaceSummaryPage: SpaceSummaryPage;
 	structuresPage: StructuresPage;
 	tagsPage: TagsPage;
+	tasksPage: TasksPage;
 	vocabulariesPage: VocabulariesPage;
 }>({
 	assetsPage: async ({page}, use) => {
@@ -56,6 +60,9 @@ const cmsPagesTest = test.extend<{
 	recycleBinPage: async ({page}, use) => {
 		await use(new RecycleBinPage(page));
 	},
+	sharedWithMePage: async ({page}, use) => {
+		await use(new SharedWithMePage(page));
+	},
 	spaceSummaryPage: async ({page}, use) => {
 		await use(new SpaceSummaryPage(page));
 	},
@@ -64,6 +71,9 @@ const cmsPagesTest = test.extend<{
 	},
 	tagsPage: async ({page}, use) => {
 		await use(new TagsPage(page));
+	},
+	tasksPage: async ({page}, use) => {
+		await use(new TasksPage(page));
 	},
 	vocabulariesPage: async ({page}, use) => {
 		await use(new VocabulariesPage(page));

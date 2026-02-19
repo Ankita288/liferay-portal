@@ -22,11 +22,16 @@ export {default as MarketplacePresentationModal} from './components/marketplace/
 export {default as CreationModal} from './components/modals/CreationModal';
 export {default as openConfirmModal} from './components/modals/openConfirmModal';
 export {default as openModalComponent} from './components/modals/openModalComponent';
+export {default as openOptionsModal} from './components/modals/openOptionsModal';
 export {default as PageTemplateModal} from './components/page_template_modal/PageTemplateModal';
 export {default as Resizer} from './components/resizer/Resizer';
 export {default as ScreenReaderAnnouncer} from './components/screen_reader_announcer/ScreenReaderAnnouncer';
 export {default as SearchForm} from './components/search_form/SearchForm';
 export {default as SearchResultsMessage} from './components/search_results_message/SearchResultsMessage';
+export {
+	DragAndDropContextProvider,
+	useKeyboardDragPreviewProps,
+} from './contexts/DragAndDropContext';
 export {
 	ScreenReaderAnnouncerContext,
 	ScreenReaderAnnouncerContextProvider,
@@ -36,6 +41,7 @@ export {
 	StyleErrorsContextProvider,
 	useHasStyleErrors,
 } from './contexts/StyleErrorsContext';
+export {default as useDragAndDrop} from './hooks/drag_and_drop/useDragAndDrop';
 export {default as useControlledState} from './hooks/useControlledState';
 export {default as SegmentExperience} from './types/SegmentExperience';
 export {default as convertRGBtoHex} from './utils/convertRGBtoHex';

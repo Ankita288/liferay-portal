@@ -22,13 +22,17 @@ import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.LocaleUtil;
+import com.liferay.portal.kernel.util.ScopeUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
+import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
+import com.liferay.segments.model.SegmentsEntry;
 import com.liferay.segments.model.SegmentsExperience;
 import com.liferay.segments.service.SegmentsExperienceLocalService;
+import com.liferay.segments.test.util.SegmentsTestUtil;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -121,13 +125,17 @@ public class GetLayoutReportsDataStrutsActionTest {
 	public void testGetLayoutReportsDataStrutsActionWithContentLayoutAndSomeExperiences()
 		throws Exception {
 
+		SegmentsEntry segmentsEntry = SegmentsTestUtil.addSegmentsEntry(
+			_group.getGroupId());
 		Layout layout = LayoutTestUtil.addTypeContentLayout(_group);
 
 		SegmentsExperience segmentsExperience =
 			_segmentsExperienceLocalService.addSegmentsExperience(
 				null, TestPropsValues.getUserId(), _group.getGroupId(),
-				RandomTestUtil.randomLong(), layout.getPlid(),
-				RandomTestUtil.randomLocaleStringMap(), true,
+				segmentsEntry.getExternalReferenceCode(),
+				ScopeUtil.getItemScopeExternalReferenceCode(
+					segmentsEntry.getGroupId(), _group.getGroupId()),
+				layout.getPlid(), RandomTestUtil.randomLocaleStringMap(), true,
 				new UnicodeProperties(true),
 				ServiceContextTestUtil.getServiceContext(_group.getGroupId()));
 
@@ -160,10 +168,13 @@ public class GetLayoutReportsDataStrutsActionTest {
 
 		Assert.assertFalse(segmentsExperienceJSONObject.getBoolean("active"));
 		Assert.assertEquals(
-			segmentsExperience.getSegmentsEntryId(),
-			segmentsExperienceJSONObject.getLong("segmentsEntryId"));
+			segmentsExperience.getSegmentsEntryERC(),
+			segmentsExperienceJSONObject.getString("segmentsEntryERC"));
 		Assert.assertEquals(
-			"Anyone",
+			segmentsExperience.getSegmentsEntryScopeERC(),
+			segmentsExperienceJSONObject.getString("segmentsEntryScopeERC"));
+		Assert.assertEquals(
+			segmentsEntry.getName(LocaleUtil.getDefault()),
 			segmentsExperienceJSONObject.getString("segmentsEntryName"));
 		Assert.assertEquals(
 			segmentsExperience.getSegmentsExperienceId(),
@@ -254,6 +265,14 @@ public class GetLayoutReportsDataStrutsActionTest {
 			selectedSegmentsExperienceJSONObject.getBoolean("active"));
 		Assert.assertEquals(
 			0, selectedSegmentsExperienceJSONObject.getLong("segmentsEntryId"));
+		Assert.assertTrue(
+			Validator.isNull(
+				selectedSegmentsExperienceJSONObject.getString(
+					"segmentsEntryERC")));
+		Assert.assertTrue(
+			Validator.isNull(
+				selectedSegmentsExperienceJSONObject.getString(
+					"segmentsEntryScopeERC")));
 		Assert.assertEquals(
 			"Anyone",
 			selectedSegmentsExperienceJSONObject.getString(

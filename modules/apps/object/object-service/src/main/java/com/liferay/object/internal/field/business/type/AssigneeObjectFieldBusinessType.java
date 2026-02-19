@@ -10,10 +10,14 @@ import com.liferay.object.dynamic.data.mapping.form.field.type.constants.ObjectD
 import com.liferay.object.exception.ObjectEntryValuesException;
 import com.liferay.object.field.business.type.ObjectFieldBusinessType;
 import com.liferay.object.field.render.ObjectFieldRenderingContext;
+import com.liferay.object.model.ObjectDefinition;
+import com.liferay.object.model.ObjectEntry;
 import com.liferay.object.model.ObjectField;
 import com.liferay.object.rest.dto.v1_0.Assignee;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.json.JSONFactory;
+import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.lazy.referencing.LazyReferencingThreadLocal;
 import com.liferay.portal.kernel.log.Log;
@@ -24,11 +28,13 @@ import com.liferay.portal.kernel.model.role.RoleConstants;
 import com.liferay.portal.kernel.service.RoleLocalService;
 import com.liferay.portal.kernel.service.RoleService;
 import com.liferay.portal.kernel.service.UserLocalService;
+import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.ResourceBundleUtil;
 import com.liferay.portal.kernel.util.StringUtil;
+import com.liferay.portal.vulcan.dto.converter.DTOConverterContext;
 import com.liferay.portal.vulcan.extension.PropertyDefinition;
 
 import java.io.Serializable;
@@ -74,6 +80,79 @@ public class AssigneeObjectFieldBusinessType
 		throws PortalException {
 
 		return values.get(objectField.getName());
+	}
+
+	@Override
+	public Serializable getDTOValue(
+			DTOConverterContext dtoConverterContext,
+			ObjectDefinition objectDefinition, ObjectEntry objectEntry,
+			ObjectField objectField, Serializable serializable)
+		throws Exception {
+
+		if (serializable instanceof Assignee) {
+			return serializable;
+		}
+
+		if (!(serializable instanceof Map)) {
+			return null;
+		}
+
+		Map<String, Long> assigneeMap = (Map<String, Long>)serializable;
+
+		if (assigneeMap.containsKey("externalReferenceCode")) {
+			return Assignee.toDTO(_jsonFactory.looseSerializeDeep(assigneeMap));
+		}
+
+		String className = _portal.fetchClassName(
+			MapUtil.getLong(assigneeMap, "classNameId"));
+
+		if (StringUtil.equals(className, Role.class.getName())) {
+			Role role = _roleLocalService.fetchRole(
+				MapUtil.getLong(assigneeMap, "classPK"));
+
+			if (role == null) {
+				return new Assignee();
+			}
+
+			return new Assignee() {
+				{
+					setExternalReferenceCode(role::getExternalReferenceCode);
+					setName(role::getName);
+					setType(() -> Type.ROLE);
+				}
+			};
+		}
+		else if (StringUtil.equals(className, User.class.getName())) {
+			User user = _userLocalService.fetchUser(
+				MapUtil.getLong(assigneeMap, "classPK"));
+
+			if (user == null) {
+				return new Assignee();
+			}
+
+			return new Assignee() {
+				{
+					setExternalReferenceCode(user::getExternalReferenceCode);
+					setName(user::getFullName);
+					setPortrait(
+						() -> {
+							if (user.getPortraitId() == 0) {
+								return null;
+							}
+
+							return user.getPortraitURL(
+								new ThemeDisplay() {
+									{
+										setPathImage(_portal.getPathImage());
+									}
+								});
+						});
+					setType(() -> Type.USER);
+				}
+			};
+		}
+
+		return new Assignee();
 	}
 
 	@Override
@@ -136,6 +215,15 @@ public class AssigneeObjectFieldBusinessType
 					MapUtil.getString(valueMap, "name"), objectField,
 					MapUtil.getString(valueMap, "type"));
 			}
+			else if (value instanceof String) {
+				JSONObject jsonObject = _jsonFactory.createJSONObject(
+					(String)value);
+
+				return _getValue(
+					jsonObject.getString("externalReferenceCode"),
+					jsonObject.getString("name"), objectField,
+					jsonObject.getString("type"));
+			}
 		}
 		catch (Exception exception) {
 			if (_log.isDebugEnabled()) {
@@ -159,7 +247,7 @@ public class AssigneeObjectFieldBusinessType
 			String type)
 		throws Exception {
 
-		if (StringUtil.equals(type, Assignee.Type.ROLE.toString())) {
+		if (StringUtil.equalsIgnoreCase(type, Assignee.Type.ROLE.toString())) {
 			return HashMapBuilder.put(
 				"classNameId", _portal.getClassNameId(Role.class.getName())
 			).put(
@@ -188,7 +276,9 @@ public class AssigneeObjectFieldBusinessType
 				}
 			).build();
 		}
-		else if (StringUtil.equals(type, Assignee.Type.USER.toString())) {
+		else if (StringUtil.equalsIgnoreCase(
+					type, Assignee.Type.USER.toString())) {
+
 			return HashMapBuilder.put(
 				"classNameId", _portal.getClassNameId(User.class.getName())
 			).put(
@@ -208,6 +298,9 @@ public class AssigneeObjectFieldBusinessType
 
 	private static final Log _log = LogFactoryUtil.getLog(
 		AssigneeObjectFieldBusinessType.class);
+
+	@Reference
+	private JSONFactory _jsonFactory;
 
 	@Reference
 	private Portal _portal;

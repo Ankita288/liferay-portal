@@ -7,8 +7,11 @@ import ClayButton from '@clayui/button';
 import {Option, Picker} from '@clayui/core';
 import ClayIcon from '@clayui/icon';
 import ClayPanel from '@clayui/panel';
-import {ScreenReaderAnnouncerContext} from '@liferay/layout-js-components-web';
-import React, {useContext, useMemo} from 'react';
+import {
+	ScreenReaderAnnouncerContext,
+	isNullOrUndefined,
+} from '@liferay/layout-js-components-web';
+import React, {useContext, useId, useMemo} from 'react';
 import {flushSync} from 'react-dom';
 import {v4 as uuidv4} from 'uuid';
 
@@ -17,8 +20,11 @@ import {useSelector} from '../../../app/contexts/StoreContext';
 import selectLayoutDataItemLabel from '../../../app/selectors/selectLayoutDataItemLabel';
 import {isAllowedInRules} from '../../../app/utils/isAllowedInRules';
 import {isLayoutDataItemDeleted} from '../../../app/utils/isLayoutDataItemDeleted';
+import {translateConditionsToScript} from '../../../app/utils/translateConditionsToScript';
+import {PopoverTooltip} from '../../../common/components/PopoverTooltip';
 import {Action, Condition} from '../../../types/Rule';
 import ActionComponent from './Action';
+import AdvancedRuleEditor from './AdvancedRuleEditor';
 import ConditionComponent from './Condition';
 
 const TriggerLabel = React.forwardRef<HTMLButtonElement, any>(
@@ -207,15 +213,23 @@ export type ConditionType = 'all' | 'any';
 type RuleBuilderConditionProps = {
 	conditionType: ConditionType;
 	conditions: Condition[];
-	setConditionType: (conditionType: ConditionType) => void;
-	setConditions: (conditions: Condition[]) => void;
+	script: string | undefined;
+	setRuleConditions: ({
+		conditionType,
+		conditions,
+		script,
+	}: {
+		conditionType?: ConditionType;
+		conditions?: Condition[];
+		script?: string;
+	}) => void;
 };
 
 export function RuleBuilderConditionSection({
 	conditionType,
 	conditions,
-	setConditionType,
-	setConditions,
+	script,
+	setRuleConditions,
 }: RuleBuilderConditionProps) {
 	const {sendMessage} = useContext(ScreenReaderAnnouncerContext);
 
@@ -253,13 +267,16 @@ export function RuleBuilderConditionSection({
 		return inputFragments;
 	}, [layoutData, fragmentEntryLinks]);
 
+	const tooltipId = useId();
 	const conditionRefMap = useMemo(() => new Map(), []);
 
 	const onAddCondition = () => {
 		const conditionId = uuidv4();
 
 		flushSync(() => {
-			setConditions([...conditions, {id: conditionId} as Condition]);
+			setRuleConditions({
+				conditions: [...conditions, {id: conditionId} as Condition],
+			});
 		});
 
 		const conditionElement = conditionRefMap.get(conditionId);
@@ -270,7 +287,7 @@ export function RuleBuilderConditionSection({
 
 	const onDeleteCondition = (condition: Condition, index: number) => {
 		if (conditions.length === 1) {
-			setConditions([{id: uuidv4()} as Condition]);
+			setRuleConditions({conditions: [{id: uuidv4()} as Condition]});
 		}
 		else {
 			const nextCondition =
@@ -278,11 +295,11 @@ export function RuleBuilderConditionSection({
 
 			conditionRefMap.get(nextCondition.id)?.focus();
 
-			setConditions(
-				conditions.filter(
+			setRuleConditions({
+				conditions: conditions.filter(
 					(_condition, currentIndex) => currentIndex !== index
-				)
-			);
+				),
+			});
 		}
 
 		sendMessage(Liferay.Language.get('condition-deleted'));
@@ -293,7 +310,7 @@ export function RuleBuilderConditionSection({
 
 		newConditions[index] = condition;
 
-		setConditions(newConditions);
+		setRuleConditions({conditions: newConditions});
 	};
 
 	const setConditionRef = (
@@ -307,77 +324,69 @@ export function RuleBuilderConditionSection({
 		<ClayPanel
 			className="page-editor__rule-builder-section"
 			displayTitle={
-				<ClayPanel.Title
-					aria-label={
-						conditionType === 'all'
-							? Liferay.Language.get(
-									'if-all-of-the-following-conditions-are-met'
-								)
-							: Liferay.Language.get(
-									'if-any-of-the-following-conditions-are-met'
-								)
-					}
-					className="p-3 page-editor__rule-builder-section-title text-3"
-				>
+				<ClayPanel.Title className="d-flex justify-content-between p-3 page-editor__rule-builder-section-title">
 					<div className="align-items-center d-flex">
 						<ClayIcon
-							className="arrow-icon mr-3"
+							className="arrow-icon mr-3 mt-0"
 							symbol="arrow-split"
 						/>
 
-						<span className="font-weight-bold mr-3">
-							{Liferay.Language.get('if')}
+						<span className="font-weight-semi-bold text-4">
+							{Liferay.Language.get('conditions')}
 						</span>
+					</div>
 
-						<div className="align-items-center d-flex">
-							<Picker
-								aria-label={
-									conditionType === 'all'
-										? Liferay.Language.get('all')
-										: Liferay.Language.get('any')
-								}
-								as={TriggerLabel}
-								items={[
-									{
-										label: Liferay.Language.get('any'),
-										value: 'any',
-									},
-									{
-										label: Liferay.Language.get('all'),
-										value: 'all',
-									},
-								]}
-								messages={{
-									itemDescribedby: Liferay.Language.get(
-										'you-are-currently-on-a-text-element,-inside-of-a-list-box'
-									),
-									itemSelected:
-										Liferay.Language.get('x-selected'),
-									scrollToBottomAriaLabel:
-										Liferay.Language.get(
-											'scroll-to-bottom'
-										),
-									scrollToTopAriaLabel:
-										Liferay.Language.get('scroll-to-top'),
-								}}
-								onSelectionChange={(key: any) =>
-									setConditionType(key)
-								}
-								selectedKey={conditionType}
-							>
-								{(item) => (
-									<Option key={item.value}>
-										{item.label}
-									</Option>
-								)}
-							</Picker>
+					<div>
+						<PopoverTooltip
+							content={Liferay.Language.get(
+								'the-basic-builder-does-not-support-advanced-expressions'
+							)}
+							id={tooltipId}
+							trigger={
+								<ClayIcon
+									aria-label={Liferay.Language.get(
+										'show-more'
+									)}
+									className="mr-2"
+									symbol="question-circle-full"
+								/>
+							}
+						/>
 
-							<span className="font-weight-bold ml-3 mr-3">
-								{Liferay.Language.get(
-									'of-the-following-conditions-are-met'
-								)}
-							</span>
-						</div>
+						<ClayButton
+							disabled={Boolean(script)}
+							displayType="secondary"
+							onClick={() => {
+								setRuleConditions(
+									isNullOrUndefined(script)
+										? {
+												script: conditions?.length
+													? translateConditionsToScript(
+															conditions,
+															conditionType
+														)
+													: '',
+											}
+										: {
+												conditionType: 'all',
+												conditions: [
+													{
+														id: uuidv4(),
+														type: undefined,
+													},
+												],
+												script: undefined,
+											}
+								);
+							}}
+							size="sm"
+						>
+							{isNullOrUndefined(script)
+								? Liferay.Language.get('advanced')
+								: Liferay.Language.get('basic')}
+
+							<ClayIcon className="ml-3" symbol="code" />
+						</ClayButton>
 					</div>
 				</ClayPanel.Title>
 			}
@@ -385,36 +394,143 @@ export function RuleBuilderConditionSection({
 			showCollapseIcon
 		>
 			<ClayPanel.Body className="px-3">
-				<div role="menu">
-					{conditions.map((condition, index, conditions) => (
-						<ConditionComponent
-							condition={condition}
-							inputFragmentItems={inputFragmentItems}
-							key={condition.id}
-							onConditionChange={(condition) =>
-								onConditionChange(condition, index)
-							}
-							onDeleteCondition={() =>
-								onDeleteCondition(condition, index)
-							}
-							showDeleteButton={
-								conditions.length > 1 || !!condition.type
-							}
-							wrapperRef={(element) =>
-								setConditionRef(condition, element)
-							}
-						/>
-					))}
-				</div>
+				{isNullOrUndefined(script) ? (
+					<>
+						<div>
+							<div className="align-items-center d-flex mb-3 text-4">
+								<span className="mr-3">
+									{Liferay.Language.get('if')}
+								</span>
 
-				<ClayButton
-					className="mt-2"
-					displayType="secondary"
-					onClick={onAddCondition}
-					size="sm"
-				>
-					{Liferay.Language.get('add-condition')}
-				</ClayButton>
+								<div className="align-items-center d-flex">
+									<Picker
+										aria-label={
+											conditionType === 'all'
+												? Liferay.Language.get('all')
+												: Liferay.Language.get('any')
+										}
+										as={TriggerLabel}
+										items={[
+											{
+												label: Liferay.Language.get(
+													'any'
+												),
+												value: 'any',
+											},
+											{
+												label: Liferay.Language.get(
+													'all'
+												),
+												value: 'all',
+											},
+										]}
+										messages={{
+											itemDescribedby:
+												Liferay.Language.get(
+													'you-are-currently-on-a-text-element,-inside-of-a-list-box'
+												),
+											itemSelected:
+												Liferay.Language.get(
+													'x-selected'
+												),
+											scrollToBottomAriaLabel:
+												Liferay.Language.get(
+													'scroll-to-bottom'
+												),
+											scrollToTopAriaLabel:
+												Liferay.Language.get(
+													'scroll-to-top'
+												),
+										}}
+										onSelectionChange={(key: any) =>
+											setRuleConditions({
+												conditionType: key,
+											})
+										}
+										selectedKey={conditionType}
+									>
+										{(item) => (
+											<Option key={item.value}>
+												{item.label}
+											</Option>
+										)}
+									</Picker>
+
+									<span className="ml-3 mr-3">
+										{Liferay.Language.get(
+											'of-the-following-conditions-are-met'
+										)}
+									</span>
+								</div>
+							</div>
+
+							<div
+								aria-label={
+									conditionType === 'all'
+										? Liferay.Language.get(
+												'if-all-of-the-following-conditions-are-met'
+											)
+										: Liferay.Language.get(
+												'if-any-of-the-following-conditions-are-met'
+											)
+								}
+								role="menu"
+							>
+								{conditions.map(
+									(condition, index, conditions) => (
+										<ConditionComponent
+											condition={condition}
+											inputFragmentItems={
+												inputFragmentItems
+											}
+											key={condition.id}
+											onConditionChange={(condition) =>
+												onConditionChange(
+													condition,
+													index
+												)
+											}
+											onDeleteCondition={() =>
+												onDeleteCondition(
+													condition,
+													index
+												)
+											}
+											showDeleteButton={
+												conditions.length > 1 ||
+												!!condition.type
+											}
+											wrapperRef={(element) =>
+												setConditionRef(
+													condition,
+													element
+												)
+											}
+										/>
+									)
+								)}
+							</div>
+						</div>
+
+						<ClayButton
+							className="mt-2"
+							displayType="secondary"
+							onClick={onAddCondition}
+							size="sm"
+						>
+							{Liferay.Language.get('add-condition')}
+						</ClayButton>
+					</>
+				) : (
+					<div>
+						<AdvancedRuleEditor
+							onChange={(value: string | undefined) => {
+								setRuleConditions({script: value || ''});
+							}}
+							value={script}
+						/>
+					</div>
+				)}
 			</ClayPanel.Body>
 		</ClayPanel>
 	);

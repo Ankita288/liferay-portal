@@ -7,13 +7,8 @@ package com.liferay.portal.search.elasticsearch7.internal.search.engine.adapter.
 
 import com.liferay.portal.kernel.search.BooleanQuery;
 import com.liferay.portal.kernel.search.generic.BooleanQueryImpl;
-import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.search.elasticsearch7.internal.connection.ElasticsearchFixture;
-import com.liferay.portal.search.elasticsearch7.internal.legacy.query.ElasticsearchQueryTranslatorFixture;
-import com.liferay.portal.search.elasticsearch7.internal.query.ElasticsearchQueryTranslator;
 import com.liferay.portal.search.engine.adapter.document.UpdateByQueryDocumentRequest;
-import com.liferay.portal.search.internal.script.ScriptsImpl;
-import com.liferay.portal.search.script.Scripts;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
@@ -67,31 +62,12 @@ public class UpdateByQueryDocumentRequestExecutorTest {
 
 		updateByQueryDocumentRequest.setRefresh(refresh);
 
-		UpdateByQueryDocumentRequestExecutorImpl
-			updateByQueryDocumentRequestExecutorImpl =
-				new UpdateByQueryDocumentRequestExecutorImpl();
-
-		ElasticsearchQueryTranslatorFixture
-			lecacyElasticsearchQueryTranslatorFixture =
-				new ElasticsearchQueryTranslatorFixture();
-
-		ReflectionTestUtil.setFieldValue(
-			updateByQueryDocumentRequestExecutorImpl,
-			"_elasticsearchClientResolver", _elasticsearchFixture);
-		ReflectionTestUtil.setFieldValue(
-			updateByQueryDocumentRequestExecutorImpl, "_legacyQueryTranslator",
-			lecacyElasticsearchQueryTranslatorFixture.
-				getElasticsearchQueryTranslator());
-
-		ReflectionTestUtil.setFieldValue(
-			updateByQueryDocumentRequestExecutorImpl, "_queryTranslator",
-			new ElasticsearchQueryTranslator());
-
-		ReflectionTestUtil.setFieldValue(
-			updateByQueryDocumentRequestExecutorImpl, "_scripts", _scripts);
+		UpdateByQueryDocumentRequestExecutor
+			updateByQueryDocumentRequestExecutor =
+				new UpdateByQueryDocumentRequestExecutor(_elasticsearchFixture);
 
 		UpdateByQueryRequest updateByQueryRequest =
-			updateByQueryDocumentRequestExecutorImpl.createUpdateByQueryRequest(
+			updateByQueryDocumentRequestExecutor.createUpdateByQueryRequest(
 				updateByQueryDocumentRequest);
 
 		Assert.assertArrayEquals(
@@ -111,8 +87,6 @@ public class UpdateByQueryDocumentRequestExecutorTest {
 	private static final String _FIELD_NAME = "testField";
 
 	private static final String _INDEX_NAME = "test_request_index";
-
-	private static final Scripts _scripts = new ScriptsImpl();
 
 	private ElasticsearchFixture _elasticsearchFixture;
 

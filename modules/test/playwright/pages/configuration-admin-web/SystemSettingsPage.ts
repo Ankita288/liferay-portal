@@ -5,7 +5,9 @@
 
 import {Locator, Page, expect} from '@playwright/test';
 
+import {clickAndExpectToBeVisible} from '../../utils/clickAndExpectToBeVisible';
 import {waitForAlert} from '../../utils/waitForAlert';
+import {waitForPageToBeLoaded} from '../../utils/waitForPageToBeLoaded';
 import {ApplicationsMenuPage} from '../product-navigation-applications-menu/ApplicationsMenuPage';
 
 export class SystemSettingsPage {
@@ -25,21 +27,38 @@ export class SystemSettingsPage {
 		await this.applicationsMenuPage.goToSystemSettings();
 	}
 
-	async goToSystemSetting(categoryKey: string, configurationName: string) {
-		await this.goto();
+	async goToSystemSetting(
+		categoryKey: string,
+		configurationName: string,
+		sectionName?: string
+	) {
+		await this.applicationsMenuPage.goToSystemSettings();
 		await this.page
 			.getByRole('link', {
 				exact: true,
 				name: categoryKey,
 			})
 			.click();
-		await this.page
+
+		let parent: Locator | Page = this.page;
+
+		if (sectionName) {
+			parent = this.page
+				.locator('div')
+				.filter({hasText: sectionName})
+				.locator('+ div')
+				.getByRole('menubar');
+		}
+
+		await parent
 			.getByRole('menuitem', {
 				exact: true,
 				name: configurationName,
 			})
 			.first()
 			.click();
+
+		await waitForPageToBeLoaded(this.page);
 	}
 
 	async assertOptionVisible(options: {
@@ -68,6 +87,18 @@ export class SystemSettingsPage {
 		const checkbox = this.page.getByLabel(label).first();
 		await expect(checkbox).toBeVisible();
 		checked ? await checkbox.check() : await checkbox.uncheck();
+	}
+
+	async clickOnAction(actionName: string) {
+		await clickAndExpectToBeVisible({
+			autoClick: true,
+			target: this.page.getByRole('menuitem', {name: actionName}),
+			trigger: this.page.getByRole('button', {name: 'Actions'}),
+		});
+	}
+
+	async resetToDefaultValues() {
+		await this.clickOnAction('Reset Default Values');
 	}
 
 	async saveAndWaitForAlert({

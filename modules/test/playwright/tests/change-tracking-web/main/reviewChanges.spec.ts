@@ -12,6 +12,8 @@ import {accountSettingsPagesTest} from '../../../fixtures/accountSettingsPagesTe
 import {apiHelpersTest} from '../../../fixtures/apiHelpersTest';
 import {changeTrackingPagesTest} from '../../../fixtures/changeTrackingPagesTest';
 import {dataApiHelpersTest} from '../../../fixtures/dataApiHelpersTest';
+import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
+import {documentLibraryPagesTest} from '../../../fixtures/documentLibraryPages.fixtures';
 import {isolatedSiteTest} from '../../../fixtures/isolatedSiteTest';
 import {pageEditorPagesTest} from '../../../fixtures/pageEditorPagesTest';
 import {pagesAdminPagesTest} from '../../../fixtures/pagesAdminPagesTest';
@@ -30,6 +32,11 @@ export const test = mergeTests(
 	apiHelpersTest,
 	changeTrackingPagesTest,
 	dataApiHelpersTest,
+	documentLibraryPagesTest,
+	featureFlagsTest({
+		'LPD-34594': {enabled: true},
+		'LPS-164563': {enabled: true},
+	}),
 	isolatedSiteTest,
 	journalPagesTest,
 	pagesAdminPagesTest,
@@ -587,4 +594,315 @@ test('LPD-62112 Cannot Preview Pending Version of Page in a Publication', async 
 	const newHeading = publicationIFrame.getByText('Edited');
 
 	await expect(newHeading).toBeVisible();
+});
+
+test.describe('Publications with incomplete status tests', () => {
+	const journalName = getRandomString();
+
+	test.beforeEach(
+		async ({
+			apiHelpers,
+			ctCollection,
+			journalEditArticlePage,
+			workflowPage,
+		}) => {
+			await apiHelpers.headlessChangeTracking.checkoutCTCollection(0);
+
+			await workflowPage.goto();
+			await workflowPage.changeWorkflow(
+				'Web Content Article',
+				'Single Approver'
+			);
+
+			await apiHelpers.headlessChangeTracking.checkoutCTCollection(
+				ctCollection.body.id
+			);
+
+			await journalEditArticlePage.goto();
+			await journalEditArticlePage.submitArticleForWorkflow(journalName);
+		}
+	);
+
+	test.afterEach(async ({apiHelpers, page, workflowPage}) => {
+		await apiHelpers.headlessChangeTracking.checkoutCTCollection(0);
+
+		await workflowPage.goto();
+
+		const row = await page
+			.getByRole('row')
+			.filter({hasText: 'Web Content Article'});
+
+		const workflowEnabled = await row
+			.getByTitle('Workflow Definition')
+			.filter({hasText: 'Single Approver'});
+
+		if (await workflowEnabled.isVisible()) {
+			await workflowPage.changeWorkflow(
+				'Web Content Article',
+				'No Workflow',
+				{
+					disable: true,
+				}
+			);
+		}
+	});
+
+	test('LPD-73271 Can view CTEntry actions in review changes page', async ({
+		changeTrackingPage,
+		ctCollection,
+		page,
+	}) => {
+		await changeTrackingPage.goToReviewChanges(ctCollection.body.name);
+
+		await expect(
+			page.locator('.publication-name', {hasText: 'Pending Approval'})
+		).toBeVisible();
+
+		const firstDropdown = page
+			.locator('.cell-item-actions .dropdown svg.lexicon-icon-ellipsis-v')
+			.first();
+
+		await clickAndExpectToBeVisible({
+			autoClick: false,
+			target: page.getByRole('menuitem', {name: 'Discard'}),
+			trigger: firstDropdown,
+		});
+
+		await clickAndExpectToBeVisible({
+			autoClick: false,
+			target: page.getByRole('menuitem', {name: 'Move Changes'}),
+			trigger: firstDropdown,
+		});
+	});
+
+	test('LPD-73271 Can view CTEntry and workflow actions in review change page', async ({
+		changeTrackingPage,
+		ctCollection,
+		page,
+	}) => {
+		await changeTrackingPage.goToReviewChanges(ctCollection.body.name);
+
+		await expect(
+			page.locator('.publication-name', {hasText: 'Pending Approval'})
+		).toBeVisible();
+
+		await changeTrackingPage.reviewChange(journalName);
+
+		const moreActionsButton = page.getByLabel('more-actions');
+
+		await clickAndExpectToBeVisible({
+			autoClick: false,
+			target: page.getByRole('menuitem', {
+				name: `Edit in ${ctCollection.body.name}`,
+			}),
+			trigger: moreActionsButton,
+		});
+
+		await clickAndExpectToBeVisible({
+			autoClick: false,
+			target: page.getByRole('menuitem', {name: 'Discard'}),
+			trigger: moreActionsButton,
+		});
+
+		await clickAndExpectToBeVisible({
+			autoClick: false,
+			target: page.getByRole('menuitem', {name: 'Move Changes'}),
+			trigger: moreActionsButton,
+		});
+
+		await clickAndExpectToBeVisible({
+			autoClick: false,
+			target: page.getByRole('menuitem', {name: 'Assign to Me'}),
+			trigger: moreActionsButton,
+		});
+
+		await clickAndExpectToBeVisible({
+			autoClick: false,
+			target: page.getByRole('menuitem', {name: 'Assign to...'}),
+			trigger: moreActionsButton,
+		});
+	});
+
+	test('LPD-73272 Can use toolbar actions in review changes page', async ({
+		changeTrackingPage,
+		ctCollection,
+		page,
+	}) => {
+		await changeTrackingPage.workOnProduction();
+		await changeTrackingPage.goToReviewChanges(ctCollection.body.name);
+
+		await expect(
+			page.locator('.publication-name', {hasText: 'Pending Approval'})
+		).toBeVisible();
+
+		await page.getByLabel('More Actions').click();
+
+		const dropdownMenu = page.getByRole('menu');
+
+		await expect(dropdownMenu).toBeVisible();
+
+		const dropdownMenuItems = await dropdownMenu
+			.locator('li')
+			.allTextContents();
+
+		const expectedItems = [
+			'Show System Changes',
+			'Work on Publication',
+			'Edit',
+			'Reindex',
+			'Permissions',
+			'Delete',
+		];
+
+		expect(dropdownMenuItems.filter(Boolean)).toEqual(expectedItems);
+
+		const scheduleButton = page.locator('.btn', {hasText: 'Schedule'});
+
+		await scheduleButton.waitFor();
+		await scheduleButton.click();
+
+		await expect(
+			page
+				.getByTestId('headerTitle')
+				.getByText(
+					`Schedule to Publish Later: ${ctCollection.body.name}`
+				)
+		).toBeVisible();
+
+		await changeTrackingPage.goToReviewChanges(ctCollection.body.name);
+
+		const publishButton = page.locator('.btn', {hasText: 'Publish'});
+
+		await publishButton.waitFor();
+		await publishButton.click();
+
+		await expect(
+			page
+				.getByTestId('headerTitle')
+				.getByText(`Publish: ${ctCollection.body.name}`)
+		).toBeVisible();
+	});
+
+	test('LPD-73282 Assert can move changes to publications with incomplete status', async ({
+		apiHelpers,
+		changeTrackingPage,
+		ctCollection,
+		journalEditArticlePage,
+		page,
+	}) => {
+		const ctCollection2 =
+			await apiHelpers.headlessChangeTracking.createCTCollection(
+				getRandomString()
+			);
+
+		await apiHelpers.headlessChangeTracking.checkoutCTCollection(
+			ctCollection2.body.id
+		);
+
+		const journalArticleTitle = getRandomString();
+
+		await journalEditArticlePage.goto();
+
+		await journalEditArticlePage.fillTitle(journalArticleTitle);
+
+		await journalEditArticlePage.publishArticle();
+
+		await waitForAlert(
+			page,
+			`Success:${journalArticleTitle} was created successfully.`
+		);
+
+		changeTrackingPage.goToReviewChanges(ctCollection2.body.name);
+
+		const firstDropdown = page
+			.locator('.cell-item-actions .dropdown svg.lexicon-icon-ellipsis-v')
+			.first();
+		await firstDropdown.waitFor();
+		await firstDropdown.click();
+
+		await clickAndExpectToBeVisible({
+			autoClick: true,
+			target: page.getByRole('menuitem', {name: 'Move Changes'}),
+			trigger: firstDropdown,
+		});
+
+		await expect(
+			page.getByRole('heading', {name: 'Moved Changes'})
+		).toBeVisible();
+
+		const publicationSelector = page.locator(
+			'#_com_liferay_change_tracking_web_portlet_PublicationsPortlet_toPublication'
+		);
+
+		await expect(publicationSelector).toBeVisible();
+
+		const publicationsOptions = await page.locator(
+			'#_com_liferay_change_tracking_web_portlet_PublicationsPortlet_toPublication > option'
+		);
+
+		await expect(publicationsOptions).toHaveText([
+			'None',
+			ctCollection.body.name,
+		]);
+
+		await apiHelpers.headlessChangeTracking.deleteCTCollection(
+			ctCollection2.body.id
+		);
+	});
+});
+
+test('LPD-76512 User custom view is enabled for review changes', async ({
+	changeTrackingPage,
+	ctCollection,
+	page,
+}) => {
+	await changeTrackingPage.goToReviewChanges(ctCollection.body.name);
+
+	const viewsSelectorButton = page.getByLabel('Views');
+
+	await expect(viewsSelectorButton).toBeVisible();
+
+	await expect(viewsSelectorButton).toHaveText('Default View');
+});
+
+test('LPD-62940 Assert download button is visible and functional in the data tab', async ({
+	changeTrackingPage,
+	ctCollection,
+	documentLibraryEditFilePage,
+	documentLibraryPage,
+	page,
+}) => {
+	await changeTrackingPage.workOnPublication(ctCollection);
+
+	await documentLibraryPage.goto();
+
+	await page.getByTitle('Provided by Liferay').click();
+
+	await documentLibraryPage.goToFileEntryAction('Edit', 'astronaut.png');
+
+	await page
+		.locator(
+			'#_com_liferay_document_library_web_portlet_DLAdminPortlet_title'
+		)
+		.fill('astronaut2');
+
+	await documentLibraryEditFilePage.publishButton.click();
+
+	await changeTrackingPage.goToReviewChanges(ctCollection.body.name);
+	await changeTrackingPage.reviewChange('astronaut2');
+	await changeTrackingPage.selectTab('Data');
+
+	const downloadPromise = page.waitForEvent('download');
+
+	const downloadButton = page
+		.locator('.btn-primary', {
+			hasText: 'Download',
+		})
+		.first();
+
+	await downloadButton.scrollIntoViewIfNeeded();
+	await downloadButton.click();
+
+	const download = await downloadPromise;
+	expect(download.suggestedFilename()).toEqual('astronaut.png');
 });

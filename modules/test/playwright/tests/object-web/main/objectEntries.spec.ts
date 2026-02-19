@@ -80,6 +80,7 @@ const assigneeTest = test;
 const cmsTest = mergeTests(
 	test,
 	featureFlagsTest({
+		'LPD-11235': {enabled: true},
 		'LPD-17564': {enabled: true},
 		'LPD-34594': {enabled: true},
 	})
@@ -90,35 +91,50 @@ let displayPageId: string;
 let informationTemplateName: string;
 let siteLanguage = 'en';
 
-test.afterEach(async ({apiHelpers, page, pagesAdminPage, templatesPage}) => {
-	if (contentPageName) {
-		await pagesAdminPage.goto();
+test.afterEach(
+	async ({
+		accountSettingsPage,
+		apiHelpers,
+		page,
+		pagesAdminPage,
+		templatesPage,
+	}) => {
+		if (contentPageName) {
+			await pagesAdminPage.goto();
 
-		await pagesAdminPage.deletePage(contentPageName);
+			await pagesAdminPage.deletePage(contentPageName);
+		}
+
+		if (displayPageId) {
+			await apiHelpers.jsonWebServicesLayoutPageTemplateEntry.deleteLayoutPageTemplateEntry(
+				{
+					layoutPageTemplateEntryId: displayPageId,
+				}
+			);
+
+			displayPageId = '';
+		}
+
+		if (informationTemplateName) {
+			await templatesPage.goto();
+
+			await templatesPage.deleteInformationTemplate(
+				informationTemplateName
+			);
+		}
+
+		if (siteLanguage !== 'en') {
+			await accountSettingsPage.selectAccountLanguage({
+				languageId: 'en_US',
+				navigate: true,
+			});
+
+			await page.goto('en');
+
+			siteLanguage = 'en';
+		}
 	}
-
-	if (displayPageId) {
-		await apiHelpers.jsonWebServicesLayoutPageTemplateEntry.deleteLayoutPageTemplateEntry(
-			{
-				layoutPageTemplateEntryId: displayPageId,
-			}
-		);
-
-		displayPageId = '';
-	}
-
-	if (informationTemplateName) {
-		await templatesPage.goto();
-
-		await templatesPage.deleteInformationTemplate(informationTemplateName);
-	}
-
-	if (siteLanguage !== 'en') {
-		await page.goto('en');
-
-		siteLanguage = 'en';
-	}
-});
+);
 
 assigneeTest(
 	'can create, read, update and delete an entry with assignee object field',
@@ -602,6 +618,65 @@ test.describe('Manage object entries through Friendly URL', () => {
 });
 
 test.describe('Manage object entries through Object Definition widget', () => {
+	test('verify that object labels are shown according to user language', async ({
+		accountSettingsPage,
+		apiHelpers,
+		objectDetailsPage,
+		page,
+		viewObjectDefinitionsPage,
+		viewObjectEntriesPage,
+	}) => {
+		siteLanguage = 'pt';
+
+		await accountSettingsPage.selectAccountLanguage({
+			languageId: 'pt_BR',
+			navigate: true,
+		});
+
+		const objectDefinition =
+			await apiHelpers.objectAdmin.postRandomObjectDefinition({
+				status: {code: 0},
+			});
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+
+		await viewObjectDefinitionsPage.goto();
+
+		await viewObjectDefinitionsPage.clickEditObjectDefinitionLink(
+			objectDefinition.name,
+			'Buscar'
+		);
+
+		const newLabel = objectDefinition.name + 'pt_BR';
+
+		const newPluralLabel = objectDefinition.name + 'pt_BR plural';
+
+		await objectDetailsPage.changeLanguageLabels(
+			'pt_BR',
+			newLabel,
+			newPluralLabel
+		);
+
+		await page.getByRole('button', {name: 'Salvar'}).click();
+
+		await page
+			.locator('.alert-success')
+			.filter({hasText: 'O objeto foi salvo com sucesso.'})
+			.waitFor();
+
+		await viewObjectEntriesPage.goto(
+			objectDefinition.className,
+			siteLanguage
+		);
+
+		await expect(
+			page.getByRole('heading', {name: newPluralLabel})
+		).toBeVisible();
+	});
+
 	test('verify that previous validation alerts are removed from the page when editing the entry', async ({
 		apiHelpers,
 		page,
@@ -2501,6 +2576,11 @@ test.describe('Manage object entries through View Object Entries', () => {
 					status: {code: 0},
 				});
 
+			apiHelpers.data.push({
+				id: objectDefinition.id,
+				type: 'objectDefinition',
+			});
+
 			await accountSettingsPage.goToDisplaySettings();
 
 			await accountSettingsPage.setTimeZone('America/Sao_Paulo');
@@ -2528,7 +2608,7 @@ test.describe('Manage object entries through View Object Entries', () => {
 			await viewObjectEntriesPage.backButton.click();
 
 			let formattedDate = date.toLocaleString('en-US', {
-				day: '2-digit',
+				day: 'numeric',
 				hour: 'numeric',
 				hour12: true,
 				minute: '2-digit',
@@ -3372,10 +3452,12 @@ cmsTest.describe('Manage attachment ObjectField download permission', () => {
 				const objectField = objectFields[0];
 
 				const objectFieldActionCheckbox = iframeLocator.locator(
-					'#guest_ACTION_download_' + objectField.name
+					'#guest_ACTION_DOWNLOAD_' + objectField.name.toUpperCase()
 				);
 
-				await objectFieldActionCheckbox.click();
+				await page.waitForTimeout(500);
+
+				await objectFieldActionCheckbox.check();
 
 				await expect(objectFieldActionCheckbox).toBeChecked();
 

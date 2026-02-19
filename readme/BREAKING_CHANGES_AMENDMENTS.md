@@ -9,11 +9,11 @@ LPD-16086: Prevent to compute values for item selector and URL fields. This comm
 
 ## What modules/apps/headless/headless-delivery/headless-delivery-impl/src/main/java/com/liferay/headless/delivery/internal/dto/v1_0/mapper/PageFragmentInstanceDefinitionMapper.java
 
-Consumers of the PageFragmentInstanceDefinitionMapper (specifically for item selector and URL fields) will no longer receive the fully computed values directly in the response. Instead, consumers must now use the classPK (or externalReferenceCode if applicable) from the response to retrieve all necessary information for the referenced resource via the appropriate Liferay services.
+PageFragmentInstanceDefinitionMapper no longer returns fully computed values in the response directly (for item selector and URL fields). Instead, use the class PK (or external reference code, if applicable) from the response to retrieve all necessary information for the referenced resource, via the appropriate Liferay service.
 
 ## Why
 
-This change is needed to make the import process work.
+This change fixes an issue with page imports.
 ```
 
 ----
@@ -639,13 +639,37 @@ LPD-47825 portal-search-web: skip deprecation for internal interface
 
 ## What modules/apps/portal-search/portal-search-web/src/main/java/com/liferay/portal/search/web/internal/category/facet/portlet/CategoryFacetPortletPreferences.java
 
-Vocabulary Ids were removed from the CategoryFacetPortletPreferences and replaced by a GroupExternalReferenceCode VocabularyExternalReferenceCode pair. Category Facet Widget Display Templates using portletPreferences.getValues() will no longer be able to return vocabularyIds from the CategoryFacetPortletPreferences.
+Vocabulary IDs are removed from CategoryFacetPortletPreferences and replaced by a paired GroupExternalReferenceCode and VocabularyExternalReferenceCode. Category Facet Widget Display Templates using portletPreferences.getValues() no longer return vocabulary IDs from the CategoryFacetPortletPreferences.
 
 ## Why
 
-Vocabulary Ids were replaced by a External Reference Codes in Category Facet Portlet Preferences for better data preservation during imports, exports, and data migration.
+Vocabulary IDs were replaced by external reference codes in Category Facet Portlet Preferences for better data preservation during imports, exports, and data migration.
 
 ## Alternatives
 
-Vocabulary ids to all vocabularies related to the returned categories are available through the AssetCategoriesSearchFacetDisplayContext: use `assetCategoriesSearchFacetDisplayContext.getVocabularyIds()`.
+Vocabulary IDs for all vocabularies related to the returned categories are available through the AssetCategoriesSearchFacetDisplayContext: use assetCategoriesSearchFacetDisplayContext.getVocabularyIds().
+```
+
+----
+
+# 971a14cc0a58eb64a36fc88863a50141b0f09022
+
+This commit is missing a breaking change message. The correct message is:
+
+```
+LPD-77861 Semantic versioning (gw baseline)
+
+# breaking
+
+## What modules/apps/frontend-taglib/frontend-taglib-clay/src/main/java/com/liferay/frontend/taglib/clay/servlet/taglib/VerticalNavTag.java
+
+The collapse, displayType, and size attributes are added to VerticalNavTag.
+
+## Why
+
+These attributes were added for more flexibility when using Clay components, enabling developers to configure different aspects of the VerticalNavTag element independently. Previously, internal conditionals could produce these attributes automatically (e.g., collapse depended on the displayType), but more flexibility is necessary.
+
+## Alternatives
+
+The displayType attribute always works, since it defaults to "transparent". The size attribute is used as a replacement for the deprecated large flag. If the size attribute isn't provided, the large flag still works as a fallback. The collapse attribute is a new control and it's disabled by default. Provide collapse with true if the previous behavior is missing.
 ```

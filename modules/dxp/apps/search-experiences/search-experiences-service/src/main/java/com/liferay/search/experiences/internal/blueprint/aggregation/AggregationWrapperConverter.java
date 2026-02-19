@@ -100,13 +100,11 @@ import java.util.function.Consumer;
 public class AggregationWrapperConverter {
 
 	public AggregationWrapperConverter(
-		Aggregations aggregations, GeoBuilders geoBuilders,
-		HighlightConverter highlightConverter, QueryConverter queryConverter,
-		ScriptConverter scriptConverter,
+		Aggregations aggregations, HighlightConverter highlightConverter,
+		QueryConverter queryConverter, ScriptConverter scriptConverter,
 		SignificanceHeuristics significanceHeuristics, Sorts sorts) {
 
 		_aggregations = aggregations;
-		_geoBuilders = geoBuilders;
 		_highlightConverter = highlightConverter;
 		_queryConverter = queryConverter;
 		_scriptConverter = scriptConverter;
@@ -221,8 +219,6 @@ public class AggregationWrapperConverter {
 			).put(
 				"sum_bucket", this::_toSumBucketPipelineAggregation
 			).build());
-
-		_scripts = scriptConverter.getScripts();
 	}
 
 	public AggregationWrapper toAggregationWrapper(
@@ -911,7 +907,7 @@ public class AggregationWrapperConverter {
 		GeoDistanceAggregation geoDistanceAggregation =
 			_aggregations.geoDistance(
 				name, jsonObject.getString("field"),
-				_geoBuilders.geoLocationPoint(
+				GeoBuilders.INSTANCE.geoLocationPoint(
 					GetterUtil.getDouble(coordinates[0]),
 					GetterUtil.getDouble(coordinates[1])));
 
@@ -1465,7 +1461,8 @@ public class AggregationWrapperConverter {
 					continue;
 				}
 
-				ScriptFieldBuilder scriptFieldBuilder = _scripts.fieldBuilder();
+				ScriptFieldBuilder scriptFieldBuilder =
+					Scripts.INSTANCE.fieldBuilder();
 
 				scriptFieldBuilder.script(script);
 
@@ -1533,11 +1530,9 @@ public class AggregationWrapperConverter {
 	private final Aggregations _aggregations;
 	private final Map<String, ConvertFunction> _convertFunctions =
 		new HashMap<>();
-	private final GeoBuilders _geoBuilders;
 	private final HighlightConverter _highlightConverter;
 	private final QueryConverter _queryConverter;
 	private final ScriptConverter _scriptConverter;
-	private final Scripts _scripts;
 	private final SignificanceHeuristics _significanceHeuristics;
 	private final Sorts _sorts;
 

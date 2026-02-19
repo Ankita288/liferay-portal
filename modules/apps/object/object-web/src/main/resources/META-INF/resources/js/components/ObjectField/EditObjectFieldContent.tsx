@@ -66,6 +66,8 @@ export function EditObjectFieldContent({
 
 	const [dbObjectFieldRequired, setDbObjectFieldRequired] =
 		useState<boolean>();
+	const [defaultValueSidebarElements, setDefaultValueSidebarElements] =
+		useState<SidebarCategory[]>([]);
 	const [objectFieldBusinessTypes, setObjectFieldBusinessTypes] = useState<
 		ObjectFieldBusinessType[]
 	>([]);
@@ -77,8 +79,7 @@ export function EditObjectFieldContent({
 		[]
 	);
 	const hasDefaultValue =
-		(Liferay.FeatureFlags['LPD-46451'] &&
-			values.businessType &&
+		(values.businessType &&
 			DEFAULT_VALUE_SUPPORTED_BUSINESS_TYPES.includes(
 				values.businessType
 			)) ||
@@ -116,6 +117,7 @@ export function EditObjectFieldContent({
 
 				const objectFieldInfoJSON =
 					(await objectFieldInfoResponse.json()) as {
+						defaultValueSidebarElements: SidebarCategory[];
 						objectFieldBusinessTypes: ObjectFieldBusinessType[];
 						objectRelationshipId: number;
 						readOnlySidebarElements: SidebarCategory[];
@@ -128,6 +130,9 @@ export function EditObjectFieldContent({
 					);
 				}
 
+				setDefaultValueSidebarElements(
+					objectFieldInfoJSON.defaultValueSidebarElements
+				);
 				setObjectFieldBusinessTypes(
 					objectFieldInfoJSON.objectFieldBusinessTypes
 				);
@@ -203,6 +208,9 @@ export function EditObjectFieldContent({
 								containerWrapper={containerWrapper}
 								creationLanguageId={creationLanguageId}
 								decimalSeparator={decimalSeparator}
+								defaultValueSidebarElements={
+									defaultValueSidebarElements
+								}
 								errors={errors}
 								isDefaultStorageType={isDefaultStorageType}
 								isRootDescendantNode={isRootDescendantNode}
@@ -213,7 +221,6 @@ export function EditObjectFieldContent({
 									readOnlySidebarElements
 								}
 								setValues={setValues}
-								sidebarElements={sidebarElements}
 								values={values}
 							/>
 						</ClayTabs.TabPane>

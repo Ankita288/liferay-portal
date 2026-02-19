@@ -4,6 +4,8 @@
  */
 
 export {default as FrontendDataSet} from './FrontendDataSet';
+export {default as FrontendDataSetContext} from './FrontendDataSetContext';
+export {default as DateRenderer} from './cell_renderers/DateRenderer';
 export {default as DateTimeRenderer} from './cell_renderers/DateTimeRenderer';
 
 export {INTERNAL_CELL_RENDERERS as FDS_INTERNAL_CELL_RENDERERS} from './cell_renderers/InternalCellRenderer';
@@ -20,7 +22,13 @@ export {
 	FDS_ARRAY_FIELD_NAME_PARENT_SUFFIX,
 	FDS_NESTED_FIELD_NAME_DELIMITER,
 	FDS_NESTED_FIELD_NAME_PARENT_SUFFIX,
+	PAGINATION_DELTA_ALL as FDS_PAGINATION_DELTA_ALL,
 } from './constants';
+
+export {
+	IInlineNotificationComponent,
+	InlineNotification,
+} from './inline_notification/InlineNotification';
 
 export {ACTION_ITEM_TARGETS} from './utils/actionItems/constants';
 
@@ -31,17 +39,20 @@ export {default as FDS_EVENT} from './utils/eventsDefinitions';
 export {
 	DisplayType,
 	EConfigInURLBehavior,
+	IBaseFilterState,
 	ICardSchema,
 	IClientExtensionRenderer,
 	ICreationActionItem,
+	IFDSState,
 	IFileDropSettings,
 	IFrontendDataSetProps,
 	IInfoPanelComponent,
 	IInternalRenderer,
 	IItemsActions,
 	IItemActionsData,
+	ISelectionFilterState,
 	IView,
 	TOnFileDrop,
+	TSort,
 } from './utils/types';
-
 export {Card} from './views/cards/Cards';

@@ -71,11 +71,20 @@ public class DocumentImpl implements Document {
 		Long[] datesTime = new Long[values.length];
 
 		for (int i = 0; i < values.length; i++) {
-			Format dateFormat = _getDateFormat();
+			Date date = values[i];
 
-			datesString[i] = dateFormat.format(values[i]);
+			long time = date.getTime();
 
-			datesTime[i] = values[i].getTime();
+			if (time == Long.MAX_VALUE) {
+				datesString[i] = _MAX_DATE_TIME_STRING;
+			}
+			else {
+				Format dateFormat = _getDateFormat();
+
+				datesString[i] = dateFormat.format(date);
+			}
+
+			datesTime[i] = time;
 		}
 
 		createSortableNumericField(name, false, datesTime);
@@ -842,7 +851,7 @@ public class DocumentImpl implements Document {
 
 	@Override
 	public Field getField(String name) {
-		return doGetField(name, false);
+		return _fields.get(name);
 	}
 
 	@Override
@@ -915,7 +924,11 @@ public class DocumentImpl implements Document {
 	}
 
 	protected Field createField(String name) {
-		return doGetField(name, true);
+		Field field = new Field(name);
+
+		_fields.put(name, field);
+
+		return field;
 	}
 
 	protected Field createField(
@@ -1055,18 +1068,6 @@ public class DocumentImpl implements Document {
 		_createSortableTextField(name, false, values);
 	}
 
-	protected Field doGetField(String name, boolean createIfNew) {
-		Field field = _fields.get(name);
-
-		if ((field == null) && createIfNew) {
-			field = new Field(name);
-
-			_fields.put(name, field);
-		}
-
-		return field;
-	}
-
 	protected void setSortableTextFields(Set<String> sortableTextFields) {
 		_sortableTextFields = sortableTextFields;
 	}
@@ -1141,6 +1142,9 @@ public class DocumentImpl implements Document {
 
 	private static final String _INDEX_DATE_FORMAT_PATTERN = PropsUtil.get(
 		PropsKeys.INDEX_DATE_FORMAT_PATTERN);
+
+	private static final String _MAX_DATE_TIME_STRING = String.valueOf(
+		MAX_DATE_TIME);
 
 	private static final int _SORTABLE_TEXT_FIELDS_TRUNCATED_LENGTH =
 		GetterUtil.getInteger(

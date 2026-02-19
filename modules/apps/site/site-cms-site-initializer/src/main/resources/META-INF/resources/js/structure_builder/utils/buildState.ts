@@ -22,12 +22,16 @@ export default function buildState({
 		return null;
 	}
 
-	const structure = buildStructure({mainObjectDefinition, objectDefinitions});
+	const structure = buildStructure({
+		mainObjectDefinition,
+		objectDefinitions,
+	});
 
 	return {
 		history: {
-			deletedChildren: false,
+			deletedChildren: [],
 			deletedGroupERCs: [],
+			deletedRelationships: [],
 			modifiedNames: new Set(),
 		},
 		invalids: new Map(),
@@ -35,6 +39,7 @@ export default function buildState({
 			structure.status === 'published'
 				? getChildrenUuids({root: structure})
 				: new Set(),
+		renamingItemUuid: null,
 		selection: [],
 		structure,
 		unsavedChanges: false,

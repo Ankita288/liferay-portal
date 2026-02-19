@@ -179,12 +179,9 @@ public class PlaywrightBatchTestClassGroup extends BatchTestClassGroup {
 		playwrightJobProperties.removeAll(Collections.singleton(null));
 
 		for (JobProperty jobProperty : playwrightJobProperties) {
-			Collections.addAll(
-				_projectNames,
-				jobProperty.getValue(
-				).split(
-					","
-				));
+			String jobPropertyValue = jobProperty.getValue();
+
+			Collections.addAll(_projectNames, jobPropertyValue.split(","));
 		}
 
 		JobProperty excludesJobProperty =
@@ -600,7 +597,9 @@ public class PlaywrightBatchTestClassGroup extends BatchTestClassGroup {
 			for (int j = 0; j < specsJSONArray.length(); j++) {
 				JSONObject specJSONObject = specsJSONArray.getJSONObject(j);
 
-				if (!title.equals(file)) {
+				if (!title.equals(file) &&
+					!JenkinsResultsParserUtil.isNullOrEmpty(title)) {
+
 					specJSONObject.put("subSuite", title);
 				}
 

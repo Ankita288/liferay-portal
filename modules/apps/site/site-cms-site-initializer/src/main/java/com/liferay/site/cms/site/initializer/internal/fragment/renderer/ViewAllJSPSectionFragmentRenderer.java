@@ -66,7 +66,8 @@ public class ViewAllJSPSectionFragmentRenderer
 			_objectDefinitionSettingLocalService,
 			_objectEntryFolderModelResourcePermission, _portal,
 			_viewAllSectionFDSCreationMenu, _viewAllSectionFDSItemsActions,
-			_viewAllSectionSystemFDSEntry);
+			_viewAllSectionSystemFDSEntry,
+			translationInfoItemFieldValuesExporterRegistry);
 	}
 
 	@Override

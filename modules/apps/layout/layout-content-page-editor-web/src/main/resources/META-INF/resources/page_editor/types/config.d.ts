@@ -5,7 +5,6 @@
 
 import type {LayoutType} from '../app/config/constants/layoutTypes';
 import type {SidebarPanel} from './SidebarPanel';
-
 export interface Config {
 	actionableInfoItemSelectorURL: string;
 	addFragmentCompositionURL: string;
@@ -33,7 +32,10 @@ export interface Config {
 	availableSegmentsEntries: {
 		[key: string]: {
 			name: string;
+			segmentsEntryERC: string;
+			segmentsEntryGroupId: string;
 			segmentsEntryId: string;
+			segmentsEntryScopeERC: string | null;
 		};
 	};
 
@@ -49,6 +51,15 @@ export interface Config {
 
 	changeMasterLayoutURL: string;
 	changeStyleBookEntryURL: string;
+	codeEditorSidebarPanels: Array<{
+		items: Array<{
+			content: string;
+			helpText?: string;
+			label: string;
+			tooltip?: string;
+		}>;
+		label: string;
+	}>;
 	collectionSelectorURL: string;
 
 	commonStyles: Array<{
@@ -114,8 +125,11 @@ export interface Config {
 		subtypes: Array<{label: string; value: string}>;
 		value: string;
 	}>;
+	fragmentCompositionDescriptionMaxLength: number;
+	fragmentCompositionNameMaxLength: number;
 	fragmentPortletNamespace: string;
 	fragmentsImportURL: string;
+	freeTier: boolean;
 	frontendTokens: {
 		[key: string]:
 			| {
@@ -196,7 +210,7 @@ export interface Config {
 		subtype: {
 			id: string;
 			label: string;
-		};
+		} | null;
 		type: {
 			id: string;
 			label: string;
@@ -236,6 +250,8 @@ export interface Config {
 	updateRulesURL: string;
 	updateSegmentsExperiencePriorityURL: string;
 	updateSegmentsExperienceURL: string;
+	validateExpressionURL: string;
+	validateFragmentCompositionURL: string;
 	videoItemSelectorURL: string;
 	workflowEnabled: boolean;
 }

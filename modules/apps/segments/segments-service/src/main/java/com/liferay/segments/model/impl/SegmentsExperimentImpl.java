@@ -5,6 +5,7 @@
 
 package com.liferay.segments.model.impl;
 
+import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.log.Log;
@@ -73,15 +74,28 @@ public class SegmentsExperimentImpl extends SegmentsExperimentBaseImpl {
 			SegmentsExperienceLocalServiceUtil.getSegmentsExperience(
 				getSegmentsExperienceId());
 
-		if (segmentsExperience.getSegmentsEntryId() ==
-				SegmentsEntryConstants.ID_DEFAULT) {
-
+		if (segmentsExperience.hasDefaultSegmentsEntry()) {
 			return SegmentsEntryConstants.getDefaultSegmentsEntryName(locale);
 		}
 
 		SegmentsEntry segmentsEntry =
-			SegmentsEntryLocalServiceUtil.getSegmentsEntry(
-				segmentsExperience.getSegmentsEntryId());
+			SegmentsEntryLocalServiceUtil.
+				fetchSegmentsEntryByExternalReferenceCode(
+					segmentsExperience.getSegmentsEntryERC(),
+					segmentsExperience.getSegmentsEntryGroupId());
+
+		if (segmentsEntry == null) {
+			if (_log.isWarnEnabled()) {
+				_log.warn(
+					StringBundler.concat(
+						"Unable to get segments entry with external reference ",
+						"code ", segmentsExperience.getSegmentsEntryERC(),
+						" and group ID ",
+						segmentsExperience.getSegmentsEntryGroupId()));
+			}
+
+			return StringPool.BLANK;
+		}
 
 		return segmentsEntry.getName(locale);
 	}

@@ -67,7 +67,7 @@ public class LayoutCacheModel
 
 	@Override
 	public String toString() {
-		StringBundler sb = new StringBundler(89);
+		StringBundler sb = new StringBundler(93);
 
 		sb.append("{mvccVersion=");
 		sb.append(mvccVersion);
@@ -135,14 +135,18 @@ public class LayoutCacheModel
 		sb.append(css);
 		sb.append(", priority=");
 		sb.append(priority);
-		sb.append(", faviconFileEntryId=");
-		sb.append(faviconFileEntryId);
+		sb.append(", faviconFileEntryERC=");
+		sb.append(faviconFileEntryERC);
+		sb.append(", faviconFileEntryScopeERC=");
+		sb.append(faviconFileEntryScopeERC);
 		sb.append(", masterLayoutPageTemplateEntryERC=");
 		sb.append(masterLayoutPageTemplateEntryERC);
-		sb.append(", layoutPrototypeUuid=");
-		sb.append(layoutPrototypeUuid);
-		sb.append(", layoutPrototypeLinkEnabled=");
-		sb.append(layoutPrototypeLinkEnabled);
+		sb.append(", portletLayoutPageTemplateEntryERC=");
+		sb.append(portletLayoutPageTemplateEntryERC);
+		sb.append(", portletLayoutPageTemplateEntryScopeERC=");
+		sb.append(portletLayoutPageTemplateEntryScopeERC);
+		sb.append(", portletLayoutPageTemplateEntryLinkEnabled=");
+		sb.append(portletLayoutPageTemplateEntryLinkEnabled);
 		sb.append(", layoutSetPrototypeLayoutERC=");
 		sb.append(layoutSetPrototypeLayoutERC);
 		sb.append(", publishDate=");
@@ -306,7 +310,20 @@ public class LayoutCacheModel
 		}
 
 		layoutImpl.setPriority(priority);
-		layoutImpl.setFaviconFileEntryId(faviconFileEntryId);
+
+		if (faviconFileEntryERC == null) {
+			layoutImpl.setFaviconFileEntryERC("");
+		}
+		else {
+			layoutImpl.setFaviconFileEntryERC(faviconFileEntryERC);
+		}
+
+		if (faviconFileEntryScopeERC == null) {
+			layoutImpl.setFaviconFileEntryScopeERC("");
+		}
+		else {
+			layoutImpl.setFaviconFileEntryScopeERC(faviconFileEntryScopeERC);
+		}
 
 		if (masterLayoutPageTemplateEntryERC == null) {
 			layoutImpl.setMasterLayoutPageTemplateEntryERC("");
@@ -316,14 +333,24 @@ public class LayoutCacheModel
 				masterLayoutPageTemplateEntryERC);
 		}
 
-		if (layoutPrototypeUuid == null) {
-			layoutImpl.setLayoutPrototypeUuid("");
+		if (portletLayoutPageTemplateEntryERC == null) {
+			layoutImpl.setPortletLayoutPageTemplateEntryERC("");
 		}
 		else {
-			layoutImpl.setLayoutPrototypeUuid(layoutPrototypeUuid);
+			layoutImpl.setPortletLayoutPageTemplateEntryERC(
+				portletLayoutPageTemplateEntryERC);
 		}
 
-		layoutImpl.setLayoutPrototypeLinkEnabled(layoutPrototypeLinkEnabled);
+		if (portletLayoutPageTemplateEntryScopeERC == null) {
+			layoutImpl.setPortletLayoutPageTemplateEntryScopeERC("");
+		}
+		else {
+			layoutImpl.setPortletLayoutPageTemplateEntryScopeERC(
+				portletLayoutPageTemplateEntryScopeERC);
+		}
+
+		layoutImpl.setPortletLayoutPageTemplateEntryLinkEnabled(
+			portletLayoutPageTemplateEntryLinkEnabled);
 
 		if (layoutSetPrototypeLayoutERC == null) {
 			layoutImpl.setLayoutSetPrototypeLayoutERC("");
@@ -421,12 +448,13 @@ public class LayoutCacheModel
 		css = (String)objectInput.readObject();
 
 		priority = objectInput.readInt();
-
-		faviconFileEntryId = objectInput.readLong();
+		faviconFileEntryERC = objectInput.readUTF();
+		faviconFileEntryScopeERC = objectInput.readUTF();
 		masterLayoutPageTemplateEntryERC = objectInput.readUTF();
-		layoutPrototypeUuid = objectInput.readUTF();
+		portletLayoutPageTemplateEntryERC = objectInput.readUTF();
+		portletLayoutPageTemplateEntryScopeERC = objectInput.readUTF();
 
-		layoutPrototypeLinkEnabled = objectInput.readBoolean();
+		portletLayoutPageTemplateEntryLinkEnabled = objectInput.readBoolean();
 		layoutSetPrototypeLayoutERC = objectInput.readUTF();
 		publishDate = objectInput.readLong();
 		lastPublishDate = objectInput.readLong();
@@ -580,7 +608,19 @@ public class LayoutCacheModel
 
 		objectOutput.writeInt(priority);
 
-		objectOutput.writeLong(faviconFileEntryId);
+		if (faviconFileEntryERC == null) {
+			objectOutput.writeUTF("");
+		}
+		else {
+			objectOutput.writeUTF(faviconFileEntryERC);
+		}
+
+		if (faviconFileEntryScopeERC == null) {
+			objectOutput.writeUTF("");
+		}
+		else {
+			objectOutput.writeUTF(faviconFileEntryScopeERC);
+		}
 
 		if (masterLayoutPageTemplateEntryERC == null) {
 			objectOutput.writeUTF("");
@@ -589,14 +629,21 @@ public class LayoutCacheModel
 			objectOutput.writeUTF(masterLayoutPageTemplateEntryERC);
 		}
 
-		if (layoutPrototypeUuid == null) {
+		if (portletLayoutPageTemplateEntryERC == null) {
 			objectOutput.writeUTF("");
 		}
 		else {
-			objectOutput.writeUTF(layoutPrototypeUuid);
+			objectOutput.writeUTF(portletLayoutPageTemplateEntryERC);
 		}
 
-		objectOutput.writeBoolean(layoutPrototypeLinkEnabled);
+		if (portletLayoutPageTemplateEntryScopeERC == null) {
+			objectOutput.writeUTF("");
+		}
+		else {
+			objectOutput.writeUTF(portletLayoutPageTemplateEntryScopeERC);
+		}
+
+		objectOutput.writeBoolean(portletLayoutPageTemplateEntryLinkEnabled);
 
 		if (layoutSetPrototypeLayoutERC == null) {
 			objectOutput.writeUTF("");
@@ -655,10 +702,12 @@ public class LayoutCacheModel
 	public String styleBookEntryERC;
 	public String css;
 	public int priority;
-	public long faviconFileEntryId;
+	public String faviconFileEntryERC;
+	public String faviconFileEntryScopeERC;
 	public String masterLayoutPageTemplateEntryERC;
-	public String layoutPrototypeUuid;
-	public boolean layoutPrototypeLinkEnabled;
+	public String portletLayoutPageTemplateEntryERC;
+	public String portletLayoutPageTemplateEntryScopeERC;
+	public boolean portletLayoutPageTemplateEntryLinkEnabled;
 	public String layoutSetPrototypeLayoutERC;
 	public long publishDate;
 	public long lastPublishDate;

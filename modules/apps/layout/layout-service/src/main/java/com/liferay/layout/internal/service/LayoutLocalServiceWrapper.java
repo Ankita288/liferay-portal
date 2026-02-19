@@ -48,6 +48,7 @@ import com.liferay.portal.kernel.model.Portlet;
 import com.liferay.portal.kernel.model.PortletPreferences;
 import com.liferay.portal.kernel.model.PortletPreferencesIds;
 import com.liferay.portal.kernel.model.ResourceConstants;
+import com.liferay.portal.kernel.model.ResourcePermission;
 import com.liferay.portal.kernel.model.Role;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.model.role.RoleConstants;
@@ -55,7 +56,6 @@ import com.liferay.portal.kernel.portlet.PortletIdCodec;
 import com.liferay.portal.kernel.portlet.PortletPreferencesFactory;
 import com.liferay.portal.kernel.portlet.PortletPreferencesFactoryUtil;
 import com.liferay.portal.kernel.security.auth.GuestOrUserUtil;
-import com.liferay.portal.kernel.security.permission.ResourceActionsUtil;
 import com.liferay.portal.kernel.service.ImageLocalService;
 import com.liferay.portal.kernel.service.PortletLocalService;
 import com.liferay.portal.kernel.service.PortletPreferencesLocalService;
@@ -71,6 +71,7 @@ import com.liferay.portal.kernel.transaction.TransactionConfig;
 import com.liferay.portal.kernel.transaction.TransactionInvokerUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.CopyLayoutThreadLocal;
+import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.StringUtil;
@@ -338,6 +339,10 @@ public class LayoutLocalServiceWrapper
 			ctCollectionId = targetLayout.getCtCollectionId();
 		}
 
+		if (ctCollectionId == 0) {
+			ctCollectionId = CTCollectionThreadLocal.getCTCollectionId();
+		}
+
 		try (SafeCloseable safeCloseable =
 				CTCollectionThreadLocal.setCTCollectionIdWithSafeCloseable(
 					ctCollectionId)) {
@@ -527,16 +532,12 @@ public class LayoutLocalServiceWrapper
 			String sourceResourcePrimKey = PortletPermissionUtil.getPrimaryKey(
 				sourceLayout.getPlid(), portletId);
 
-			Map<Long, Set<String>> sourceRoleIdsToActionIds =
-				_resourcePermissionLocalService.
-					getAvailableResourcePermissionActionIds(
-						targetLayout.getCompanyId(), resourceName,
-						ResourceConstants.SCOPE_INDIVIDUAL,
-						sourceResourcePrimKey,
-						ResourceActionsUtil.getPortletResourceActions(
-							resourceName));
+			List<ResourcePermission> sourceResourcePermissions =
+				_resourcePermissionLocalService.getResourcePermissions(
+					sourceLayout.getCompanyId(), resourceName,
+					ResourceConstants.SCOPE_INDIVIDUAL, sourceResourcePrimKey);
 
-			if (sourceRoleIdsToActionIds.isEmpty()) {
+			if (sourceResourcePermissions.isEmpty()) {
 				continue;
 			}
 
@@ -547,28 +548,50 @@ public class LayoutLocalServiceWrapper
 					role -> !Objects.equals(
 						RoleConstants.ADMINISTRATOR, role.getName())),
 				Role::getRoleId);
+			String targetResourcePrimKey = PortletPermissionUtil.getPrimaryKey(
+				targetLayout.getPlid(), portletId);
 
-			Map<Long, String[]> targetRoleIdsToActionIds = new HashMap<>();
+			for (ResourcePermission sourceResourcePermission :
+					sourceResourcePermissions) {
 
-			for (Map.Entry<Long, Set<String>> entry :
-					sourceRoleIdsToActionIds.entrySet()) {
+				long roleId = sourceResourcePermission.getRoleId();
 
-				Long roleId = entry.getKey();
-
-				if (roleIds.contains(roleId)) {
-					Set<String> sourceActionIds = entry.getValue();
-
-					targetRoleIdsToActionIds.put(
-						roleId, sourceActionIds.toArray(new String[0]));
+				if (!roleIds.contains(roleId)) {
+					continue;
 				}
-			}
 
-			_resourcePermissionLocalService.setResourcePermissions(
-				targetLayout.getCompanyId(), resourceName,
-				ResourceConstants.SCOPE_INDIVIDUAL,
-				PortletPermissionUtil.getPrimaryKey(
-					targetLayout.getPlid(), portletId),
-				targetRoleIdsToActionIds);
+				ResourcePermission targetResourcePermission =
+					_resourcePermissionLocalService.fetchResourcePermission(
+						targetLayout.getCompanyId(), resourceName,
+						ResourceConstants.SCOPE_INDIVIDUAL,
+						targetResourcePrimKey, roleId);
+
+				if (targetResourcePermission == null) {
+					targetResourcePermission =
+						_resourcePermissionLocalService.
+							createResourcePermission(
+								_counterLocalService.increment(
+									ResourcePermission.class.getName()));
+
+					targetResourcePermission.setCompanyId(
+						targetLayout.getCompanyId());
+					targetResourcePermission.setName(resourceName);
+					targetResourcePermission.setScope(
+						ResourceConstants.SCOPE_INDIVIDUAL);
+					targetResourcePermission.setPrimKey(targetResourcePrimKey);
+					targetResourcePermission.setPrimKeyId(
+						GetterUtil.getLong(targetResourcePrimKey));
+					targetResourcePermission.setRoleId(roleId);
+				}
+
+				targetResourcePermission.setActionIds(
+					sourceResourcePermission.getActionIds());
+				targetResourcePermission.setViewActionId(
+					sourceResourcePermission.isViewActionId());
+
+				_resourcePermissionLocalService.updateResourcePermission(
+					targetResourcePermission);
+			}
 		}
 	}
 
@@ -792,6 +815,10 @@ public class LayoutLocalServiceWrapper
 						SegmentsExperienceConstants.KEY_DEFAULT,
 						targetSegmentsExperience.getSegmentsExperienceKey())) {
 
+					targetSegmentsExperience.setSegmentsEntryERC(
+						sourceSegmentsExperience.getSegmentsEntryERC());
+					targetSegmentsExperience.setSegmentsEntryScopeERC(
+						sourceSegmentsExperience.getSegmentsEntryScopeERC());
 					targetSegmentsExperience.setPriority(minPriority++);
 
 					_segmentsExperienceLocalService.updateSegmentsExperience(
@@ -1336,7 +1363,8 @@ public class LayoutLocalServiceWrapper
 				_getTypeSettings(_sourceLayout, _targetLayout), imageBytes,
 				_sourceLayout.getThemeId(), _sourceLayout.getColorSchemeId(),
 				_sourceLayout.getStyleBookEntryERC(), _sourceLayout.getCss(),
-				_sourceLayout.getFaviconFileEntryId(),
+				_sourceLayout.getFaviconFileEntryERC(),
+				_sourceLayout.getFaviconFileEntryScopeERC(),
 				_sourceLayout.getMasterLayoutPageTemplateEntryERC());
 		}
 

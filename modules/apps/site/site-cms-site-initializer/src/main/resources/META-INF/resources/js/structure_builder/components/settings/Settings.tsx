@@ -7,8 +7,9 @@ import ClayEmptyState from '@clayui/empty-state';
 import React from 'react';
 
 import {getImage} from '../../../common/utils/getImage';
-import useSelectedItem from '../../contexts/hooks/useSelectedItem';
+import useSelectedItem from '../../hooks/useSelectedItem';
 import ReferencedStructureSettings from './ReferencedStructureSettings';
+import RelatedContentSettings from './RelatedContentSettings';
 import RepeatableGroupSettings from './RepeatableGroupSettings';
 import StructureFieldSettings from './StructureFieldSettings';
 import StructureSettings from './StructureSettings';
@@ -29,6 +30,16 @@ export default function Settings() {
 		);
 	}
 
+	if (item.type === 'related-content') {
+		return (
+			<RelatedContentSettings
+				disabled={item.referenced}
+				key={item.relatedContent.uuid}
+				relatedContent={item.relatedContent}
+			/>
+		);
+	}
+
 	if (item.type === 'repeatable-group') {
 		return (
 			<RepeatableGroupSettings
@@ -42,8 +53,8 @@ export default function Settings() {
 	if (item.type === 'field') {
 		return (
 			<StructureFieldSettings
-				disabled={item.referenced || item.field.locked}
 				field={item.field}
+				isReferenced={item.referenced}
 				key={item.field.uuid}
 			/>
 		);

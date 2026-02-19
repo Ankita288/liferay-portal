@@ -745,6 +745,7 @@
 	<model name="com.liferay.portal.kernel.model.Image">
 		<field name="mvccVersion" type="long" />
 		<field name="ctCollectionId" type="long" />
+		<field name="externalReferenceCode" type="String" />
 		<field name="imageId" type="long" />
 		<field name="companyId" type="long" />
 		<field name="modifiedDate" type="Date" />
@@ -810,10 +811,12 @@
 			<hint-collection name="CLOB" />
 		</field>
 		<field name="priority" type="int" />
-		<field name="faviconFileEntryId" type="long" />
+		<field name="faviconFileEntryERC" type="String" />
+		<field name="faviconFileEntryScopeERC" type="String" />
 		<field name="masterLayoutPageTemplateEntryERC" type="String" />
-		<field name="layoutPrototypeUuid" type="String" />
-		<field name="layoutPrototypeLinkEnabled" type="boolean" />
+		<field name="portletLayoutPageTemplateEntryERC" type="String" />
+		<field name="portletLayoutPageTemplateEntryScopeERC" type="String" />
+		<field name="portletLayoutPageTemplateEntryLinkEnabled" type="boolean" />
 		<field name="layoutSetPrototypeLayoutERC" type="String" />
 		<field name="publishDate" type="Date" />
 		<field name="lastPublishDate" type="Date" />

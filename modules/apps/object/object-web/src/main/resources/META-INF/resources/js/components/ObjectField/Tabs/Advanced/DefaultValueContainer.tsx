@@ -38,12 +38,12 @@ interface DefaultValueContainerProps {
 	ckEditor5Config?: object;
 	creationLanguageId: Liferay.Language.Locale;
 	decimalSeparator: string;
+	defaultValueSidebarElements: SidebarCategory[];
 	errors: ObjectFieldErrors;
 	learnResources: ILearnResourceContext;
 	modelBuilder?: boolean;
 	onSubmit?: (values?: Partial<ObjectField>) => void;
 	setValues: (value: Partial<ObjectField>) => void;
-	sidebarElements: SidebarCategory[];
 	values: Partial<ObjectField>;
 }
 
@@ -68,31 +68,29 @@ type InputAsValueFieldComponents = {
 };
 
 const InputAsValueFieldComponents: Partial<InputAsValueFieldComponents> = {
-	...(Liferay.FeatureFlags['LPD-46451'] && {
-		Boolean: BooleanDefaultValueSelect,
-		Date: DateDefaultValueInput,
-		DateTime: DateDefaultValueInput,
-		Decimal: NumericDefaultValueInput,
-		Integer: NumericDefaultValueInput,
-		LongInteger: NumericDefaultValueInput,
-		LongText: TextDefaultValueInput,
-		PrecisionDecimal: NumericDefaultValueInput,
-		RichText: RichTextDefaultValue,
-		Text: TextDefaultValueInput,
-	}),
+	Boolean: BooleanDefaultValueSelect,
+	Date: DateDefaultValueInput,
+	DateTime: DateDefaultValueInput,
+	Decimal: NumericDefaultValueInput,
+	Integer: NumericDefaultValueInput,
+	LongInteger: NumericDefaultValueInput,
+	LongText: TextDefaultValueInput,
 	Picklist: ListTypeDefaultValueSelect,
+	PrecisionDecimal: NumericDefaultValueInput,
+	RichText: RichTextDefaultValue,
+	Text: TextDefaultValueInput,
 };
 
 export function DefaultValueContainer({
 	ckEditor5Config,
 	creationLanguageId,
 	decimalSeparator,
+	defaultValueSidebarElements,
 	errors,
 	learnResources,
 	modelBuilder = false,
 	onSubmit,
 	setValues,
-	sidebarElements,
 	values,
 }: DefaultValueContainerProps) {
 	const {defaultValue, defaultValueType} =
@@ -179,7 +177,14 @@ export function DefaultValueContainer({
 			)}
 
 			{!values.state && (
-				<ClayForm.Group>
+				<ClayForm.Group
+					className={classNames({
+						'lfr-objects__object-field-default-value-disabled':
+							!defaultValueToggleEnabled,
+						'lfr-objects__object-field-default-value-enabled':
+							defaultValueToggleEnabled,
+					})}
+				>
 					<Toggle
 						label={Liferay.Language.get('use-default-value')}
 						onToggle={(toggled) => {
@@ -212,26 +217,31 @@ export function DefaultValueContainer({
 						{Liferay.Language.get('input-as-value')}
 					</ClayButton>
 
-					<ClayButton
-						className={classNames({
-							active:
-								defaultValueTypeSelection ===
-								'expressionBuilder',
-						})}
-						displayType="secondary"
-						onClick={() => {
-							setDefaultValueTypeSelection('expressionBuilder');
-							setValues({
-								objectFieldSettings: getUpdatedDefaultValueType(
-									values,
+					{defaultValueSidebarElements && (
+						<ClayButton
+							className={classNames({
+								active:
+									defaultValueTypeSelection ===
+									'expressionBuilder',
+							})}
+							displayType="secondary"
+							onClick={() => {
+								setDefaultValueTypeSelection(
 									'expressionBuilder'
-								),
-							});
-						}}
-						size="sm"
-					>
-						{Liferay.Language.get('expression-builder')}
-					</ClayButton>
+								);
+								setValues({
+									objectFieldSettings:
+										getUpdatedDefaultValueType(
+											values,
+											'expressionBuilder'
+										),
+								});
+							}}
+							size="sm"
+						>
+							{Liferay.Language.get('expression-builder')}
+						</ClayButton>
+					)}
 				</ClayButton.Group>
 			)}
 
@@ -291,7 +301,8 @@ export function DefaultValueContainer({
 							parentWindow.Liferay.fire(
 								'openExpressionBuilderModal',
 								{
-									eventSidebarElements: sidebarElements,
+									eventSidebarElements:
+										defaultValueSidebarElements,
 									onSave: (script: string) => {
 										setValues({
 											objectFieldSettings:

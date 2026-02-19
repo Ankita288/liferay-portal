@@ -109,10 +109,10 @@ test.describe('Manage object actions through object actions tab', () => {
 		] as {objectAction: string}[];
 
 		for (const {objectAction} of objectActionsMock) {
-			await editObjectActionPage.addNewAction(
-				'Split Order by Catalog',
-				objectAction
-			);
+			await editObjectActionPage.addNewAction({
+				thenOption: 'Split Order by Catalog',
+				whenOption: objectAction,
+			});
 		}
 
 		const objectActionAPIClient =
@@ -156,11 +156,11 @@ test.describe('Manage object actions through object actions tab', () => {
 			createdObjectDefinition.label['en_US']
 		);
 
-		await editObjectActionPage.addNewAction(
-			'Notification',
-			'On After Add',
-			notificationTemplateName
-		);
+		await editObjectActionPage.addNewAction({
+			notificationTemplateName,
+			thenOption: 'Notification',
+			whenOption: 'On After Add',
+		});
 
 		await page.waitForLoadState('networkidle');
 
@@ -191,6 +191,62 @@ test.describe('Manage object actions through object actions tab', () => {
 		await expect(
 			editObjectActionPage.userPreferredLanguage
 		).not.toBeChecked();
+	});
+
+	test('can create and update condition with expression builder', async ({
+		apiHelpers,
+		editObjectActionPage,
+		page,
+		viewObjectActionsPage,
+	}) => {
+		const notificationTemplateName =
+			'notification template test ' + getRandomInt();
+
+		const notificationTemplate =
+			await apiHelpers.notification.postRandomNotificationTemplate(
+				notificationTemplateName,
+				'test' + getRandomInt() + '@liferay.com'
+			);
+
+		apiHelpers.data.push({
+			id: notificationTemplate.id,
+			type: 'notificationTemplate',
+		});
+
+		await viewObjectActionsPage.goto(
+			createdObjectDefinition.label['en_US']
+		);
+
+		await editObjectActionPage.addNewAction({
+			expressionBuilderValue: 'Expression',
+			notificationTemplateName,
+			thenOption: 'Notification',
+			whenOption: 'On After Add',
+		});
+
+		await page.waitForLoadState('networkidle');
+
+		await page.getByRole('link', {name: 'On After Add'}).click();
+
+		await editObjectActionPage.openActionBuilderTab();
+
+		await expect(editObjectActionPage.expressionInput).toHaveValue(
+			'Expression'
+		);
+
+		await editObjectActionPage.fillExpression('newExpression');
+
+		await editObjectActionPage.saveButton.click();
+
+		await page.waitForLoadState('networkidle');
+
+		await page.getByRole('link', {name: 'On After Add'}).click();
+
+		await editObjectActionPage.openActionBuilderTab();
+
+		await expect(editObjectActionPage.expressionInput).toHaveValue(
+			'newExpression'
+		);
 	});
 });
 
@@ -301,3 +357,64 @@ test('can send notification email via download action', async ({
 
 	expect(notificationQueueEntries.items.length).toBeTruthy();
 });
+
+test(
+	'Can add user notification actions to system objects that have a user notification handler only',
+	{tag: ['@LPD-77313']},
+	async ({apiHelpers, editObjectActionPage, page, viewObjectActionsPage}) => {
+		let notificationTemplate;
+
+		await test.step('Create an user notification template', async () => {
+			notificationTemplate =
+				await apiHelpers.notification.postNotificationTemplate({
+					editorType: 'richText',
+					name: 'Commerce Order Note Template',
+					recipientType: 'term',
+					recipients: [
+						{
+							term: '[%COMMERCEORDERNOTE_RECIPIENT_IDS%]',
+						},
+					],
+					subject: {
+						en_US: '[%COMMERCEORDERNOTE_ORDERID%]',
+					},
+					type: 'userNotification',
+				});
+
+			apiHelpers.data.push({
+				id: notificationTemplate.id,
+				type: 'notificationTemplate',
+			});
+		});
+
+		await test.step('Verify that the notification template is shown for Commerce Order Note system object', async () => {
+			await viewObjectActionsPage.goto('Commerce Order Note');
+			await viewObjectActionsPage.openObjectActionSidePanel();
+
+			await editObjectActionPage.openActionBuilderTab();
+			await editObjectActionPage.chooseNotificationOption();
+			await editObjectActionPage.clickInputNotificationsCombo();
+
+			await expect(
+				page.frameLocator('iframe').getByRole('option', {
+					name: `${notificationTemplate?.name} User Notification`,
+				})
+			).toBeVisible();
+		});
+
+		await test.step('Verify that the notification template is not shown for Commerce Order system object', async () => {
+			await viewObjectActionsPage.goto('Commerce Order');
+			await viewObjectActionsPage.openObjectActionSidePanel();
+
+			await editObjectActionPage.openActionBuilderTab();
+			await editObjectActionPage.chooseNotificationOption();
+			await editObjectActionPage.clickInputNotificationsCombo();
+
+			await expect(
+				page.frameLocator('iframe').getByRole('option', {
+					name: `${notificationTemplate?.name} User Notification`,
+				})
+			).toHaveCount(0);
+		});
+	}
+);

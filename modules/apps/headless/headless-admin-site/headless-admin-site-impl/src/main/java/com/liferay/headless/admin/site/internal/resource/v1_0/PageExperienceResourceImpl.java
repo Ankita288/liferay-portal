@@ -7,6 +7,7 @@ package com.liferay.headless.admin.site.internal.resource.v1_0;
 
 import com.liferay.fragment.processor.FragmentEntryProcessorRegistry;
 import com.liferay.headless.admin.site.dto.v1_0.PageExperience;
+import com.liferay.headless.admin.site.internal.dto.v1_0.util.DTOConverterContextUtil;
 import com.liferay.headless.admin.site.internal.resource.v1_0.util.GroupUtil;
 import com.liferay.headless.admin.site.internal.resource.v1_0.util.SegmentsExperienceUtil;
 import com.liferay.headless.admin.site.internal.resource.v1_0.util.ServiceContextUtil;
@@ -16,15 +17,14 @@ import com.liferay.layout.page.template.model.LayoutPageTemplateStructure;
 import com.liferay.layout.page.template.model.LayoutPageTemplateStructureRel;
 import com.liferay.layout.page.template.service.LayoutPageTemplateStructureLocalService;
 import com.liferay.layout.page.template.service.LayoutPageTemplateStructureRelLocalService;
-import com.liferay.layout.util.LayoutServiceContextHelperUtil;
+import com.liferay.layout.util.LayoutServiceContextHelper;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.service.LayoutLocalService;
-import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.vulcan.dto.converter.DTOConverter;
-import com.liferay.portal.vulcan.dto.converter.DTOConverterContext;
-import com.liferay.portal.vulcan.dto.converter.DefaultDTOConverterContext;
+import com.liferay.portal.vulcan.dto.converter.DTOConverterRegistry;
 import com.liferay.portal.vulcan.pagination.Page;
 import com.liferay.segments.exception.NoSuchExperienceException;
 import com.liferay.segments.model.SegmentsExperience;
@@ -53,8 +53,8 @@ public class PageExperienceResourceImpl extends BasePageExperienceResourceImpl {
 
 		FeatureFlagManagerUtil.checkEnabled("LPD-35443");
 
-		long groupId = GroupUtil.getGroupId(
-			false, contextCompany.getCompanyId(), siteExternalReferenceCode);
+		long groupId = GroupUtil.getStagingAwareGroupId(
+			contextCompany.getCompanyId(), siteExternalReferenceCode);
 
 		SegmentsExperience segmentsExperience =
 			_segmentsExperienceService.
@@ -134,8 +134,8 @@ public class PageExperienceResourceImpl extends BasePageExperienceResourceImpl {
 			throw new UnsupportedOperationException();
 		}
 
-		long groupId = GroupUtil.getGroupId(
-			false, contextCompany.getCompanyId(), siteExternalReferenceCode);
+		long groupId = GroupUtil.getStagingAwareGroupId(
+			contextCompany.getCompanyId(), siteExternalReferenceCode);
 
 		Layout layout = _layoutLocalService.fetchLayoutByExternalReferenceCode(
 			pageExperience.getPageSpecificationExternalReferenceCode(),
@@ -159,8 +159,8 @@ public class PageExperienceResourceImpl extends BasePageExperienceResourceImpl {
 			throw new UnsupportedOperationException();
 		}
 
-		long groupId = GroupUtil.getGroupId(
-			false, contextCompany.getCompanyId(), siteExternalReferenceCode);
+		long groupId = GroupUtil.getStagingAwareGroupId(
+			contextCompany.getCompanyId(), siteExternalReferenceCode);
 
 		Layout layout = _layoutLocalService.fetchLayoutByExternalReferenceCode(
 			pageExperience.getPageSpecificationExternalReferenceCode(),
@@ -179,24 +179,15 @@ public class PageExperienceResourceImpl extends BasePageExperienceResourceImpl {
 			return _addPageExperience(groupId, pageExperience);
 		}
 
-		if ((pageExperience.getPriority() != null) &&
-			(segmentsExperience.getPriority() !=
-				pageExperience.getPriority())) {
-
-			segmentsExperience =
-				_segmentsExperienceService.updateSegmentsExperiencePriority(
-					segmentsExperience.getSegmentsExperienceId(),
-					GetterUtil.getInteger(pageExperience.getPriority()));
-		}
-
 		try (AutoCloseable autoCloseable =
-				LayoutServiceContextHelperUtil.getServiceContextAutoCloseable(
+				_layoutServiceContextHelper.getServiceContextAutoCloseable(
 					layout, contextUser)) {
 
 			return _toPageExperience(
 				SegmentsExperienceUtil.updateSegmentsExperience(
 					_fragmentEntryProcessorRegistry, _infoItemServiceRegistry,
-					layout, pageExperience, segmentsExperience,
+					layout, pageExperience, pageExperience.getPriority(),
+					segmentsExperience,
 					ServiceContextUtil.createServiceContext(
 						groupId, contextHttpServletRequest,
 						contextUser.getUserId())));
@@ -226,16 +217,18 @@ public class PageExperienceResourceImpl extends BasePageExperienceResourceImpl {
 		}
 
 		try (AutoCloseable autoCloseable =
-				LayoutServiceContextHelperUtil.getServiceContextAutoCloseable(
+				_layoutServiceContextHelper.getServiceContextAutoCloseable(
 					layout, contextUser)) {
+
+			SegmentsExperienceUtil.validateSegmentsExperienceLayout(layout);
 
 			return _toPageExperience(
 				SegmentsExperienceUtil.addSegmentsExperience(
 					_fragmentEntryProcessorRegistry, _infoItemServiceRegistry,
-					layout, pageExperience,
+					layout, pageExperience, pageExperience.getPriority(),
 					ServiceContextUtil.createServiceContext(
 						groupId, contextHttpServletRequest,
-						contextUser.getUserId())));
+						contextUser.getUserId(), pageExperience.getUuid())));
 		}
 	}
 
@@ -260,17 +253,22 @@ public class PageExperienceResourceImpl extends BasePageExperienceResourceImpl {
 			throw new UnsupportedOperationException();
 		}
 
-		DTOConverterContext dtoConverterContext =
-			new DefaultDTOConverterContext(null, null, null, null, null);
-
-		dtoConverterContext.setAttribute(
-			"companyId", layoutPageTemplateStructureRel.getCompanyId());
-		dtoConverterContext.setAttribute(
-			"scopeGroupId", layoutPageTemplateStructureRel.getGroupId());
-
 		return _pageExperienceDTOConverter.toDTO(
-			dtoConverterContext, layoutPageTemplateStructureRel);
+			DTOConverterContextUtil.getDTOConverterContext(
+				contextAcceptLanguage,
+				HashMapBuilder.<String, Object>put(
+					"companyId", segmentsExperience.getCompanyId()
+				).put(
+					"scopeGroupId", segmentsExperience.getGroupId()
+				).build(),
+				_dtoConverterRegistry, contextHttpServletRequest,
+				segmentsExperience.getSegmentsExperienceId(), contextUriInfo,
+				contextUser),
+			layoutPageTemplateStructureRel);
 	}
+
+	@Reference
+	private DTOConverterRegistry _dtoConverterRegistry;
 
 	@Reference
 	private FragmentEntryProcessorRegistry _fragmentEntryProcessorRegistry;
@@ -288,6 +286,9 @@ public class PageExperienceResourceImpl extends BasePageExperienceResourceImpl {
 	@Reference
 	private LayoutPageTemplateStructureRelLocalService
 		_layoutPageTemplateStructureRelLocalService;
+
+	@Reference
+	private LayoutServiceContextHelper _layoutServiceContextHelper;
 
 	@Reference(
 		target = "(component.name=com.liferay.headless.admin.site.internal.dto.v1_0.converter.PageExperienceDTOConverter)"

@@ -4,26 +4,100 @@
  */
 
 import {ClayButtonWithIcon} from '@clayui/button';
+import {FocusTrap} from '@clayui/core';
 import {ClayDropDownWithItems} from '@clayui/drop-down';
+import {useIsMobileDevice} from '@clayui/shared';
 import {SearchForm} from '@liferay/layout-js-components-web';
+import classNames from 'classnames';
 import {ManagementToolbar} from 'frontend-js-components-web';
 import {sub} from 'frontend-js-web';
-import React, {useState} from 'react';
+import React, {useRef, useState} from 'react';
 
 import {useSelector, useStateDispatch} from '../contexts/StateContext';
+import selectPublishedChildren from '../selectors/selectPublishedChildren';
 import selectSelection from '../selectors/selectSelection';
+import selectStructure from '../selectors/selectStructure';
+import handleAddRepeatableGroup from '../utils/handleAddRepeatableGroup';
+import handleDeleteChildren from '../utils/handleDeleteChildren';
 import AddChildDropdown from './AddChildDropdown';
 import StructureTree from './StructureTree';
 
 export default function () {
-	return (
-		<div className="border rounded-lg structure-builder__sidebar">
-			<h3 className="font-weight-semi-bold pt-4 px-4 text-4">
-				{Liferay.Language.get('content-structure-fields')}
-			</h3>
+	const [open, setOpen] = useState<boolean>(false);
 
-			<Content />
-		</div>
+	const openButtonRef = useRef<HTMLButtonElement>(null);
+	const panelRef = useRef<HTMLDivElement>(null);
+
+	const isMobile = useIsMobileDevice();
+
+	return (
+		<>
+			<ClayButtonWithIcon
+				className="d-md-none sidebar-toggler"
+				displayType="secondary"
+				onClick={() => {
+					setOpen(true);
+
+					requestAnimationFrame(() => {
+						panelRef.current?.focus();
+					});
+				}}
+				ref={openButtonRef}
+				size="sm"
+				symbol="angle-double-right-small"
+				title={sub(
+					Liferay.Language.get('open-x'),
+					sub(
+						Liferay.Language.get('x-panel'),
+						Liferay.Language.get('content-structure-fields')
+					)
+				)}
+			/>
+
+			<FocusTrap active={isMobile && open}>
+				<div
+					aria-label={sub(
+						Liferay.Language.get('x-panel'),
+						Liferay.Language.get('content-structure-fields')
+					)}
+					className={classNames(
+						'border rounded-lg structure-builder__sidebar',
+						{'hide-xs': !open}
+					)}
+					ref={panelRef}
+					tabIndex={-1}
+				>
+					<div className="autofit-row">
+						<div className="autofit-col autofit-col-expand">
+							<h3 className="font-weight-semi-bold pt-4 px-4 text-4">
+								{Liferay.Language.get(
+									'content-structure-fields'
+								)}
+							</h3>
+						</div>
+
+						<div className="autofit-col d-md-none mr-2 mt-3">
+							<ClayButtonWithIcon
+								borderless
+								displayType="secondary"
+								onClick={() => {
+									setOpen(false);
+
+									requestAnimationFrame(() => {
+										openButtonRef.current?.focus();
+									});
+								}}
+								size="sm"
+								symbol="times"
+								title={Liferay.Language.get('close')}
+							/>
+						</div>
+					</div>
+
+					<Content />
+				</div>
+			</FocusTrap>
+		</>
 	);
 }
 
@@ -46,6 +120,8 @@ function Toolbar({
 }) {
 	const dispatch = useStateDispatch();
 	const selection = useSelector(selectSelection);
+	const structure = useSelector(selectStructure);
+	const publishedChildren = useSelector(selectPublishedChildren);
 
 	if (selection.length <= 1) {
 		return (
@@ -74,14 +150,27 @@ function Toolbar({
 			<ClayDropDownWithItems
 				items={[
 					{
-						label: Liferay.Language.get('delete'),
-						onClick: () => dispatch({type: 'delete-selection'}),
-						symbolLeft: 'trash',
-					},
-					{
 						label: Liferay.Language.get('create-repeatable-group'),
-						onClick: () => dispatch({type: 'add-repeatable-group'}),
+						onClick: () =>
+							handleAddRepeatableGroup({
+								dispatch,
+								publishedChildren,
+								structure,
+								uuids: selection,
+							}),
 						symbolLeft: 'repeat',
+					},
+					{type: 'divider'},
+					{
+						label: Liferay.Language.get('delete'),
+						onClick: () =>
+							handleDeleteChildren({
+								dispatch,
+								publishedChildren,
+								structure,
+								uuids: selection,
+							}),
+						symbolLeft: 'trash',
 					},
 				]}
 				trigger={

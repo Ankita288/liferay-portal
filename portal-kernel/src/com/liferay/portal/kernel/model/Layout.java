@@ -162,6 +162,8 @@ public interface Layout extends LayoutModel, PersistedModel {
 
 	public java.util.List<Portlet> getEmbeddedPortlets(long groupId);
 
+	public long getFaviconFileEntryGroupId();
+
 	public String getFaviconURL();
 
 	/**
@@ -224,6 +226,8 @@ public interface Layout extends LayoutModel, PersistedModel {
 	 <code>false</code> otherwise
 	 */
 	public boolean getIconImage();
+
+	public String getLayoutPrototypeUuid();
 
 	/**
 	 * Returns the current layout's {@link LayoutSet}.
@@ -391,6 +395,8 @@ public interface Layout extends LayoutModel, PersistedModel {
 	public boolean isLayoutUpdateable();
 
 	public boolean isPortletEmbedded(String portletId, long groupId);
+
+	public boolean isPortletLayoutPageTemplateEntryLinkActive();
 
 	/**
 	 * Returns <code>true</code> if the current layout is part of the public

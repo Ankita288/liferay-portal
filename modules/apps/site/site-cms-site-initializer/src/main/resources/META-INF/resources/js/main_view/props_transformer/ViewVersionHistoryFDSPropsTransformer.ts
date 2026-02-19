@@ -4,11 +4,13 @@
  */
 
 import {IInternalRenderer, replaceTokens} from '@liferay/frontend-data-set-web';
-import {openModal} from 'frontend-js-components-web';
 import {navigate, sessionStorage, sub} from 'frontend-js-web';
 
+import {openCMSModal} from '../../common/utils/openCMSModal';
 import FilePreviewerModalContent from '../modal/FilePreviewerModalContent';
 import confirmAndDeleteEntryAction from './actions/confirmAndDeleteEntryAction';
+import deleteAssetVersionBulkAction from './actions/deleteAssetVersionBulkAction';
+import expireEntriesBulkAction from './actions/expireEntriesBulkAction';
 import AssetVersionRenderer from './cell_renderers/AssetVersionRenderer';
 import AuthorRenderer from './cell_renderers/AuthorRenderer';
 import VersionRenderer from './cell_renderers/VersionRenderer';
@@ -20,6 +22,8 @@ export default function ViewVersionHistoryFDSPropsTransformer({
 	...otherProps
 }: {
 	additionalProps: any;
+	apiURL?: string;
+	id?: string;
 	itemsActions?: any[];
 }) {
 	return {
@@ -164,10 +168,7 @@ export default function ViewVersionHistoryFDSPropsTransformer({
 			else if (action?.data?.id === 'view-content') {
 				event?.preventDefault();
 
-				openModal({
-					containerProps: {
-						className: '',
-					},
+				openCMSModal({
 					size: 'full-screen',
 					title: sub(
 						Liferay.Language.get('x-version-x'),
@@ -181,10 +182,7 @@ export default function ViewVersionHistoryFDSPropsTransformer({
 				});
 			}
 			else if (action?.data?.id === 'view-file') {
-				openModal({
-					containerProps: {
-						className: '',
-					},
+				openCMSModal({
 					contentComponent: () =>
 						FilePreviewerModalContent({
 							file: itemData.file,
@@ -198,6 +196,31 @@ export default function ViewVersionHistoryFDSPropsTransformer({
 							),
 						}),
 					size: 'full-screen',
+				});
+			}
+		},
+		onBulkActionItemClick: async ({
+			action,
+			selectedData,
+		}: {
+			action: any;
+			selectedData: any;
+		}) => {
+			if (action?.data.id === 'delete') {
+				deleteAssetVersionBulkAction({
+					apiURL: otherProps.apiURL,
+					entryClassName: additionalProps.entryClassName,
+					objectEntryCurrentVersion:
+						additionalProps.objectEntryCurrentVersion,
+					objectEntryTitle: additionalProps.objectEntryTitle,
+					selectedData,
+				});
+			}
+			else if (action?.data.id === 'expire') {
+				expireEntriesBulkAction({
+					apiURL: otherProps.apiURL,
+					dataSetId: otherProps.id,
+					selectedData,
 				});
 			}
 		},

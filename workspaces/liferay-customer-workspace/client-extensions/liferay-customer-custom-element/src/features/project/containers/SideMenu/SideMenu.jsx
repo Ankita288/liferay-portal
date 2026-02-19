@@ -20,8 +20,32 @@ import './SideMenu.css';
 
 const ACTIVATION_PATH = 'activation';
 
+const expandGroupForSideMenu = (group) => {
+	if (group.name === 'Liferay Cloud' && group.activationProductName) {
+		const productNames = group.activationProductName.split(',')
+			.map(name => name.trim())
+			.filter(name => name.length > 0);
+
+		return productNames.map((productName) => ({
+			...group,
+			name: productName,
+			displayName: productName
+		}));
+	}
+	
+	return [group];
+};
+
 const SideMenu = () => {
-	const [{project, subscriptionGroups}] = useAppContext();
+	const [
+		{
+			hasExperienceSubscription,
+			hasPlanSubscription,
+			project,
+			subscriptionGroups,
+			subscriptions,
+		},
+	] = useAppContext();
 	const [isOpenedProductsMenu, setIsOpenedProductsMenu] = useState(false);
 	const [menuItemActiveStatus, setMenuItemActiveStatus] = useState([]);
 	const {featureFlags} = useAppPropertiesContext();
@@ -56,14 +80,13 @@ const SideMenu = () => {
 	);
 
 	const hasSaasSubscription = useMemo(
-		() =>
-			subscriptionGroups?.some(
-				(subscription) =>
-					subscription.externalReferenceCode ===
-					`${project?.externalReferenceCode}_liferay-saas`
-			),
-		[subscriptionGroups]
-	);
+        () =>
+            subscriptionGroups?.some(
+                (subscription) =>
+                    subscription.activationProductName?.includes(PRODUCT_TYPES.liferayExperienceCloud)
+            ),
+        [subscriptionGroups]
+    );
 
 	const hasSLASubscription = useMemo(
 		() =>
@@ -88,32 +111,29 @@ const SideMenu = () => {
 	]);
 
 	const accountSubscriptionGroupsMenuItem = useMemo(
-		() =>
-			activationSubscriptionGroups?.sort(
-				(a, b) => {
-					const aDisplayName = a.activationProductName
-						? a.activationProductName
-						: a.name;
+		() => {
+			const expandedGroups = activationSubscriptionGroups?.flatMap(expandGroupForSideMenu);
 
-					const bDisplayName = b.activationProductName
-						? b.activationProductName
-						: b.name;
+			return expandedGroups?.sort(
+				(a, b) => {
+					const aDisplayName = a.displayName || a.activationProductName || a.name;
+					const bDisplayName = b.displayName || b.activationProductName || b.name;
 
 					return aDisplayName.localeCompare(bDisplayName);
 				}
 			).map(
-				({activationProductName, name}, index) => {
-					const displayName = activationProductName
-						? activationProductName
-						: name;
+				({ displayName, activationProductName, name}, index) => {
+					const itemDisplayName = displayName || activationProductName || name;
 
-					const redirectPage = getKebabCase(displayName);
+					const redirectPage = getKebabCase(itemDisplayName);
 
-					const iconKey = name === PRODUCT_TYPES.dxpCloud
-						? 'lxc'
-						: name === PRODUCT_TYPES.liferayExperienceCloud
-							? 'experienceCloud'
-							: redirectPage.split('-')[0];
+					const iconKey = activationProductName.split(',')
+						.includes(PRODUCT_TYPES.dxpCloud)
+							? 'lxc'
+							: activationProductName.split(',')
+								.includes(PRODUCT_TYPES.liferayExperienceCloud)
+									? 'experienceCloud'
+									: redirectPage.split('-')[0];
 
 					const menuUpdateStatus = (isActive) =>
 						setMenuItemActiveStatus(
@@ -134,16 +154,16 @@ const SideMenu = () => {
 					return (
 						<MenuItem
 							iconKey={iconKey}
-							key={`${displayName}-${index}`}
+							key={`${itemDisplayName}-${index}`}
 							setActive={menuUpdateStatus}
 							to={`${ACTIVATION_PATH}/${redirectPage}`}
 						>
-							{displayName}
+							{itemDisplayName}
 						</MenuItem>
 					);
 				}
-			),
-		[activationSubscriptionGroups]
+			);
+		}, [activationSubscriptionGroups]
 	);
 
 	if (!activationSubscriptionGroups) {
@@ -245,19 +265,20 @@ const SideMenu = () => {
 					</div>
 				)}
 
-				{((featureFlags.includes('LRSD-6322') && loggedUserAccount?.isLiferayStaff) ||
-					(featureFlags.includes('LRSD-7805') && loggedUserAccount?.isPartner)) &&
-						hasSaasSubscription && (
-							<div className="d-flex">
-								<MenuItem
-									iconKey="projectUsage"
-									to={getKebabCase(MENU_TYPES.projectUsage)}
-								>
-									{i18n.translate(
-										getKebabCase(MENU_TYPES.projectUsage)
-									)}
-								</MenuItem>
-							</div>
+				{(((loggedUserAccount?.isLiferayStaff || loggedUserAccount?.isPartner) &&
+					hasPlanSubscription) ||
+					(featureFlags.includes('LRSD-12003') &&
+						hasExperienceSubscription)) && (
+					<div className="d-flex">
+						<MenuItem
+							iconKey="projectUsage"
+							to={getKebabCase(MENU_TYPES.projectUsage)}
+						>
+							{i18n.translate(
+								getKebabCase(MENU_TYPES.projectUsage)
+							)}
+						</MenuItem>
+					</div>
 				)}
 			</ul>
 		</div>

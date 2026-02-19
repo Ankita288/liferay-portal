@@ -110,8 +110,6 @@ if (Validator.isNotNull(backURL)) {
 					%>
 
 					<clay:progressbar
-						maxValue="<%= 100 %>"
-						minValue="<%= 0 %>"
 						value="<%= percentage %>"
 					/>
 

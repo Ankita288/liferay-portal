@@ -213,12 +213,7 @@ public class ActionUtil {
 			formManager, "INPUTS-inline-text-input",
 			infoForm.getInfoField("ObjectField_title"), layout, layoutStructure,
 			formStyledLayoutStructureItem, false, segmentsExperienceId,
-			serviceContext,
-			JSONUtil.put(
-				"marginBottom", "5"
-			).put(
-				"marginLeft", "-16px"
-			));
+			serviceContext, JSONUtil.put("marginBottom", "5"));
 
 		FragmentEntryLink fragmentEntryLink = _addFragmentEntryLink(
 			StringPool.BLANK, fragmentEntryLinkService,
@@ -251,7 +246,7 @@ public class ActionUtil {
 				layout.getCompanyId(), layoutPageTemplateEntry.getClassName());
 
 		layoutStructure = _addInputFragmentEntryLinks(
-			addedFragmentEntryLinks, fragmentEntryLinkListenerRegistry,
+			addedFragmentEntryLinks, true, fragmentEntryLinkListenerRegistry,
 			fragmentEntryLinkService, formManager, fragmentRendererRegistry,
 			(InfoFieldSet)infoForm.getInfoFieldSetEntry(
 				objectDefinition.getName()),
@@ -356,7 +351,7 @@ public class ActionUtil {
 			JSONUtil.put("marginBottom", "24px"));
 
 		layoutStructure = _addInputFragmentEntryLinks(
-			addedFragmentEntryLinks, fragmentEntryLinkListenerRegistry,
+			addedFragmentEntryLinks, false, fragmentEntryLinkListenerRegistry,
 			fragmentEntryLinkService, formManager, fragmentRendererRegistry,
 			(InfoFieldSet)infoForm.getInfoFieldSetEntry(name), layout,
 			layoutStructure, formStyledLayoutStructureItem, name, true, false,
@@ -419,7 +414,7 @@ public class ActionUtil {
 			JSONUtil.put("marginBottom", "24px"));
 
 		layoutStructure = _addInputFragmentEntryLinks(
-			addedFragmentEntryLinks, fragmentEntryLinkListenerRegistry,
+			addedFragmentEntryLinks, false, fragmentEntryLinkListenerRegistry,
 			fragmentEntryLinkService, formManager, fragmentRendererRegistry,
 			(InfoFieldSet)infoForm.getInfoFieldSetEntry(name), layout,
 			layoutStructure, formStyledLayoutStructureItem, name, false, false,
@@ -1238,7 +1233,7 @@ public class ActionUtil {
 	}
 
 	private static LayoutStructure _addInputFragmentEntryLinks(
-			List<FragmentEntryLink> addedFragmentEntryLinks,
+			List<FragmentEntryLink> addedFragmentEntryLinks, boolean editMode,
 			FragmentEntryLinkListenerRegistry fragmentEntryLinkListenerRegistry,
 			FragmentEntryLinkService fragmentEntryLinkService,
 			FormManager formManager,
@@ -1360,7 +1355,32 @@ public class ActionUtil {
 				if (RelationshipInfoFieldType.INSTANCE ==
 						infoField.getInfoFieldType()) {
 
-					continue;
+					if (!editMode) {
+						continue;
+					}
+
+					InfoField<RelationshipInfoFieldType> relationshipInfoField =
+						(InfoField<RelationshipInfoFieldType>)infoField;
+
+					if (relationshipInfoField.getAttribute(
+							RelationshipInfoFieldType.INHERITANCE)) {
+
+						continue;
+					}
+
+					if (relationshipInfoField.getAttribute(
+							RelationshipInfoFieldType.MULTIPLE)) {
+
+						_addInputFragmentEntryLink(
+							addedFragmentEntryLinks, null, formManager,
+							"INPUTS-multiselector-dropdown",
+							(InfoField<?>)infoFieldSetEntry, layout,
+							layoutStructure, layoutStructureItem, readOnly,
+							segmentsExperienceId, serviceContext,
+							stylesJSONObject);
+
+						continue;
+					}
 				}
 
 				_addInputFragmentEntryLink(
@@ -1371,12 +1391,13 @@ public class ActionUtil {
 			}
 			else if (infoFieldSetEntry instanceof InfoFieldSet) {
 				layoutStructure = _addInputFragmentEntryLinks(
-					addedFragmentEntryLinks, fragmentEntryLinkListenerRegistry,
-					fragmentEntryLinkService, formManager,
-					fragmentRendererRegistry, (InfoFieldSet)infoFieldSetEntry,
-					layout, layoutStructure, layoutStructureItem,
-					objectDefinitionName, readOnly, repeatable,
-					segmentsExperienceId, serviceContext, stylesJSONObject);
+					addedFragmentEntryLinks, editMode,
+					fragmentEntryLinkListenerRegistry, fragmentEntryLinkService,
+					formManager, fragmentRendererRegistry,
+					(InfoFieldSet)infoFieldSetEntry, layout, layoutStructure,
+					layoutStructureItem, objectDefinitionName, readOnly,
+					repeatable, segmentsExperienceId, serviceContext,
+					stylesJSONObject);
 			}
 		}
 

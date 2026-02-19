@@ -19,7 +19,6 @@ export const test = mergeTests(
 	isolatedLayoutTest({type: 'portlet'}),
 	dataApiHelpersTest,
 	featureFlagsTest({
-		'LPS-129412': {enabled: true}, // Collection Providers for Blueprint
 		'LPS-178052': {enabled: true},
 	}),
 	isolatedSiteTest,
@@ -59,9 +58,7 @@ test.describe('Documentation Links', () => {
 			);
 		});
 
-		await test.step('Check query settings - indexer clauses', async () => {
-			await editSXPBlueprintPage.goToQuerySettingsMenuItem();
-
+		await test.step('Check source - indexer clauses', async () => {
 			await page
 				.getByRole('button', {name: 'Search Framework Indexer'})
 				.locator('.lexicon-icon-question-circle')
@@ -81,7 +78,7 @@ test.describe('Documentation Links', () => {
 			);
 		});
 
-		await test.step('Check query settings - query contributors', async () => {
+		await test.step('Check source - query contributors', async () => {
 			await page
 				.getByRole('button', {
 					name: 'Search Framework Query Contributors',
@@ -167,7 +164,9 @@ test.describe('Documentation Links', () => {
 
 		await test.step('Open blueprint options configuration modal', async () => {
 			await page
-				.getByRole('link', {name: 'Configure blueprints options'})
+				.getByRole('button', {
+					name: 'Select a blueprint to make it visible.',
+				})
 				.click();
 		});
 

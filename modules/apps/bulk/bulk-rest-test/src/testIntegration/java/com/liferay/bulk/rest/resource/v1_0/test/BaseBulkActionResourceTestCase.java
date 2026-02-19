@@ -13,10 +13,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 
+import com.liferay.bulk.rest.client.dto.v1_0.AssignToBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.BulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.BulkActionTask;
+import com.liferay.bulk.rest.client.dto.v1_0.CopyBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.DefaultPermissionBulkAction;
+import com.liferay.bulk.rest.client.dto.v1_0.DeleteAssetVersionBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.DeleteBulkAction;
+import com.liferay.bulk.rest.client.dto.v1_0.DueDateBulkAction;
+import com.liferay.bulk.rest.client.dto.v1_0.ExpireBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.KeywordBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.MoveBulkAction;
 import com.liferay.bulk.rest.client.dto.v1_0.PermissionBulkAction;
@@ -297,6 +302,62 @@ public abstract class BaseBulkActionResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals("className", additionalAssertFieldName)) {
+				if (!(bulkAction instanceof AssignToBulkAction)) {
+					continue;
+				}
+
+				if (((AssignToBulkAction)bulkAction).getClassName() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"externalReferenceCode", additionalAssertFieldName)) {
+
+				if (!(bulkAction instanceof AssignToBulkAction)) {
+					continue;
+				}
+
+				if (((AssignToBulkAction)bulkAction).
+						getExternalReferenceCode() == null) {
+
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("name", additionalAssertFieldName)) {
+				if (!(bulkAction instanceof AssignToBulkAction)) {
+					continue;
+				}
+
+				if (((AssignToBulkAction)bulkAction).getName() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"objectEntryFolderId", additionalAssertFieldName)) {
+
+				if (!(bulkAction instanceof CopyBulkAction)) {
+					continue;
+				}
+
+				if (((CopyBulkAction)bulkAction).getObjectEntryFolderId() ==
+						null) {
+
+					valid = false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals(
 					"defaultPermissions", additionalAssertFieldName)) {
 
@@ -349,6 +410,32 @@ public abstract class BaseBulkActionResourceTestCase {
 				if (((DefaultPermissionBulkAction)bulkAction).getTreePath() ==
 						null) {
 
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("versions", additionalAssertFieldName)) {
+				if (!(bulkAction instanceof DeleteAssetVersionBulkAction)) {
+					continue;
+				}
+
+				if (((DeleteAssetVersionBulkAction)bulkAction).getVersions() ==
+						null) {
+
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("dueDate", additionalAssertFieldName)) {
+				if (!(bulkAction instanceof DueDateBulkAction)) {
+					continue;
+				}
+
+				if (((DueDateBulkAction)bulkAction).getDueDate() == null) {
 					valid = false;
 				}
 
@@ -749,6 +836,81 @@ public abstract class BaseBulkActionResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals("className", additionalAssertFieldName)) {
+				if (!(bulkAction1 instanceof AssignToBulkAction) ||
+					!(bulkAction2 instanceof AssignToBulkAction)) {
+
+					continue;
+				}
+
+				if (!Objects.deepEquals(
+						((AssignToBulkAction)bulkAction1).getClassName(),
+						((AssignToBulkAction)bulkAction2).getClassName())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"externalReferenceCode", additionalAssertFieldName)) {
+
+				if (!(bulkAction1 instanceof AssignToBulkAction) ||
+					!(bulkAction2 instanceof AssignToBulkAction)) {
+
+					continue;
+				}
+
+				if (!Objects.deepEquals(
+						((AssignToBulkAction)bulkAction1).
+							getExternalReferenceCode(),
+						((AssignToBulkAction)bulkAction2).
+							getExternalReferenceCode())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("name", additionalAssertFieldName)) {
+				if (!(bulkAction1 instanceof AssignToBulkAction) ||
+					!(bulkAction2 instanceof AssignToBulkAction)) {
+
+					continue;
+				}
+
+				if (!Objects.deepEquals(
+						((AssignToBulkAction)bulkAction1).getName(),
+						((AssignToBulkAction)bulkAction2).getName())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					"objectEntryFolderId", additionalAssertFieldName)) {
+
+				if (!(bulkAction1 instanceof CopyBulkAction) ||
+					!(bulkAction2 instanceof CopyBulkAction)) {
+
+					continue;
+				}
+
+				if (!Objects.deepEquals(
+						((CopyBulkAction)bulkAction1).getObjectEntryFolderId(),
+						((CopyBulkAction)bulkAction2).
+							getObjectEntryFolderId())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals(
 					"defaultPermissions", additionalAssertFieldName)) {
 
@@ -819,6 +981,42 @@ public abstract class BaseBulkActionResourceTestCase {
 							getTreePath(),
 						((DefaultPermissionBulkAction)bulkAction2).
 							getTreePath())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("versions", additionalAssertFieldName)) {
+				if (!(bulkAction1 instanceof DeleteAssetVersionBulkAction) ||
+					!(bulkAction2 instanceof DeleteAssetVersionBulkAction)) {
+
+					continue;
+				}
+
+				if (!Objects.deepEquals(
+						((DeleteAssetVersionBulkAction)bulkAction1).
+							getVersions(),
+						((DeleteAssetVersionBulkAction)bulkAction2).
+							getVersions())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("dueDate", additionalAssertFieldName)) {
+				if (!(bulkAction1 instanceof DueDateBulkAction) ||
+					!(bulkAction2 instanceof DueDateBulkAction)) {
+
+					continue;
+				}
+
+				if (!Objects.deepEquals(
+						((DueDateBulkAction)bulkAction1).getDueDate(),
+						((DueDateBulkAction)bulkAction2).getDueDate())) {
 
 					return false;
 				}
@@ -1311,6 +1509,30 @@ public abstract class BaseBulkActionResourceTestCase {
 	protected BulkAction randomBulkAction() throws Exception {
 		List<Supplier<BulkAction>> suppliers = Arrays.asList(
 			() -> {
+				AssignToBulkAction bulkAction = new AssignToBulkAction();
+
+				bulkAction.setClassName(
+					StringUtil.toLowerCase(RandomTestUtil.randomString()));
+				bulkAction.setExternalReferenceCode(
+					StringUtil.toLowerCase(RandomTestUtil.randomString()));
+				bulkAction.setName(
+					StringUtil.toLowerCase(RandomTestUtil.randomString()));
+
+				bulkAction.setType(
+					BulkAction.Type.create("AssignToBulkAction"));
+
+				return bulkAction;
+			},
+			() -> {
+				CopyBulkAction bulkAction = new CopyBulkAction();
+
+				bulkAction.setObjectEntryFolderId(RandomTestUtil.randomLong());
+
+				bulkAction.setType(BulkAction.Type.create("CopyBulkAction"));
+
+				return bulkAction;
+			},
+			() -> {
 				DefaultPermissionBulkAction bulkAction =
 					new DefaultPermissionBulkAction();
 
@@ -1328,9 +1550,34 @@ public abstract class BaseBulkActionResourceTestCase {
 				return bulkAction;
 			},
 			() -> {
+				DeleteAssetVersionBulkAction bulkAction =
+					new DeleteAssetVersionBulkAction();
+
+				bulkAction.setType(
+					BulkAction.Type.create("DeleteAssetVersionBulkAction"));
+
+				return bulkAction;
+			},
+			() -> {
 				DeleteBulkAction bulkAction = new DeleteBulkAction();
 
 				bulkAction.setType(BulkAction.Type.create("DeleteBulkAction"));
+
+				return bulkAction;
+			},
+			() -> {
+				DueDateBulkAction bulkAction = new DueDateBulkAction();
+
+				bulkAction.setDueDate(RandomTestUtil.nextDate());
+
+				bulkAction.setType(BulkAction.Type.create("DueDateBulkAction"));
+
+				return bulkAction;
+			},
+			() -> {
+				ExpireBulkAction bulkAction = new ExpireBulkAction();
+
+				bulkAction.setType(BulkAction.Type.create("ExpireBulkAction"));
 
 				return bulkAction;
 			},
@@ -1377,7 +1624,8 @@ public abstract class BaseBulkActionResourceTestCase {
 			() -> {
 				StatusBulkAction bulkAction = new StatusBulkAction();
 
-				bulkAction.setStatus(RandomTestUtil.randomInt());
+				bulkAction.setStatus(
+					StringUtil.toLowerCase(RandomTestUtil.randomString()));
 
 				bulkAction.setType(BulkAction.Type.create("StatusBulkAction"));
 

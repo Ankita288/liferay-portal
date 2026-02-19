@@ -1338,33 +1338,6 @@ public class FileSystemImporter extends BaseImporter {
 		ServiceContextThreadLocal.pushServiceContext(serviceContext);
 
 		try {
-			String layoutPrototypeName = layoutJSONObject.getString(
-				"layoutPrototypeName");
-
-			String layoutPrototypeUuid = null;
-
-			if (Validator.isNotNull(layoutPrototypeName)) {
-				LayoutPrototype layoutPrototype = getLayoutPrototype(
-					companyId, layoutPrototypeName);
-
-				layoutPrototypeUuid = layoutPrototype.getUuid();
-			}
-			else {
-				layoutPrototypeUuid = layoutJSONObject.getString(
-					"layoutPrototypeUuid");
-			}
-
-			if (Validator.isNotNull(layoutPrototypeUuid)) {
-				boolean layoutPrototypeLinkEnabled = GetterUtil.getBoolean(
-					layoutJSONObject.getString("layoutPrototypeLinkEnabled"));
-
-				serviceContext.setAttribute(
-					"layoutPrototypeLinkEnabled", layoutPrototypeLinkEnabled);
-
-				serviceContext.setAttribute(
-					"layoutPrototypeUuid", layoutPrototypeUuid);
-			}
-
 			Layout layout = layoutLocalService.fetchLayoutByFriendlyURL(
 				groupId, privateLayout, friendlyURL);
 
@@ -1398,7 +1371,8 @@ public class FileSystemImporter extends BaseImporter {
 					parentLayoutId, nameMap, titleMap,
 					layout.getDescriptionMap(), layout.getKeywordsMap(),
 					layout.getRobotsMap(), type, hidden, friendlyURLMap,
-					layout.getIconImage(), null, null, 0, null, serviceContext);
+					layout.getIconImage(), null, null, null, null, null,
+					serviceContext);
 			}
 
 			if (Validator.isNotNull(themeId) ||

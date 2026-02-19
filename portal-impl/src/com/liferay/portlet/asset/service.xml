@@ -350,6 +350,7 @@
 		<exception>AssetCategory</exception>
 		<exception>AssetCategoryLimit</exception>
 		<exception>AssetCategoryName</exception>
+		<exception>AssetCategoryParentCategoryId</exception>
 		<exception>AssetTag</exception>
 		<exception>AssetTagGroupRelGroupId</exception>
 		<exception>AssetTagName</exception>
@@ -366,5 +367,6 @@
 		<exception>DuplicateVocabularyExternalReferenceCode</exception>
 		<exception>InvalidAssetCategory</exception>
 		<exception>VocabularyName</exception>
+		<exception>VocabularyVisibilityType</exception>
 	</exceptions>
 </service-builder>

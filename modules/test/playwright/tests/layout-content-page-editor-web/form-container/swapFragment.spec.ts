@@ -12,6 +12,8 @@ import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
 import {loginTest} from '../../../fixtures/loginTest';
 import {pageEditorPagesTest} from '../../../fixtures/pageEditorPagesTest';
 import {pageManagementSiteTest} from '../../../fixtures/pageManagementSiteTest';
+import {clickAndExpectToBeHidden} from '../../../utils/clickAndExpectToBeHidden';
+import {clickAndExpectToBeVisible} from '../../../utils/clickAndExpectToBeVisible';
 import getRandomString from '../../../utils/getRandomString';
 import getFormContainerDefinition from '../main/utils/getFormContainerDefinition';
 import getFragmentDefinition from '../main/utils/getFragmentDefinition';
@@ -22,7 +24,6 @@ const test = mergeTests(
 	dataApiHelpersTest,
 	displayPageTemplatesPagesTest,
 	featureFlagsTest({
-		'LPD-52221': {enabled: true},
 		'LPS-178052': {enabled: true},
 	}),
 	loginTest(),
@@ -65,6 +66,21 @@ test(
 
 		await pageEditorPage.mapFormFragment(formId, 'Lemon', ['Lemon Size']);
 
+		// Change also fragment configuration
+
+		const inputId = await pageEditorPage.getFragmentId('Text');
+
+		await pageEditorPage.changeFragmentConfiguration({
+			fieldLabel: 'Show Label',
+			fragmentId: inputId,
+			tab: 'General',
+			value: false,
+		});
+
+		await expect(
+			page.locator('label', {hasText: 'Title'})
+		).not.toBeVisible();
+
 		// Check we can't swap the Heading
 
 		await pageEditorPage.selectFragment(headingId);
@@ -77,15 +93,49 @@ test(
 
 		await expect(page.getByLabel('Swap Fragment')).not.toBeVisible();
 
-		// Swap the text input fragment
+		// Check swap fragment option is visible in topper
 
-		const inputId = await pageEditorPage.getFragmentId('Text');
+		await pageEditorPage.selectFragment(inputId);
+
+		await clickAndExpectToBeVisible({
+			target: page
+				.locator('.dropdown-menu.show')
+				.getByText('Swap Fragment', {exact: true}),
+			trigger: page
+				.locator('.page-editor__topper__item')
+				.getByRole('button', {name: 'Options'}),
+		});
+
+		await clickAndExpectToBeHidden({
+			target: page
+				.locator('.dropdown-menu.show')
+				.getByText('Swap Fragment', {exact: true}),
+			trigger: page
+				.locator('.page-editor__topper__item')
+				.getByRole('button', {name: 'Options'}),
+		});
+
+		// Swap the text input fragment
 
 		await pageEditorPage.swapFragment({
 			folder: 'Form Components',
 			fragmentId: inputId,
 			fragmentName: 'Textarea',
 		});
+
+		// Check mapping and config persist
+
+		const select = page
+			.locator('.page-editor__item-configuration-sidebar')
+			.getByLabel('Field', {exact: true});
+
+		const selectedOption = select.locator('option:checked');
+
+		await expect(selectedOption).toHaveText('Lemon Size');
+
+		await expect(
+			page.locator('label', {hasText: 'Title'})
+		).not.toBeVisible();
 
 		// Undo and check Text is visible again
 

@@ -19,6 +19,7 @@
 
 <div>
 	<clay:link
+		cssClass="py-1"
 		data-custom-property="customValue"
 		href="#"
 		label="link text"
@@ -27,6 +28,7 @@
 </div>
 
 <clay:link
+	cssClass="mt-2"
 	displayType="primary"
 	href="#"
 	label="a button link"

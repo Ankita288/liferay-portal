@@ -82,6 +82,15 @@ public class SegmentsEntryServiceWrapper
 			segmentsEntryId, classPKs);
 	}
 
+	@Override
+	public SegmentsEntry fetchSegmentsEntryByExternalReferenceCode(
+			String segmentsEntryERC, long groupId)
+		throws com.liferay.portal.kernel.exception.PortalException {
+
+		return _segmentsEntryService.fetchSegmentsEntryByExternalReferenceCode(
+			segmentsEntryERC, groupId);
+	}
+
 	/**
 	 * Returns the OSGi service identifier.
 	 *
@@ -117,6 +126,15 @@ public class SegmentsEntryServiceWrapper
 		throws com.liferay.portal.kernel.exception.PortalException {
 
 		return _segmentsEntryService.getSegmentsEntry(segmentsEntryId);
+	}
+
+	@Override
+	public SegmentsEntry getSegmentsEntryByExternalReferenceCode(
+			String segmentsEntryERC, long groupId)
+		throws com.liferay.portal.kernel.exception.PortalException {
+
+		return _segmentsEntryService.getSegmentsEntryByExternalReferenceCode(
+			segmentsEntryERC, groupId);
 	}
 
 	@Override

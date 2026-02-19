@@ -17,7 +17,9 @@ import com.liferay.exportimport.kernel.lar.PortletDataHandlerControl;
 import com.liferay.exportimport.kernel.lar.PortletDataHandlerKeys;
 import com.liferay.exportimport.kernel.lar.StagedModelType;
 import com.liferay.exportimport.kernel.lar.UserIdStrategy;
+import com.liferay.layout.admin.constants.LayoutAdminPortletKeys;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.model.Portlet;
 import com.liferay.portal.kernel.security.auth.CompanyThreadLocal;
 import com.liferay.portal.kernel.util.ArrayUtil;
@@ -67,6 +69,19 @@ public class ExportImportConfigurationParameterMapFactoryImpl
 
 		Map<String, String[]> parameterMap = new LinkedHashMap<>(
 			portletRequest.getParameterMap());
+
+		// Add before parameter replacement
+
+		if (FeatureFlagManagerUtil.isEnabled(
+				CompanyThreadLocal.getCompanyId(), "LPD-35914") &&
+			ArrayUtil.isNotEmpty(
+				GetterUtil.getLongValues(parameterMap.get("layoutIds")))) {
+
+			parameterMap.put(
+				PortletDataHandlerKeys.PORTLET_DATA + StringPool.UNDERLINE +
+					LayoutAdminPortletKeys.LAYOUT_SET_LAYOUTS,
+				new String[] {"true"});
+		}
 
 		if (ExportImportDateUtil.isRangeFromLastPublishDate(parameterMap)) {
 			_replaceParameterMap(parameterMap);
@@ -475,26 +490,28 @@ public class ExportImportConfigurationParameterMapFactoryImpl
 		PortletDataHandler portletDataHandlerInstance =
 			dataSiteLevelPortlet.getPortletDataHandlerInstance();
 
-		PortletDataHandlerControl[] exportControls =
-			portletDataHandlerInstance.getExportControls();
+		for (PortletDataHandlerControl portletDataHandlerControl :
+				portletDataHandlerInstance.
+					getExportPortletDataHandlerControls()) {
 
-		for (PortletDataHandlerControl exportControl : exportControls) {
-			if (!(exportControl instanceof PortletDataHandlerBoolean)) {
+			if (!(portletDataHandlerControl instanceof
+					PortletDataHandlerBoolean)) {
+
 				continue;
 			}
 
 			PortletDataHandlerBoolean portletDataHandlerBoolean =
-				(PortletDataHandlerBoolean)exportControl;
+				(PortletDataHandlerBoolean)portletDataHandlerControl;
 
-			boolean controlValue = portletDataHandlerBoolean.getDefaultState();
+			boolean defaultState = portletDataHandlerBoolean.getDefaultState();
 
 			if (!portletDataHandlerBoolean.isDisabled()) {
-				controlValue = MapUtil.getBoolean(
-					parameterMap,
-					portletDataHandlerBoolean.getNamespacedControlName(), true);
+				defaultState = MapUtil.getBoolean(
+					parameterMap, portletDataHandlerBoolean.getNamespacedName(),
+					true);
 			}
 
-			if ((portletDataAll || controlValue) &&
+			if ((defaultState || portletDataAll) &&
 				(portletDataHandlerBoolean.getClassName() != null)) {
 
 				String referrerClassName =

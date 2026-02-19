@@ -23,17 +23,16 @@ import com.liferay.portal.search.engine.adapter.snapshot.GetSnapshotsResponse;
 import com.liferay.portal.search.engine.adapter.snapshot.RestoreSnapshotRequest;
 import com.liferay.portal.search.engine.adapter.snapshot.SnapshotDetails;
 import com.liferay.portal.search.engine.adapter.snapshot.SnapshotRepositoryDetails;
-import com.liferay.portal.search.engine.adapter.snapshot.SnapshotRequestExecutor;
 import com.liferay.portal.search.engine.adapter.snapshot.SnapshotState;
 import com.liferay.portal.search.opensearch2.internal.BaseOpenSearchTestCase;
 import com.liferay.portal.search.opensearch2.internal.OpenSearchTestRule;
 import com.liferay.portal.search.opensearch2.internal.connection.OpenSearchConnectionManager;
-import com.liferay.portal.search.opensearch2.internal.search.engine.adapter.snapshot.SnapshotRequestExecutorFixture;
 import com.liferay.portal.search.test.util.IdempotentRetryAssert;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.io.IOException;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -301,29 +300,16 @@ public class OpenSearchSearchEngineAdapterSnapshotRequestTest
 	protected static SearchEngineAdapter createSearchEngineAdapter(
 		OpenSearchConnectionManager openSearchConnectionManager) {
 
-		SearchEngineAdapter searchEngineAdapter =
+		OpenSearchSearchEngineAdapterImpl openSearchSearchEngineAdapterImpl =
 			new OpenSearchSearchEngineAdapterImpl();
 
 		ReflectionTestUtil.setFieldValue(
-			searchEngineAdapter, "_snapshotRequestExecutor",
-			_createSnapshotRequestExecutor(openSearchConnectionManager));
+			openSearchSearchEngineAdapterImpl, "_openSearchConnectionManager",
+			openSearchConnectionManager);
 
-		return searchEngineAdapter;
-	}
+		openSearchSearchEngineAdapterImpl.activate(Collections.emptyMap());
 
-	private static SnapshotRequestExecutor _createSnapshotRequestExecutor(
-		OpenSearchConnectionManager openSearchConnectionManager) {
-
-		SnapshotRequestExecutorFixture snapshotRequestExecutorFixture =
-			new SnapshotRequestExecutorFixture() {
-				{
-					setOpenSearchConnectionManager(openSearchConnectionManager);
-				}
-			};
-
-		snapshotRequestExecutorFixture.setUp();
-
-		return snapshotRequestExecutorFixture.getSnapshotRequestExecutor();
+		return openSearchSearchEngineAdapterImpl;
 	}
 
 	private void _createIndex() {

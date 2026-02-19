@@ -10,11 +10,11 @@ import ClayLoadingIndicator from '@clayui/loading-indicator';
 import {ClayPaginationBarWithBasicItems} from '@clayui/pagination-bar';
 import {buildQueryString} from '@liferay/analytics-reports-js-components-web';
 import {replaceTokens} from '@liferay/frontend-data-set-web';
-import {openModal} from 'frontend-js-components-web';
 import {sub} from 'frontend-js-web';
 import React, {useContext, useEffect, useState} from 'react';
 
 import ApiHelper from '../../../common/services/ApiHelper';
+import {openCMSModal} from '../../../common/utils/openCMSModal';
 import {ViewDashboardContext} from '../ViewDashboardContext';
 import {
 	AssetType,
@@ -137,7 +137,7 @@ function ExpiredAssetItem({
 					data-tooltip-align="top"
 					displayType="secondary"
 					onClick={() => {
-						openModal({
+						openCMSModal({
 							size: 'full-screen',
 							title,
 							url: replaceTokens(href, title),
@@ -252,10 +252,12 @@ function ExpiredAssetsCard() {
 
 	return (
 		<BaseCard
+			ariaLevel={3}
 			contentClassName="mx-n3"
 			description={Liferay.Language.get(
 				'this-report-provides-a-list-of-assets-that-have-reached-their-expiration-date'
 			)}
+			role="heading"
 			title={Liferay.Language.get('expired-assets')}
 		>
 			<Table borderless striped={true}>

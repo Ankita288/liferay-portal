@@ -97,12 +97,14 @@ import com.liferay.layout.utility.page.service.LayoutUtilityPageEntryLocalServic
 import com.liferay.layout.utility.page.service.LayoutUtilityPageEntryService;
 import com.liferay.petra.lang.SafeCloseable;
 import com.liferay.petra.string.CharPool;
+import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.PortletIdException;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.PortletPreferences;
 import com.liferay.portal.kernel.model.Repository;
@@ -186,32 +188,32 @@ public class LayoutsImporterImpl implements LayoutsImporter {
 		List<LayoutsImporterResultEntry> layoutsImporterResultEntries =
 			new ArrayList<>();
 
-		ZipReader zipReader = _zipReaderFactory.getZipReader(file);
+		try (ZipReader zipReader = _zipReaderFactory.getZipReader(file)) {
+			_processMasterLayoutLayoutPageTemplateEntries(
+				groupId, layoutsImporterResultEntries, layoutsImportStrategy,
+				preserveItemIds, userId, zipReader);
 
-		_processMasterLayoutLayoutPageTemplateEntries(
-			groupId, layoutsImporterResultEntries, layoutsImportStrategy,
-			preserveItemIds, userId, zipReader);
+			_processBasicLayoutPageTemplateEntries(
+				groupId, layoutPageTemplateCollectionId,
+				layoutsImporterResultEntries, layoutsImportStrategy,
+				preserveItemIds, userId, zipReader);
 
-		_processBasicLayoutPageTemplateEntries(
-			groupId, layoutPageTemplateCollectionId,
-			layoutsImporterResultEntries, layoutsImportStrategy,
-			preserveItemIds, userId, zipReader);
+			Map<String, LayoutPageTemplateCollection>
+				layoutPageTemplateCollectionsMap =
+					_processDisplayPageLayoutPageTemplateCollections(
+						groupId, layoutPageTemplateCollectionId,
+						layoutsImporterResultEntries, layoutsImportStrategy,
+						zipReader);
 
-		Map<String, LayoutPageTemplateCollection>
-			layoutPageTemplateCollectionsMap =
-				_processDisplayPageLayoutPageTemplateCollections(
-					groupId, layoutPageTemplateCollectionId,
-					layoutsImporterResultEntries, layoutsImportStrategy,
-					zipReader);
+			_processDisplayPageLayoutPageTemplateEntries(
+				groupId, layoutPageTemplateCollectionId,
+				layoutPageTemplateCollectionsMap, layoutsImporterResultEntries,
+				layoutsImportStrategy, preserveItemIds, userId, zipReader);
 
-		_processDisplayPageLayoutPageTemplateEntries(
-			groupId, layoutPageTemplateCollectionId,
-			layoutPageTemplateCollectionsMap, layoutsImporterResultEntries,
-			layoutsImportStrategy, preserveItemIds, userId, zipReader);
-
-		_processLayoutUtilityPageEntries(
-			groupId, layoutsImporterResultEntries, layoutsImportStrategy,
-			preserveItemIds, userId, zipReader);
+			_processLayoutUtilityPageEntries(
+				groupId, layoutsImporterResultEntries, layoutsImportStrategy,
+				preserveItemIds, userId, zipReader);
+		}
 
 		return layoutsImporterResultEntries;
 	}
@@ -285,53 +287,56 @@ public class LayoutsImporterImpl implements LayoutsImporter {
 			long groupId, long layoutPageTemplateCollectionId, File file)
 		throws Exception {
 
-		ZipReader zipReader = _zipReaderFactory.getZipReader(file);
+		try (ZipReader zipReader = _zipReaderFactory.getZipReader(file)) {
+			List<String> entries = zipReader.getEntries();
 
-		List<String> entries = zipReader.getEntries();
+			for (String entry : entries) {
+				String content = zipReader.getEntryAsString(entry);
 
-		for (String entry : entries) {
-			String content = zipReader.getEntryAsString(entry);
+				if (Validator.isNull(content)) {
+					continue;
+				}
 
-			if (Validator.isNull(content)) {
-				continue;
-			}
+				if (_isDisplayPageTemplateCollectionFile(entry) &&
+					_isRootFolder(entries, entry) &&
+					!_isValidDisplayPageLayoutPageTemplateCollection(
+						content, entry, groupId,
+						layoutPageTemplateCollectionId)) {
 
-			if (_isDisplayPageTemplateCollectionFile(entry) &&
-				_isRootFolder(entries, entry) &&
-				!_isValidDisplayPageLayoutPageTemplateCollection(
-					content, entry, groupId, layoutPageTemplateCollectionId)) {
+					return false;
+				}
 
-				return false;
-			}
+				if (_isDisplayPageTemplateFile(entry) &&
+					_isRootFolder(entries, entry) &&
+					!_isValidDisplayPageLayoutPageTemplateEntry(
+						content, entry, groupId,
+						layoutPageTemplateCollectionId)) {
 
-			if (_isDisplayPageTemplateFile(entry) &&
-				_isRootFolder(entries, entry) &&
-				!_isValidDisplayPageLayoutPageTemplateEntry(
-					content, entry, groupId, layoutPageTemplateCollectionId)) {
+					return false;
+				}
 
-				return false;
-			}
+				if (_isMasterPageFile(entry) &&
+					!_isValidMasterLayoutLayoutPageTemplateEntry(
+						content, entry, groupId)) {
 
-			if (_isMasterPageFile(entry) &&
-				!_isValidMasterLayoutLayoutPageTemplateEntry(
-					content, entry, groupId)) {
+					return false;
+				}
 
-				return false;
-			}
+				if ((layoutPageTemplateCollectionId <= 0) &&
+					_isPageTemplateCollectionFile(entry) &&
+					!_isValidBasicLayoutPageTemplateCollection(
+						content, entry, groupId)) {
 
-			if ((layoutPageTemplateCollectionId <= 0) &&
-				_isPageTemplateCollectionFile(entry) &&
-				!_isValidBasicLayoutPageTemplateCollection(
-					content, entry, groupId)) {
+					return false;
+				}
 
-				return false;
-			}
+				if (_isPageTemplateFile(entry) &&
+					!_isValidBasicLayoutPageTemplateEntry(
+						content, entry, groupId,
+						layoutPageTemplateCollectionId)) {
 
-			if (_isPageTemplateFile(entry) &&
-				!_isValidBasicLayoutPageTemplateEntry(
-					content, entry, groupId, layoutPageTemplateCollectionId)) {
-
-				return false;
+					return false;
+				}
 			}
 		}
 
@@ -635,11 +640,9 @@ public class LayoutsImporterImpl implements LayoutsImporter {
 				FILE_NAME_DISPLAY_PAGE_TEMPLATE_COLLECTION);
 	}
 
-	private long _getFileEntryId(long contentDocumentId) {
+	private FileEntry _getFileEntry(long contentDocumentId) {
 		try {
-			FileEntry fileEntry = _dlAppService.getFileEntry(contentDocumentId);
-
-			return fileEntry.getFileEntryId();
+			return _dlAppService.getFileEntry(contentDocumentId);
 		}
 		catch (PortalException portalException) {
 			if (_log.isWarnEnabled()) {
@@ -647,7 +650,23 @@ public class LayoutsImporterImpl implements LayoutsImporter {
 			}
 		}
 
-		return 0;
+		return null;
+	}
+
+	private FileEntry _getFileEntry(
+		String externalReferenceCode, long groupId) {
+
+		try {
+			return _dlAppService.getFileEntryByExternalReferenceCode(
+				externalReferenceCode, groupId);
+		}
+		catch (PortalException portalException) {
+			if (_log.isWarnEnabled()) {
+				_log.warn(portalException);
+			}
+		}
+
+		return null;
 	}
 
 	private String _getKey(String defaultKey, String fileName, String name) {
@@ -2258,8 +2277,101 @@ public class LayoutsImporterImpl implements LayoutsImporter {
 
 		if (MapUtil.isNotEmpty(favIconMap)) {
 			if (Objects.equals(favIconMap.get("contentType"), "Document")) {
-				layout.setFaviconFileEntryId(
-					_getFileEntryId(GetterUtil.getLong(favIconMap.get("id"))));
+				String faviconFileEntryERC = (String)favIconMap.get(
+					"externalReferenceCode");
+				String faviconFileEntryScopeERC = (String)favIconMap.get(
+					"scopeExternalReferenceCode");
+
+				if (Validator.isNotNull(faviconFileEntryERC)) {
+					layout.setFaviconFileEntryERC(faviconFileEntryERC);
+
+					Group layoutGroup = layout.getGroup();
+
+					long targetGroupId = layoutGroup.getGroupId();
+
+					if (Validator.isNotNull(faviconFileEntryScopeERC) &&
+						!faviconFileEntryScopeERC.equals(
+							layoutGroup.getExternalReferenceCode())) {
+
+						layout.setFaviconFileEntryScopeERC(
+							faviconFileEntryScopeERC);
+
+						Group scopeGroup = _groupLocalService.fetchGroup(
+							layout.getCompanyId(), faviconFileEntryScopeERC);
+
+						if (scopeGroup != null) {
+							targetGroupId = scopeGroup.getGroupId();
+						}
+						else {
+							if (_log.isWarnEnabled()) {
+								_log.warn(
+									StringBundler.concat(
+										"Favicon group with external ",
+										"reference code ",
+										faviconFileEntryScopeERC,
+										" could not be found."));
+							}
+						}
+					}
+					else {
+						layout.setFaviconFileEntryScopeERC(null);
+					}
+
+					FileEntry fileEntry = _getFileEntry(
+						faviconFileEntryERC, targetGroupId);
+
+					if ((fileEntry == null) && _log.isWarnEnabled()) {
+						_log.warn(
+							StringBundler.concat(
+								"Unable to find favicon file entry with ",
+								"external reference code ", faviconFileEntryERC,
+								" in group ", targetGroupId));
+					}
+				}
+				else {
+					long fileEntryId = GetterUtil.getLong(favIconMap.get("id"));
+
+					if (fileEntryId > 0) {
+						FileEntry fileEntry = _getFileEntry(fileEntryId);
+
+						if (fileEntry != null) {
+							layout.setFaviconFileEntryERC(
+								fileEntry.getExternalReferenceCode());
+
+							if (layout.getGroupId() != fileEntry.getGroupId()) {
+								Group fileEntryGroup =
+									_groupLocalService.fetchGroup(
+										fileEntry.getGroupId());
+
+								if (fileEntryGroup != null) {
+									faviconFileEntryScopeERC =
+										fileEntryGroup.
+											getExternalReferenceCode();
+								}
+								else if (_log.isWarnEnabled()) {
+									_log.warn(
+										StringBundler.concat(
+											"Unable to find group for file ",
+											"entry ",
+											fileEntry.getFileEntryId(),
+											" with groupId ",
+											fileEntry.getGroupId()));
+								}
+							}
+							else {
+								faviconFileEntryScopeERC = null;
+							}
+
+							layout.setFaviconFileEntryScopeERC(
+								faviconFileEntryScopeERC);
+						}
+						else if (_log.isWarnEnabled()) {
+							_log.warn(
+								"Unable to find file entry " +
+									favIconMap.get("id"));
+						}
+					}
+				}
 			}
 			else if (favIconMap.containsKey("externalReferenceCode")) {
 				_addClientExtensionEntryRel(

@@ -861,7 +861,8 @@ public class RoleLocalServiceImpl extends RoleLocalServiceBaseImpl {
 				externalReferenceCode, userId, className, classPK,
 				(fetchRole(companyId, name) != null) ? externalReferenceCode :
 					name,
-				null, null, type, StringPool.BLANK, new ServiceContext()));
+				null, null, type, StringPool.BLANK, new ServiceContext()),
+			"role");
 	}
 
 	/**
@@ -2043,7 +2044,8 @@ public class RoleLocalServiceImpl extends RoleLocalServiceBaseImpl {
 
 			try {
 				role = roleLocalService.addRole(
-					null, user.getUserId(), null, 0, name, null,
+					RoleConstants.toSystemRoleExternalReferenceCode(name),
+					user.getUserId(), null, 0, name, null,
 					LocalizationUtil.getLocalizationMap(description), type,
 					null, null);
 			}

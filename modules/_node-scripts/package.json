@@ -4,7 +4,7 @@
 		"node-scripts": "./bin.js"
 	},
 	"com.liferay": {
-		"sha256": "462e5a2c99a868444c34dd0690cfe5955d74b7290080f5f69f239fd3a53e75b1"
+		"sha256": "c49f39849a0a7ffec4a598aa125a041d96b0b92495cac703b494e2a8f0ff3d72"
 	},
 	"dependencies": {
 		"@babel/preset-env": "7.24.7",
@@ -41,6 +41,7 @@
 		"fast-glob": "^3.3.2",
 		"gulp": "4.0.2",
 		"jest": "27.5.1",
+		"jest-axe": "10.0.0",
 		"jest-fetch-mock": "^3.0.3",
 		"liferay-theme-tasks": "11.5.6",
 		"micromatch": "4.0.2",

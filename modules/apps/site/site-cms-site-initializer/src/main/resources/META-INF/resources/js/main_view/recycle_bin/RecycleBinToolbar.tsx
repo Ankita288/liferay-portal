@@ -7,11 +7,11 @@ import {ClayButtonWithIcon} from '@clayui/button';
 import {Text} from '@clayui/core';
 import {ClayDropDownWithItems} from '@clayui/drop-down';
 import ClayToolbar from '@clayui/toolbar';
-import {openModal} from 'frontend-js-components-web';
 import React from 'react';
 
 import Breadcrumb from '../../common/components/Breadcrumb';
 import isRecycleBinRootPage from '../../common/utils/isRecycleBinRootPage';
+import {openCMSModal} from '../../common/utils/openCMSModal';
 import EmptyRecycleBinModalContent from '../modal/EmptyRecycleBinModalContent';
 
 interface Props {
@@ -31,7 +31,11 @@ export default function RecycleBinToolbar({breadcrumbItems}: Props) {
 					<ClayToolbar.Nav>
 						<ClayToolbar.Item>
 							<ClayToolbar.Section>
-								<div className="text-dark">
+								<div
+									aria-level={2}
+									className="text-dark"
+									role="heading"
+								>
 									<Text as="span" size={7} weight="semi-bold">
 										{Liferay.Language.get('recycle-bin')}
 									</Text>
@@ -47,7 +51,7 @@ export default function RecycleBinToolbar({breadcrumbItems}: Props) {
 											'empty-recycle-bin'
 										),
 										onClick: () => {
-											openModal({
+											openCMSModal({
 												center: true,
 												contentComponent: ({
 													closeModal,

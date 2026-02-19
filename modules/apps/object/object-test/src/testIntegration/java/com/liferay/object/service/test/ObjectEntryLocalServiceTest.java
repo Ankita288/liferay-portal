@@ -100,6 +100,7 @@ import com.liferay.object.model.ObjectStateTransition;
 import com.liferay.object.model.ObjectValidationRule;
 import com.liferay.object.model.ObjectValidationRuleSetting;
 import com.liferay.object.related.models.test.util.ObjectEntryTestUtil;
+import com.liferay.object.rest.dto.v1_0.Assignee;
 import com.liferay.object.scope.CompanyScoped;
 import com.liferay.object.scope.ObjectDefinitionScoped;
 import com.liferay.object.service.ObjectActionLocalService;
@@ -829,6 +830,20 @@ public class ObjectEntryLocalServiceTest {
 
 		_addObjectEntry(
 			HashMapBuilder.<String, Serializable>put(
+				"emailAddressRequired", "john@liferay.com"
+			).put(
+				"listTypeEntryKeyRequired", "listTypeEntryKey1"
+			).put(
+				"multipleListTypeEntriesKey",
+				new String[] {
+					"multipleListTypeEntryKey1", "multipleListTypeEntryKey2"
+				}
+			).build());
+
+		_assertCount(6);
+
+		_addObjectEntry(
+			HashMapBuilder.<String, Serializable>put(
 				"bloodPressure", "12,8"
 			).put(
 				"emailAddressRequired", "diogo@liferay.com"
@@ -836,7 +851,7 @@ public class ObjectEntryLocalServiceTest {
 				"listTypeEntryKeyRequired", "listTypeEntryKey1"
 			).build());
 
-		_assertCount(6);
+		_assertCount(7);
 
 		_addObjectEntry(
 			HashMapBuilder.<String, Serializable>put(
@@ -847,7 +862,7 @@ public class ObjectEntryLocalServiceTest {
 				"listTypeEntryKeyRequired", "listTypeEntryKey1"
 			).build());
 
-		_assertCount(7);
+		_assertCount(8);
 
 		_addObjectEntry(
 			HashMapBuilder.<String, Serializable>put(
@@ -858,7 +873,29 @@ public class ObjectEntryLocalServiceTest {
 				"numberOfBooksWritten", "01"
 			).build());
 
-		_assertCount(8);
+		_assertCount(9);
+
+		_addObjectEntry(
+			HashMapBuilder.<String, Serializable>put(
+				"emailAddress", StringPool.BLANK
+			).put(
+				"emailAddressRequired", "job@liferay.com"
+			).put(
+				"listTypeEntryKeyRequired", "listTypeEntryKey1"
+			).build());
+
+		_assertCount(10);
+
+		_addObjectEntry(
+			HashMapBuilder.<String, Serializable>put(
+				"emailAddress", StringPool.DOUBLE_SPACE
+			).put(
+				"emailAddressRequired", "john@liferay.com"
+			).put(
+				"listTypeEntryKeyRequired", "listTypeEntryKey1"
+			).build());
+
+		_assertCount(11);
 
 		String externalReferenceCode = RandomTestUtil.randomString();
 
@@ -1030,7 +1067,7 @@ public class ObjectEntryLocalServiceTest {
 				).getFileEntryId()
 			).build());
 
-		_assertCount(9);
+		_assertCount(12);
 
 		AssertUtils.assertFailure(
 			ObjectEntryValuesException.ListTypeEntry.class,
@@ -3690,8 +3727,30 @@ public class ObjectEntryLocalServiceTest {
 			_objectDefinitionLocalService.updateObjectDefinition(
 				_objectDefinition);
 
+		ObjectFieldUtil.addCustomObjectField(
+			new AssigneeObjectFieldBuilder(
+			).labelMap(
+				RandomTestUtil.randomLocaleStringMap()
+			).name(
+				"assignee"
+			).objectDefinitionId(
+				_objectDefinition.getObjectDefinitionId()
+			).userId(
+				TestPropsValues.getUserId()
+			).build());
+
+		Role role = RoleTestUtil.addRole(RoleConstants.TYPE_REGULAR);
+
 		ObjectEntry objectEntry = _addObjectEntry(
 			HashMapBuilder.<String, Serializable>put(
+				"assignee",
+				HashMapBuilder.put(
+					"classNameId",
+					_classNameLocalService.getClassNameId(Role.class.getName())
+				).put(
+					"classPK", role.getRoleId()
+				).build()
+			).put(
 				"emailAddressRequired", "james@liferay.com"
 			).put(
 				"firstName", "James"
@@ -3710,6 +3769,15 @@ public class ObjectEntryLocalServiceTest {
 
 		JSONAssert.assertEquals(
 			JSONUtil.put(
+				"assignee",
+				HashMapBuilder.put(
+					"externalReferenceCode", role.getExternalReferenceCode()
+				).put(
+					"name", role.getName()
+				).put(
+					"type", Assignee.Type.ROLE.toString()
+				).build()
+			).put(
 				"emailAddressRequired", "james@liferay.com"
 			).put(
 				"firstName", "James"
@@ -3728,10 +3796,20 @@ public class ObjectEntryLocalServiceTest {
 
 		auditMessages.clear();
 
+		User user = UserTestUtil.addUser();
+
 		_objectEntryLocalService.updateObjectEntry(
 			TestPropsValues.getUserId(), objectEntry.getObjectEntryId(),
 			objectEntry.getObjectEntryFolderId(),
 			HashMapBuilder.<String, Serializable>put(
+				"assignee",
+				HashMapBuilder.put(
+					"classNameId",
+					_classNameLocalService.getClassNameId(User.class.getName())
+				).put(
+					"classPK", user.getUserId()
+				).build()
+			).put(
 				"emailAddressRequired", "peter@liferay.com"
 			).put(
 				"firstName", "Peter"
@@ -3753,6 +3831,29 @@ public class ObjectEntryLocalServiceTest {
 			JSONUtil.put(
 				"attributes",
 				JSONUtil.putAll(
+					JSONUtil.put(
+						"name", "assignee"
+					).put(
+						"newValue",
+						JSONUtil.put(
+							"externalReferenceCode",
+							user.getExternalReferenceCode()
+						).put(
+							"name", user.getFullName()
+						).put(
+							"type", Assignee.Type.USER.toString()
+						)
+					).put(
+						"oldValue",
+						JSONUtil.put(
+							"externalReferenceCode",
+							role.getExternalReferenceCode()
+						).put(
+							"name", role.getName()
+						).put(
+							"type", Assignee.Type.ROLE.toString()
+						)
+					),
 					JSONUtil.put(
 						"name", "emailAddressRequired"
 					).put(
@@ -3804,6 +3905,15 @@ public class ObjectEntryLocalServiceTest {
 
 		JSONAssert.assertEquals(
 			JSONUtil.put(
+				"assignee",
+				JSONUtil.put(
+					"externalReferenceCode", user.getExternalReferenceCode()
+				).put(
+					"name", user.getFullName()
+				).put(
+					"type", Assignee.Type.USER.toString()
+				)
+			).put(
 				"emailAddressRequired", "peter@liferay.com"
 			).put(
 				"firstName", "Peter"
@@ -3987,7 +4097,8 @@ public class ObjectEntryLocalServiceTest {
 			_objectDefinition.isPortlet(),
 			_objectDefinition.getPluralLabelMap(), _objectDefinition.getScope(),
 			_objectDefinition.getStatus(), Collections.emptyList(),
-			Collections.emptyList(), Collections.emptyList());
+			Collections.emptyList(), Collections.emptyList(),
+			new ServiceContext());
 
 		_objectEntryLocalService.deleteObjectEntry(objectEntry4);
 
@@ -4316,8 +4427,7 @@ public class ObjectEntryLocalServiceTest {
 				getExtensionDynamicObjectDefinitionTableValues(
 					objectDefinition, user.getUserId());
 
-		Assert.assertEquals(
-			StringPool.BLANK, extensionValues.get("localizedTextField"));
+		Assert.assertNull(extensionValues.get("localizedTextField"));
 		Assert.assertEquals(0L, extensionValues.get("longField"));
 		Assert.assertEquals(StringPool.BLANK, extensionValues.get("textField"));
 

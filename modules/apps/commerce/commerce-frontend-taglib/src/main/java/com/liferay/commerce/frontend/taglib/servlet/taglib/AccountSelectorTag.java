@@ -189,15 +189,15 @@ public class AccountSelectorTag extends IncludeTag {
 			_commerceChannelId);
 
 		if (_accountEntry != null) {
-			String thumbnailUrl = null;
+			String thumbnailURL = null;
 
 			if (_accountEntry.getLogoId() == 0) {
-				thumbnailUrl =
+				thumbnailURL =
 					_themeDisplay.getPathImage() +
 						"/organization_logo?img_id=0";
 			}
 			else {
-				thumbnailUrl = StringBundler.concat(
+				thumbnailURL = StringBundler.concat(
 					_themeDisplay.getPathImage(), "/organization_logo?img_id=",
 					_accountEntry.getLogoId(), "&t=",
 					WebServerServletTokenUtil.getToken(
@@ -206,7 +206,7 @@ public class AccountSelectorTag extends IncludeTag {
 
 			CurrentCommerceAccountModel currentCommerceAccountModel =
 				new CurrentCommerceAccountModel(
-					_accountEntry.getAccountEntryId(), thumbnailUrl,
+					_accountEntry.getAccountEntryId(), thumbnailURL,
 					_accountEntry.getName());
 
 			httpServletRequest.setAttribute(
@@ -373,18 +373,14 @@ public class AccountSelectorTag extends IncludeTag {
 	}
 
 	private boolean _isOrderSelectionDisabled() throws PortalException {
-		if (FeatureFlagManagerUtil.isEnabled("LPD-58472")) {
-			CommerceOrderConfiguration commerceOrderConfiguration =
-				_configurationProvider.getConfiguration(
-					CommerceOrderConfiguration.class,
-					new GroupServiceSettingsLocator(
-						_commerceChannelGroupId,
-						CommerceConstants.SERVICE_NAME_COMMERCE_ORDER));
+		CommerceOrderConfiguration commerceOrderConfiguration =
+			_configurationProvider.getConfiguration(
+				CommerceOrderConfiguration.class,
+				new GroupServiceSettingsLocator(
+					_commerceChannelGroupId,
+					CommerceConstants.SERVICE_NAME_COMMERCE_ORDER));
 
-			return commerceOrderConfiguration.orderSelectionDisabled();
-		}
-
-		return false;
+		return commerceOrderConfiguration.orderSelectionDisabled();
 	}
 
 	private static final String _PAGE = "/account_selector/page.jsp";

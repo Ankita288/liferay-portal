@@ -1,6 +1,7 @@
 @component-name = "portal-content-management"
 definition {
 
+	property browser.chrome.version = "139.0";
 	property portal.release = "true";
 	property portal.upstream = "true";
 	property testray.main.component.name = "Documents and Media";
@@ -1716,9 +1717,9 @@ definition {
 			mimeType = "application/msword",
 			sourceFileName = "Document_3.doc");
 
-		Navigator.gotoPage(
+		Navigator.gotoSitePage(
 			pageName = "Documents and Media Page",
-			siteName = "site-name");
+			siteName = "Site Name");
 
 		DMDocument.downloadPG(dmDocumentTitle = "Document_3.doc");
 

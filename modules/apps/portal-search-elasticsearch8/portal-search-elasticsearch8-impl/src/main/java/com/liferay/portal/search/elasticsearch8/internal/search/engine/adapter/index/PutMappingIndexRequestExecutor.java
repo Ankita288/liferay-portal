@@ -5,18 +5,27 @@
 
 package com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.index;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.mapping.DynamicTemplate;
+import co.elastic.clients.elasticsearch._types.mapping.Property;
+import co.elastic.clients.elasticsearch.indices.ElasticsearchIndicesClient;
+import co.elastic.clients.elasticsearch.indices.PutMappingRequest;
+import co.elastic.clients.elasticsearch.indices.PutMappingResponse;
+import co.elastic.clients.util.NamedValue;
+
+import com.liferay.portal.kernel.json.JSONException;
+import com.liferay.portal.kernel.json.JSONFactoryUtil;
+import com.liferay.portal.kernel.json.JSONObject;
+import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.search.elasticsearch8.internal.connection.ElasticsearchClientResolver;
+import com.liferay.portal.search.elasticsearch8.internal.util.IndexUtil;
 import com.liferay.portal.search.engine.adapter.index.PutMappingIndexRequest;
 import com.liferay.portal.search.engine.adapter.index.PutMappingIndexResponse;
 
 import java.io.IOException;
 
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.IndicesClient;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.indices.PutMappingRequest;
-import org.elasticsearch.xcontent.XContentType;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author Dylan Rebelak
@@ -32,42 +41,60 @@ public class PutMappingIndexRequestExecutor {
 	public PutMappingIndexResponse execute(
 		PutMappingIndexRequest putMappingIndexRequest) {
 
-		PutMappingRequest putMappingRequest = createPutMappingRequest(
-			putMappingIndexRequest);
+		PutMappingResponse putMappingResponse = _getPutMappingResponse(
+			putMappingIndexRequest,
+			createPutMappingRequest(putMappingIndexRequest));
 
-		AcknowledgedResponse acknowledgedResponse = getAcknowledgedResponse(
-			putMappingRequest, putMappingIndexRequest);
-
-		return new PutMappingIndexResponse(
-			acknowledgedResponse.isAcknowledged());
+		return new PutMappingIndexResponse(putMappingResponse.acknowledged());
 	}
 
 	protected PutMappingRequest createPutMappingRequest(
 		PutMappingIndexRequest putMappingIndexRequest) {
 
-		PutMappingRequest putMappingRequest = new PutMappingRequest(
-			putMappingIndexRequest.getIndexNames());
+		PutMappingRequest.Builder builder = new PutMappingRequest.Builder();
 
-		putMappingRequest.source(
-			putMappingIndexRequest.getMapping(), XContentType.JSON);
+		try {
+			JSONObject mappingJSONObject = JSONFactoryUtil.createJSONObject(
+				putMappingIndexRequest.getMapping());
 
-		return putMappingRequest;
+			List<NamedValue<DynamicTemplate>> dynamicTemplates =
+				IndexUtil.getDynamicTemplatesList(mappingJSONObject);
+
+			if (dynamicTemplates != null) {
+				builder.dynamicTemplates(dynamicTemplates);
+			}
+
+			builder.index(
+				ListUtil.fromArray(putMappingIndexRequest.getIndexNames()));
+
+			Map<String, Property> properties = IndexUtil.getPropertiesMap(
+				mappingJSONObject);
+
+			if (properties != null) {
+				builder.properties(properties);
+			}
+
+			return builder.build();
+		}
+		catch (JSONException jsonException) {
+			throw new RuntimeException(jsonException);
+		}
 	}
 
-	protected AcknowledgedResponse getAcknowledgedResponse(
-		PutMappingRequest putMappingRequest,
-		PutMappingIndexRequest putMappingIndexRequest) {
+	private PutMappingResponse _getPutMappingResponse(
+		PutMappingIndexRequest putMappingIndexRequest,
+		PutMappingRequest putMappingRequest) {
 
-		RestHighLevelClient restHighLevelClient =
-			_elasticsearchClientResolver.getRestHighLevelClient(
+		ElasticsearchClient elasticsearchClient =
+			_elasticsearchClientResolver.getElasticsearchClient(
 				putMappingIndexRequest.getConnectionId(),
 				putMappingIndexRequest.isPreferLocalCluster());
 
-		IndicesClient indicesClient = restHighLevelClient.indices();
+		ElasticsearchIndicesClient elasticsearchIndicesClient =
+			elasticsearchClient.indices();
 
 		try {
-			return indicesClient.putMapping(
-				putMappingRequest, RequestOptions.DEFAULT);
+			return elasticsearchIndicesClient.putMapping(putMappingRequest);
 		}
 		catch (IOException ioException) {
 			throw new RuntimeException(ioException);

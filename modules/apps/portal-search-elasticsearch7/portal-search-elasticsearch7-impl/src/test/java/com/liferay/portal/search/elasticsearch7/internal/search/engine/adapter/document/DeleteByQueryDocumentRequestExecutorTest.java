@@ -7,10 +7,7 @@ package com.liferay.portal.search.elasticsearch7.internal.search.engine.adapter.
 
 import com.liferay.portal.kernel.search.BooleanQuery;
 import com.liferay.portal.kernel.search.generic.BooleanQueryImpl;
-import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.search.elasticsearch7.internal.connection.ElasticsearchFixture;
-import com.liferay.portal.search.elasticsearch7.internal.legacy.query.ElasticsearchQueryTranslatorFixture;
-import com.liferay.portal.search.elasticsearch7.internal.query.ElasticsearchQueryTranslator;
 import com.liferay.portal.search.engine.adapter.document.DeleteByQueryDocumentRequest;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
@@ -65,27 +62,12 @@ public class DeleteByQueryDocumentRequestExecutorTest {
 
 		deleteByQueryDocumentRequest.setRefresh(refresh);
 
-		DeleteByQueryDocumentRequestExecutorImpl
-			deleteByQueryDocumentRequestExecutorImpl =
-				new DeleteByQueryDocumentRequestExecutorImpl();
-
-		ElasticsearchQueryTranslatorFixture
-			legacyElasticsearchQueryTranslatorFixture =
-				new ElasticsearchQueryTranslatorFixture();
-
-		ReflectionTestUtil.setFieldValue(
-			deleteByQueryDocumentRequestExecutorImpl,
-			"_elasticsearchClientResolver", _elasticsearchFixture);
-		ReflectionTestUtil.setFieldValue(
-			deleteByQueryDocumentRequestExecutorImpl, "_legacyQueryTranslator",
-			legacyElasticsearchQueryTranslatorFixture.
-				getElasticsearchQueryTranslator());
-		ReflectionTestUtil.setFieldValue(
-			deleteByQueryDocumentRequestExecutorImpl, "_queryTranslator",
-			new ElasticsearchQueryTranslator());
+		DeleteByQueryDocumentRequestExecutor
+			deleteByQueryDocumentRequestExecutor =
+				new DeleteByQueryDocumentRequestExecutor(_elasticsearchFixture);
 
 		DeleteByQueryRequest deleteByQueryRequest =
-			deleteByQueryDocumentRequestExecutorImpl.createDeleteByQueryRequest(
+			deleteByQueryDocumentRequestExecutor.createDeleteByQueryRequest(
 				deleteByQueryDocumentRequest);
 
 		Assert.assertArrayEquals(

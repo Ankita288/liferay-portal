@@ -6,7 +6,6 @@
 package com.liferay.portal.search.opensearch2.internal.suggest;
 
 import com.liferay.portal.kernel.search.SearchContext;
-import com.liferay.portal.kernel.search.query.QueryTranslator;
 import com.liferay.portal.kernel.search.suggest.CompletionSuggester;
 import com.liferay.portal.kernel.search.suggest.PhraseSuggester;
 import com.liferay.portal.kernel.search.suggest.Suggester;
@@ -16,8 +15,7 @@ import com.liferay.portal.kernel.search.suggest.TermSuggester;
 import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.SetUtil;
 import com.liferay.portal.kernel.util.Validator;
-import com.liferay.portal.search.index.IndexNameBuilder;
-import com.liferay.portal.search.opensearch2.internal.legacy.query.OpenSearchQueryTranslator;
+import com.liferay.portal.search.opensearch2.internal.legacy.query.OpenSearchQueryVisitor;
 import com.liferay.portal.search.opensearch2.internal.util.ConversionUtil;
 import com.liferay.portal.search.opensearch2.internal.util.JsonpUtil;
 import com.liferay.portal.search.opensearch2.internal.util.SetterUtil;
@@ -26,7 +24,6 @@ import java.util.Set;
 
 import org.opensearch.client.opensearch._types.SuggestMode;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
-import org.opensearch.client.opensearch._types.query_dsl.QueryVariant;
 import org.opensearch.client.opensearch.core.search.DirectGenerator;
 import org.opensearch.client.opensearch.core.search.FieldSuggester;
 import org.opensearch.client.opensearch.core.search.FieldSuggesterBuilders;
@@ -43,10 +40,6 @@ import org.opensearch.client.opensearch.core.search.SuggestSort;
 public class OpenSearchSuggesterTranslator
 	implements SuggesterTranslator<FieldSuggester>,
 			   SuggesterVisitor<FieldSuggester> {
-
-	public OpenSearchSuggesterTranslator(IndexNameBuilder indexNameBuilder) {
-		_queryTranslator = new OpenSearchQueryTranslator(indexNameBuilder);
-	}
 
 	@Override
 	public FieldSuggester translate(
@@ -251,8 +244,8 @@ public class OpenSearchSuggesterTranslator
 				phraseSuggestCollateQuery -> phraseSuggestCollateQuery.source(
 					JsonpUtil.toString(
 						new Query(
-							_queryTranslator.translate(
-								collate.getQuery(), null))))));
+							OpenSearchQueryVisitor.INSTANCE.translate(
+								collate.getQuery()))))));
 
 		return builder.build();
 	}
@@ -296,7 +289,5 @@ public class OpenSearchSuggesterTranslator
 
 		return SuggestMode.Missing;
 	}
-
-	private final QueryTranslator<QueryVariant> _queryTranslator;
 
 }

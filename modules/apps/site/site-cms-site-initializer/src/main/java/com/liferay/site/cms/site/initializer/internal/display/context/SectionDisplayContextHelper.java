@@ -9,6 +9,8 @@ import com.liferay.depot.constants.DepotConstants;
 import com.liferay.depot.model.DepotEntry;
 import com.liferay.depot.service.DepotEntryLocalService;
 import com.liferay.frontend.data.set.model.FDSActionDropdownItem;
+import com.liferay.frontend.data.set.model.FDSActionDropdownItemBuilder;
+import com.liferay.frontend.data.set.model.FDSActionDropdownItemList;
 import com.liferay.frontend.taglib.clay.servlet.taglib.util.CreationMenu;
 import com.liferay.frontend.taglib.clay.servlet.taglib.util.DropdownItem;
 import com.liferay.info.constants.InfoDisplayWebKeys;
@@ -124,8 +126,8 @@ public class SectionDisplayContextHelper {
 			sb.append(filterString);
 		}
 
-		sb.append("&nestedFields=embedded,file.metadata,");
-		sb.append("file.previewURL,file.thumbnailURL,");
+		sb.append("&nestedFields=embedded,embeddedTaxonomyCategory,");
+		sb.append("file.metadata,file.previewURL,file.thumbnailURL,");
 		sb.append("numberOfObjectEntries,numberOfObjectEntryFolders,");
 		sb.append("systemProperties.objectDefinitionBrief");
 
@@ -286,21 +288,11 @@ public class SectionDisplayContextHelper {
 				LanguageUtil.get(httpServletRequest, "export-for-translation"),
 				null, "get", null),
 			new FDSActionDropdownItem(
-				PortletURLBuilder.create(
-					_portal.getControlPanelPortletURL(
-						httpServletRequest, TranslationPortletKeys.TRANSLATION,
-						ActionRequest.RENDER_PHASE)
-				).setMVCRenderCommandName(
-					"/translation/import_translation"
-				).setParameter(
-					"className", "{entryClassName}"
-				).setParameter(
-					"classPK", "{embedded.id}"
-				).setParameter(
-					"groupId", "{embedded.scopeId}"
-				).setWindowState(
-					LiferayWindowState.POP_UP
-				).buildString(),
+				StringBundler.concat(
+					themeDisplay.getPortalURL(), themeDisplay.getPathMain(),
+					GroupConstants.CMS_FRIENDLY_URL,
+					"/edit_content_item?objectEntryId={embedded.id}&",
+					"redirect=", themeDisplay.getURLCurrent()),
 				"download", "import-translation",
 				LanguageUtil.get(httpServletRequest, "import-translation"),
 				null, "update", null),
@@ -308,50 +300,10 @@ public class SectionDisplayContextHelper {
 				null, "copy", "copy",
 				_language.get(httpServletRequest, "copy-to"), null, null, null),
 			new FDSActionDropdownItem(
-				null, "move", "move", _language.get(httpServletRequest, "move"),
-				null, null, null),
-			new FDSActionDropdownItem(
-				PortletURLBuilder.create(
-					_portal.getControlPanelPortletURL(
-						httpServletRequest,
-						"com_liferay_portlet_configuration_web_portlet_" +
-							"PortletConfigurationPortlet",
-						ActionRequest.RENDER_PHASE)
-				).setMVCPath(
-					"/edit_permissions.jsp"
-				).setRedirect(
-					themeDisplay.getURLCurrent()
-				).setParameter(
-					"modelResource", "{entryClassName}"
-				).setParameter(
-					"modelResourceDescription", "{embedded.name}"
-				).setParameter(
-					"resourceGroupId", "{embedded.scopeId}"
-				).setParameter(
-					"resourcePrimKey", "{embedded.id}"
-				).setWindowState(
-					LiferayWindowState.POP_UP
-				).buildString(),
-				"password-policies", "permissions",
-				_language.get(httpServletRequest, "permissions"), "get",
-				"permissions", "modal-permissions"),
-			new FDSActionDropdownItem(
-				StringPool.BLANK, "password-policies", "default-permissions",
-				LanguageUtil.get(httpServletRequest, "default-permissions"),
-				null, "permissions", null),
-			new FDSActionDropdownItem(
-				StringPool.BLANK, "password-policies",
-				"edit-and-propagate-default-permissions",
-				LanguageUtil.get(
-					httpServletRequest,
-					"edit-and-propagate-default-permissions"),
-				null, "permissions", null),
-			new FDSActionDropdownItem(
-				StringPool.BLANK, "password-policies",
-				"reset-to-default-permissions",
-				LanguageUtil.get(
-					httpServletRequest, "reset-to-default-permissions"),
-				null, "permissions", null),
+				null, "move-folder", "move",
+				_language.get(httpServletRequest, "move"), null, null, null),
+			_getPermissionsFDSActionDropdownItem(
+				httpServletRequest, themeDisplay),
 			new FDSActionDropdownItem(
 				null, "trash", "delete",
 				_language.get(httpServletRequest, "delete"), null, "delete",
@@ -492,6 +444,103 @@ public class SectionDisplayContextHelper {
 		}
 
 		return null;
+	}
+
+	private FDSActionDropdownItem _getPermissionsFDSActionDropdownItem(
+		HttpServletRequest httpServletRequest, ThemeDisplay themeDisplay) {
+
+		return FDSActionDropdownItemBuilder.setFDSActionDropdownItems(
+			FDSActionDropdownItemList.of(
+				FDSActionDropdownItemBuilder.setHref(
+					PortletURLBuilder.create(
+						_portal.getControlPanelPortletURL(
+							httpServletRequest,
+							"com_liferay_portlet_configuration_web_portlet_" +
+								"PortletConfigurationPortlet",
+							ActionRequest.RENDER_PHASE)
+					).setMVCPath(
+						"/edit_permissions.jsp"
+					).setRedirect(
+						themeDisplay.getURLCurrent()
+					).setParameter(
+						"modelResource", "{entryClassName}"
+					).setParameter(
+						"modelResourceDescription", "{embedded.name}"
+					).setParameter(
+						"resourceGroupId", "{embedded.scopeId}"
+					).setParameter(
+						"resourcePrimKey", "{embedded.id}"
+					).setWindowState(
+						LiferayWindowState.POP_UP
+					).buildString()
+				).setIcon(
+					"password-policies"
+				).setLabel(
+					_language.get(httpServletRequest, "permissions")
+				).setMethod(
+					"get"
+				).setPermissionKey(
+					"permissions"
+				).setTarget(
+					"modal-permissions"
+				).build(
+					"permissions"
+				),
+				FDSActionDropdownItemBuilder.setHref(
+					StringPool.BLANK
+				).setIcon(
+					"password-policies"
+				).setLabel(
+					LanguageUtil.get(httpServletRequest, "default-permissions")
+				).setPermissionKey(
+					"permissions"
+				).setVisibilityFilters(
+					HashMapBuilder.<String, Object>put(
+						"entryClassName", ObjectEntryFolder.class.getName()
+					).build()
+				).build(
+					"default-permissions"
+				),
+				FDSActionDropdownItemBuilder.setHref(
+					StringPool.BLANK
+				).setIcon(
+					"password-policies"
+				).setLabel(
+					LanguageUtil.get(
+						httpServletRequest,
+						"edit-and-propagate-default-permissions")
+				).setPermissionKey(
+					"permissions"
+				).setVisibilityFilters(
+					HashMapBuilder.<String, Object>put(
+						"entryClassName", ObjectEntryFolder.class.getName()
+					).build()
+				).build(
+					"edit-and-propagate-default-permissions"
+				),
+				FDSActionDropdownItemBuilder.setHref(
+					StringPool.BLANK
+				).setIcon(
+					"password-policies"
+				).setLabel(
+					LanguageUtil.get(
+						httpServletRequest, "reset-to-default-permissions")
+				).setPermissionKey(
+					"permissions"
+				).build(
+					"reset-to-default-permissions"
+				))
+		).setIcon(
+			"password-policies"
+		).setLabel(
+			_language.get(httpServletRequest, "permissions")
+		).setPermissionKey(
+			"permissions"
+		).setType(
+			"contextual"
+		).build(
+			"permissions-menu"
+		);
 	}
 
 	private boolean _hasAddEntryPermission(

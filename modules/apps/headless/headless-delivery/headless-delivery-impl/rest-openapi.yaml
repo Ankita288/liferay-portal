@@ -447,6 +447,11 @@ components:
                         The number of child comments on this comment.
                     readOnly: true
                     type: integer
+                parentCommentExternalReferenceCode:
+                    # @review
+                    description:
+                        The parent comment's external reference code.
+                    type: string
                 parentCommentId:
                     # @review
                     description:
@@ -499,6 +504,10 @@ components:
                         The document's content type (e.g., `application/pdf`, etc.).
                     readOnly: true
                     type: string
+                externalReferenceCode:
+                    description:
+                        The document's externalReferenceCode.
+                    type: string
                 fileExtension:
                     description:
                         The document's file extension.
@@ -509,6 +518,10 @@ components:
                         The document's ID.
                     format: int64
                     type: integer
+                scopeExternalReferenceCode:
+                    description:
+                        The document's scopeExternalReferenceCode.
+                    type: string
                 sizeInBytes:
                     description:
                         The document's file size in bytes.
@@ -1956,6 +1969,7 @@ components:
                     anyOf:
                         -   $ref: "#/components/schemas/FragmentFieldAction"
                         -   $ref: "#/components/schemas/FragmentFieldBackgroundImage"
+                        -   $ref: "#/components/schemas/FragmentFieldDate"
                         -   $ref: "#/components/schemas/FragmentFieldHTML"
                         -   $ref: "#/components/schemas/FragmentFieldImage"
                         -   $ref: "#/components/schemas/FragmentFieldText"
@@ -2018,6 +2032,24 @@ components:
                                 -   $ref: "#/components/schemas/FragmentInlineValue"
                                 -   $ref: "#/components/schemas/FragmentMappedValue"
                     type: object
+            type: object
+        FragmentFieldDate:
+            # @review
+            description:
+                Represents a fragment field with a date.
+            properties:
+                date:
+                    # @review
+                    description:
+                        The fragment field's date.
+                    oneOf:
+                        -   $ref: "#/components/schemas/FragmentMappedValue"
+                dateFormat:
+                    # @review
+                    description:
+                        The fragment editable element's date format.
+                    oneOf:
+                        -   $ref: "#/components/schemas/FragmentInlineValue"
             type: object
         FragmentFieldHTML:
             # @review
@@ -6223,7 +6255,7 @@ components:
 info:
     description:
         "A Java client JAR is available for use with the group ID 'com.liferay', artifact ID
-        'com.liferay.headless.delivery.client', and version '4.0.101'."
+        'com.liferay.headless.delivery.client', and version '4.0.102'."
     license:
         name: Apache 2.0
         url: http://www.apache.org/licenses/LICENSE-2.0.html

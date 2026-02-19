@@ -131,7 +131,6 @@ import com.liferay.portal.kernel.util.UnicodePropertiesBuilder;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.odata.entity.EntityModel;
-import com.liferay.portal.search.expando.ExpandoBridgeIndexer;
 import com.liferay.portal.vulcan.custom.field.CustomField;
 import com.liferay.portal.vulcan.custom.field.CustomFieldsUtil;
 import com.liferay.portal.vulcan.dto.converter.DTOConverter;
@@ -257,8 +256,8 @@ public class ProductResourceImpl extends BaseProductResourceImpl {
 		return new ProductEntityModel(
 			EntityFieldsUtil.getEntityFields(
 				_portal.getClassNameId(CPDefinition.class.getName()),
-				contextCompany.getCompanyId(), _expandoBridgeIndexer,
-				_expandoColumnLocalService, _expandoTableLocalService));
+				contextCompany.getCompanyId(), _expandoColumnLocalService,
+				_expandoTableLocalService));
 	}
 
 	@Override
@@ -698,7 +697,9 @@ public class ProductResourceImpl extends BaseProductResourceImpl {
 
 		int productStatus = GetterUtil.getInteger(product.getProductStatus());
 
-		if (productStatus != WorkflowConstants.STATUS_APPROVED) {
+		if ((productStatus != WorkflowConstants.STATUS_APPROVED) &&
+			(productStatus != WorkflowConstants.STATUS_PENDING)) {
+
 			serviceContext.setWorkflowAction(
 				WorkflowConstants.ACTION_SAVE_DRAFT);
 		}
@@ -706,44 +707,46 @@ public class ProductResourceImpl extends BaseProductResourceImpl {
 		int originalWorkflowAction = serviceContext.getWorkflowAction();
 
 		cpDefinition = _cpDefinitionService.addOrUpdateCPDefinition(
-			externalReferenceCode,
+			externalReferenceCode, commerceCatalog.getGroupId(),
 			(cpDefinition != null) ? cpDefinition.getCPDefinitionId() : 0,
-			commerceCatalog.getGroupId(),
-			LanguageUtils.getLocalizedMap(nameMap),
-			LanguageUtils.getLocalizedMap(shortDescriptionMap),
+			GetterUtil.getLong(productTaxConfiguration.getId()),
+			GetterUtil.getBoolean(product.getProductAccountGroupFilter()),
+			GetterUtil.getBoolean(product.getProductChannelFilter()), null,
+			product.getDefaultSku(), deliverySubscriptionMaxSubscriptionCycles,
+			deliverySubscriptionEnable, deliverySubscriptionLength,
+			deliverySubscriptionTypeValue,
+			deliverySubscriptionTypeSettingsUnicodeProperties,
+			GetterUtil.getDouble(productShippingConfiguration.getDepth()),
 			LanguageUtils.getLocalizedMap(descriptionMap),
-			LanguageUtils.getLocalizedMap(urlTitleMap),
-			LanguageUtils.getLocalizedMap(metaTitleMap),
-			LanguageUtils.getLocalizedMap(metaDescriptionMap),
-			LanguageUtils.getLocalizedMap(metaKeywordsMap),
-			product.getProductType(), ignoreSKUCombinations,
-			GetterUtil.getBoolean(
-				productShippingConfiguration.getShippable(), true),
+			displayDateConfig.getDay(), displayDateConfig.getHour(),
+			displayDateConfig.getMinute(), displayDateConfig.getMonth(),
+			displayDateConfig.getYear(), expirationDateConfig.getDay(),
+			expirationDateConfig.getHour(), expirationDateConfig.getMinute(),
+			expirationDateConfig.getMonth(), expirationDateConfig.getYear(),
 			GetterUtil.getBoolean(
 				productShippingConfiguration.getFreeShipping(), true),
+			GetterUtil.getDouble(productShippingConfiguration.getHeight()),
+			ignoreSKUCombinations, subscriptionMaxSubscriptionCycles,
+			LanguageUtils.getLocalizedMap(metaDescriptionMap),
+			LanguageUtils.getLocalizedMap(metaKeywordsMap),
+			LanguageUtils.getLocalizedMap(metaTitleMap),
+			LanguageUtils.getLocalizedMap(nameMap),
+			GetterUtil.getBoolean(product.getNeverExpire(), true),
+			product.getProductType(), true,
 			GetterUtil.getBoolean(
 				productShippingConfiguration.getShippingSeparately(), true),
+			GetterUtil.getBoolean(
+				productShippingConfiguration.getShippable(), true),
 			GetterUtil.getDouble(
 				productShippingConfiguration.getShippingExtraPrice()),
-			GetterUtil.getDouble(productShippingConfiguration.getWidth()),
-			GetterUtil.getDouble(productShippingConfiguration.getHeight()),
-			GetterUtil.getDouble(productShippingConfiguration.getDepth()),
+			LanguageUtils.getLocalizedMap(shortDescriptionMap),
+			subscriptionEnable, subscriptionLength, subscriptionTypeValue,
+			subscriptionTypeSettingsUnicodeProperties,
+			ProductUtil.isTaxExempt(null, productTaxConfiguration), false,
+			LanguageUtils.getLocalizedMap(urlTitleMap),
 			GetterUtil.getDouble(productShippingConfiguration.getWeight()),
-			GetterUtil.getLong(productTaxConfiguration.getId()),
-			ProductUtil.isTaxExempt(null, productTaxConfiguration), false, null,
-			true, displayDateConfig.getMonth(), displayDateConfig.getDay(),
-			displayDateConfig.getYear(), displayDateConfig.getHour(),
-			displayDateConfig.getMinute(), expirationDateConfig.getMonth(),
-			expirationDateConfig.getDay(), expirationDateConfig.getYear(),
-			expirationDateConfig.getHour(), expirationDateConfig.getMinute(),
-			GetterUtil.getBoolean(product.getNeverExpire(), true),
-			product.getDefaultSku(), subscriptionEnable, subscriptionLength,
-			subscriptionTypeValue, subscriptionTypeSettingsUnicodeProperties,
-			subscriptionMaxSubscriptionCycles, deliverySubscriptionEnable,
-			deliverySubscriptionLength, deliverySubscriptionTypeValue,
-			deliverySubscriptionTypeSettingsUnicodeProperties,
-			deliverySubscriptionMaxSubscriptionCycles, productStatus,
-			serviceContext);
+			GetterUtil.getDouble(productShippingConfiguration.getWidth()),
+			productStatus, serviceContext);
 
 		if ((product.getActive() != null) && !product.getActive()) {
 			Map<String, Serializable> workflowContext = new HashMap<>();
@@ -1604,25 +1607,35 @@ public class ProductResourceImpl extends BaseProductResourceImpl {
 			contextUser.getTimeZone());
 
 		cpDefinition = _cpDefinitionService.updateCPDefinition(
-			cpDefinition.getCPDefinitionId(),
-			LanguageUtils.getLocalizedMap(nameMap),
-			LanguageUtils.getLocalizedMap(shortDescriptionMap),
+			cpDefinition.getCPDefinitionId(), cpDefinition.getCPTaxCategoryId(),
+			GetterUtil.getBoolean(
+				product.getProductAccountGroupFilter(),
+				cpDefinition.isAccountGroupFilterEnabled()),
+			GetterUtil.getBoolean(
+				product.getProductChannelFilter(),
+				cpDefinition.isChannelFilterEnabled()),
+			cpDefinition.getDDMStructureKey(), cpDefinition.getDepth(),
 			LanguageUtils.getLocalizedMap(descriptionMap),
-			LanguageUtils.getLocalizedMap(urlTitleMap),
-			LanguageUtils.getLocalizedMap(metaTitleMap),
+			displayDateConfig.getDay(), displayDateConfig.getHour(),
+			displayDateConfig.getMinute(), displayDateConfig.getMonth(),
+			displayDateConfig.getYear(), expirationDateConfig.getDay(),
+			expirationDateConfig.getHour(), expirationDateConfig.getMinute(),
+			expirationDateConfig.getMonth(), expirationDateConfig.getYear(),
+			cpDefinition.isFreeShipping(), cpDefinition.getHeight(),
+			cpDefinition.isIgnoreSKUCombinations(),
 			LanguageUtils.getLocalizedMap(metaDescriptionMap),
 			LanguageUtils.getLocalizedMap(metaKeywordsMap),
-			cpDefinition.isIgnoreSKUCombinations(),
-			cpDefinition.getDDMStructureKey(), true,
-			displayDateConfig.getMonth(), displayDateConfig.getDay(),
-			displayDateConfig.getYear(), displayDateConfig.getHour(),
-			displayDateConfig.getMinute(), expirationDateConfig.getMonth(),
-			expirationDateConfig.getDay(), expirationDateConfig.getYear(),
-			expirationDateConfig.getHour(), expirationDateConfig.getMinute(),
+			LanguageUtils.getLocalizedMap(metaTitleMap),
+			LanguageUtils.getLocalizedMap(nameMap),
 			GetterUtil.get(
 				product.getNeverExpire(),
 				cpDefinition.getExpirationDate() == null),
-			serviceContext);
+			true, cpDefinition.isShipSeparately(), cpDefinition.isShippable(),
+			cpDefinition.getShippingExtraPrice(),
+			LanguageUtils.getLocalizedMap(shortDescriptionMap),
+			cpDefinition.isTaxExempt(), cpDefinition.isTelcoOrElectronics(),
+			LanguageUtils.getLocalizedMap(urlTitleMap),
+			cpDefinition.getWeight(), cpDefinition.getWidth(), serviceContext);
 
 		if (!Validator.isBlank(product.getExternalReferenceCode())) {
 			_cpDefinitionService.updateExternalReferenceCode(
@@ -1776,9 +1789,6 @@ public class ProductResourceImpl extends BaseProductResourceImpl {
 
 	@Reference
 	private DTOConverterRegistry _dtoConverterRegistry;
-
-	@Reference
-	private ExpandoBridgeIndexer _expandoBridgeIndexer;
 
 	@Reference
 	private ExpandoColumnLocalService _expandoColumnLocalService;

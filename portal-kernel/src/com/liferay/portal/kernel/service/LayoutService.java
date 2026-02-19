@@ -261,12 +261,27 @@ public interface LayoutService extends BaseService {
 			InputStream inputStream, String mimeType)
 		throws PortalException;
 
+	public Layout convertEmptyLayout(
+			long plid, Map<Locale, String> nameMap, String type,
+			long classNameId, long classPK,
+			String masterLayoutPageTemplateEntryERC,
+			ServiceContext serviceContext)
+		throws Exception;
+
 	public Layout copyLayout(
 			long groupId, boolean privateLayout,
 			Map<Locale, String> localeNamesMap, boolean hidden, boolean system,
 			boolean copyPermissions, long sourcePlid,
 			ServiceContext serviceContext)
 		throws PortalException;
+
+	public Layout copyLayoutContent(Layout sourceLayout, Layout targetLayout)
+		throws Exception;
+
+	public Layout copyLayoutContent(
+			long sourceSegmentsExperienceId, Layout sourceLayout,
+			long targetSegmentsExperienceId, Layout targetLayout)
+		throws Exception;
 
 	/**
 	 * Deletes the layout with the primary key, also deleting the layout's child
@@ -529,7 +544,7 @@ public interface LayoutService extends BaseService {
 
 	@Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
 	public Layout getOrAddEmptyLayout(
-			String externalReferenceCode, long groupId,
+			String externalReferenceCode, long groupId, boolean privateLayout,
 			ServiceContext serviceContext)
 		throws Exception;
 
@@ -702,8 +717,12 @@ public interface LayoutService extends BaseService {
 	 String)}.
 	 * @param hasIconImage if the layout has a custom icon image
 	 * @param iconBytes the byte array of the layout's new icon image
-	 * @param styleBookEntryERC the external reference code of the style book entry
-	 * @param faviconFileEntryId the file entry ID of the layout's new favicon
+	 * @param styleBookEntryERC the external reference code of the style book
+	 entry
+	 * @param faviconFileEntryERC the file entry external reference code of the
+	 layout's new favicon
+	 * @param faviconFileEntryScopeERC the file entry scope external reference
+	 code of the layout's new favicon
 	 * @param masterLayoutPageTemplateEntryERC the external reference code key
 	 of the master layout page template entry
 	 * @param serviceContext the service context to be applied. Can set the
@@ -718,7 +737,8 @@ public interface LayoutService extends BaseService {
 			Map<Locale, String> descriptionMap, Map<Locale, String> keywordsMap,
 			Map<Locale, String> robotsMap, String type, boolean hidden,
 			Map<Locale, String> friendlyURLMap, boolean hasIconImage,
-			byte[] iconBytes, String styleBookEntryERC, long faviconFileEntryId,
+			byte[] iconBytes, String styleBookEntryERC,
+			String faviconFileEntryERC, String faviconFileEntryScopeERC,
 			String masterLayoutPageTemplateEntryERC,
 			ServiceContext serviceContext)
 		throws PortalException;

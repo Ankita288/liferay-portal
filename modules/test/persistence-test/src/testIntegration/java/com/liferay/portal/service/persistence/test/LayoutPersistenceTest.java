@@ -183,14 +183,21 @@ public class LayoutPersistenceTest {
 
 		newLayout.setPriority(RandomTestUtil.nextInt());
 
-		newLayout.setFaviconFileEntryId(RandomTestUtil.nextLong());
+		newLayout.setFaviconFileEntryERC(RandomTestUtil.randomString());
+
+		newLayout.setFaviconFileEntryScopeERC(RandomTestUtil.randomString());
 
 		newLayout.setMasterLayoutPageTemplateEntryERC(
 			RandomTestUtil.randomString());
 
-		newLayout.setLayoutPrototypeUuid(RandomTestUtil.randomString());
+		newLayout.setPortletLayoutPageTemplateEntryERC(
+			RandomTestUtil.randomString());
 
-		newLayout.setLayoutPrototypeLinkEnabled(RandomTestUtil.randomBoolean());
+		newLayout.setPortletLayoutPageTemplateEntryScopeERC(
+			RandomTestUtil.randomString());
+
+		newLayout.setPortletLayoutPageTemplateEntryLinkEnabled(
+			RandomTestUtil.randomBoolean());
 
 		newLayout.setLayoutSetPrototypeLayoutERC(RandomTestUtil.randomString());
 
@@ -272,17 +279,23 @@ public class LayoutPersistenceTest {
 		Assert.assertEquals(
 			existingLayout.getPriority(), newLayout.getPriority());
 		Assert.assertEquals(
-			existingLayout.getFaviconFileEntryId(),
-			newLayout.getFaviconFileEntryId());
+			existingLayout.getFaviconFileEntryERC(),
+			newLayout.getFaviconFileEntryERC());
+		Assert.assertEquals(
+			existingLayout.getFaviconFileEntryScopeERC(),
+			newLayout.getFaviconFileEntryScopeERC());
 		Assert.assertEquals(
 			existingLayout.getMasterLayoutPageTemplateEntryERC(),
 			newLayout.getMasterLayoutPageTemplateEntryERC());
 		Assert.assertEquals(
-			existingLayout.getLayoutPrototypeUuid(),
-			newLayout.getLayoutPrototypeUuid());
+			existingLayout.getPortletLayoutPageTemplateEntryERC(),
+			newLayout.getPortletLayoutPageTemplateEntryERC());
 		Assert.assertEquals(
-			existingLayout.isLayoutPrototypeLinkEnabled(),
-			newLayout.isLayoutPrototypeLinkEnabled());
+			existingLayout.getPortletLayoutPageTemplateEntryScopeERC(),
+			newLayout.getPortletLayoutPageTemplateEntryScopeERC());
+		Assert.assertEquals(
+			existingLayout.isPortletLayoutPageTemplateEntryLinkEnabled(),
+			newLayout.isPortletLayoutPageTemplateEntryLinkEnabled());
 		Assert.assertEquals(
 			existingLayout.getLayoutSetPrototypeLayoutERC(),
 			newLayout.getLayoutSetPrototypeLayoutERC());
@@ -381,15 +394,6 @@ public class LayoutPersistenceTest {
 	}
 
 	@Test
-	public void testCountByLayoutPrototypeUuid() throws Exception {
-		_persistence.countByLayoutPrototypeUuid("");
-
-		_persistence.countByLayoutPrototypeUuid("null");
-
-		_persistence.countByLayoutPrototypeUuid((String)null);
-	}
-
-	@Test
 	public void testCountByLayoutSetPrototypeLayoutERC() throws Exception {
 		_persistence.countByLayoutSetPrototypeLayoutERC("");
 
@@ -425,15 +429,6 @@ public class LayoutPersistenceTest {
 	}
 
 	@Test
-	public void testCountByC_L() throws Exception {
-		_persistence.countByC_L(RandomTestUtil.nextLong(), "");
-
-		_persistence.countByC_L(0L, "null");
-
-		_persistence.countByC_L(0L, (String)null);
-	}
-
-	@Test
 	public void testCountByP_I() throws Exception {
 		_persistence.countByP_I(
 			RandomTestUtil.randomBoolean(), RandomTestUtil.nextLong());
@@ -454,6 +449,15 @@ public class LayoutPersistenceTest {
 		_persistence.countByC_C(
 			RandomTestUtil.nextLong(),
 			new long[] {RandomTestUtil.nextLong(), 0L});
+	}
+
+	@Test
+	public void testCountByPLPTEERC_PLPTESERC() throws Exception {
+		_persistence.countByPLPTEERC_PLPTESERC("", "");
+
+		_persistence.countByPLPTEERC_PLPTESERC("null", "null");
+
+		_persistence.countByPLPTEERC_PLPTESERC((String)null, (String)null);
 	}
 
 	@Test
@@ -664,9 +668,12 @@ public class LayoutPersistenceTest {
 			"classPK", true, "name", true, "keywords", true, "robots", true,
 			"type", true, "hidden", true, "system", true, "friendlyURL", true,
 			"iconImageId", true, "themeId", true, "colorSchemeId", true,
-			"styleBookEntryERC", true, "priority", true, "faviconFileEntryId",
-			true, "masterLayoutPageTemplateEntryERC", true,
-			"layoutPrototypeUuid", true, "layoutPrototypeLinkEnabled", true,
+			"styleBookEntryERC", true, "priority", true, "faviconFileEntryERC",
+			true, "faviconFileEntryScopeERC", true,
+			"masterLayoutPageTemplateEntryERC", true,
+			"portletLayoutPageTemplateEntryERC", true,
+			"portletLayoutPageTemplateEntryScopeERC", true,
+			"portletLayoutPageTemplateEntryLinkEnabled", true,
 			"layoutSetPrototypeLayoutERC", true, "publishDate", true,
 			"lastPublishDate", true, "status", true, "statusByUserId", true,
 			"statusByUserName", true, "statusDate", true);
@@ -1050,14 +1057,21 @@ public class LayoutPersistenceTest {
 
 		layout.setPriority(RandomTestUtil.nextInt());
 
-		layout.setFaviconFileEntryId(RandomTestUtil.nextLong());
+		layout.setFaviconFileEntryERC(RandomTestUtil.randomString());
+
+		layout.setFaviconFileEntryScopeERC(RandomTestUtil.randomString());
 
 		layout.setMasterLayoutPageTemplateEntryERC(
 			RandomTestUtil.randomString());
 
-		layout.setLayoutPrototypeUuid(RandomTestUtil.randomString());
+		layout.setPortletLayoutPageTemplateEntryERC(
+			RandomTestUtil.randomString());
 
-		layout.setLayoutPrototypeLinkEnabled(RandomTestUtil.randomBoolean());
+		layout.setPortletLayoutPageTemplateEntryScopeERC(
+			RandomTestUtil.randomString());
+
+		layout.setPortletLayoutPageTemplateEntryLinkEnabled(
+			RandomTestUtil.randomBoolean());
 
 		layout.setLayoutSetPrototypeLayoutERC(RandomTestUtil.randomString());
 

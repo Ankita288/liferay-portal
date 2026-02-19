@@ -45,13 +45,15 @@ let {result: useStateHookResult} = renderHook(() =>
 );
 
 const component = ({
+	loading = false,
 	numberOfSteps = 1,
 	setHandleStepSubmit,
-}: TDSRRoomDetailsStepProps) => {
+}: TDSRRoomDetailsStepProps & {loading?: boolean}) => {
 	return (
 		<DSRContext.Provider
 			value={{
 				dataContext: useStateHookResult.current[0],
+				loading,
 				setDataContext: useStateHookResult.current[1],
 			}}
 		>
@@ -64,10 +66,17 @@ const component = ({
 };
 
 const renderComponent = ({
+	loading = false,
 	numberOfSteps = 1,
 	setHandleStepSubmit,
-}: TDSRRoomDetailsStepProps) => {
-	return render(component({numberOfSteps, setHandleStepSubmit}));
+}: TDSRRoomDetailsStepProps & {loading?: boolean}) => {
+	return render(
+		component({
+			loading,
+			numberOfSteps,
+			setHandleStepSubmit,
+		})
+	);
 };
 
 describe('DSRShareRoomStep', () => {
@@ -105,12 +114,14 @@ describe('DSRShareRoomStep', () => {
 
 		expect(screen.getByTestId('emailAddressesInput')).toBeInTheDocument();
 		expect(screen.getByTestId('roleKeyButton')).toBeInTheDocument();
-		expect(screen.getByTestId('roleKeyButton')).toHaveTextContent('view');
+		expect(screen.getByTestId('roleKeyButton')).toHaveTextContent('viewer');
 
 		screen.getByTestId('roleKeyButton').click();
 
-		expect(screen.getByTestId('roleKeyItem_edit')).toBeInTheDocument();
-		expect(screen.getByTestId('roleKeyItem_view')).toBeInTheDocument();
+		expect(
+			screen.getByTestId('roleKeyItem_contributor')
+		).toBeInTheDocument();
+		expect(screen.getByTestId('roleKeyItem_viewer')).toBeInTheDocument();
 		expect(screen.getByTestId('stepLocator')).toBeInTheDocument();
 		expect(screen.getByTestId('stepTitle')).toBeInTheDocument();
 	});
@@ -190,10 +201,12 @@ describe('DSRShareRoomStep', () => {
 
 		await waitFor(() => {
 			screen.getByTestId('roleKeyButton').click();
-			screen.getByTestId('roleKeyItem_edit').click();
+			screen.getByTestId('roleKeyItem_contributor').click();
 		});
 
-		expect(screen.getByTestId('roleKeyButton')).toHaveTextContent('edit');
+		expect(screen.getByTestId('roleKeyButton')).toHaveTextContent(
+			'contributor'
+		);
 
 		let state = useStateHookResult.current[0];
 
@@ -204,16 +217,16 @@ describe('DSRShareRoomStep', () => {
 
 		await waitFor(() => {
 			screen.getByTestId('roleKeyButton').click();
-			screen.getByTestId('roleKeyItem_view').click();
+			screen.getByTestId('roleKeyItem_viewer').click();
 		});
 
-		expect(screen.getByTestId('roleKeyButton')).toHaveTextContent('view');
+		expect(screen.getByTestId('roleKeyButton')).toHaveTextContent('viewer');
 
 		state = useStateHookResult.current[0];
 
 		expect(state.share).toEqual({
 			emailAddresses: [],
-			roleKey: '',
+			roleKey: 'Site Member',
 		});
 	});
 
@@ -239,7 +252,7 @@ describe('DSRShareRoomStep', () => {
 
 		await waitFor(() => {
 			screen.getByTestId('roleKeyButton').click();
-			screen.getByTestId('roleKeyItem_edit').click();
+			screen.getByTestId('roleKeyItem_contributor').click();
 		});
 
 		const state = useStateHookResult.current[0];
@@ -259,6 +272,19 @@ describe('DSRShareRoomStep', () => {
 		expect(
 			screen.getByRole('gridcell', {name: 'test1@liferay.com'})
 		).toBeInTheDocument();
-		expect(screen.getByTestId('roleKeyButton')).toHaveTextContent('edit');
+		expect(screen.getByTestId('roleKeyButton')).toHaveTextContent(
+			'contributor'
+		);
+	});
+
+	it('disables fields and buttons when loading is true', async () => {
+		renderComponent({
+			loading: true,
+			numberOfSteps: 1,
+			setHandleStepSubmit: () => {},
+		});
+
+		expect(screen.getByTestId('emailAddressesInput')).toBeDisabled();
+		expect(screen.getByTestId('roleKeyButton')).toBeDisabled();
 	});
 });

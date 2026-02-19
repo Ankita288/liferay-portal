@@ -7,7 +7,7 @@ import fg from 'fast-glob';
 import fs from 'fs';
 import path from 'path';
 
-import {getRootDir} from '../util/constants.mjs';
+import {GLOBAL_NODE_SCRIPTS_CONFIG_FILE} from '../util/locations.mjs';
 import projectScopeRequire from '../util/projectScopeRequire.mjs';
 
 /**
@@ -24,6 +24,7 @@ export async function checkPackageJSONFiles() {
 			'_node-scripts',
 			'**/build',
 			'**/classes',
+			'**/frontend-js-clay-web/clay',
 			'**/frontend-js-jquery-web',
 			'**/integrations/vercel',
 			'**/node_modules',
@@ -167,16 +168,8 @@ export async function checkPackageJSONFiles() {
 async function collectDefinedDependencies() {
 	let rootConfig = {};
 
-	const rootDir = await getRootDir();
-
-	if (!rootDir) {
-		return new Set();
-	}
-
 	try {
-		rootConfig = await projectScopeRequire(
-			path.join(rootDir, 'node-scripts.config.js')
-		);
+		rootConfig = await projectScopeRequire(GLOBAL_NODE_SCRIPTS_CONFIG_FILE);
 	}
 	catch (error) {
 		return new Set();
@@ -504,6 +497,7 @@ const ALLOWED_NON_GLOBAL_DEPENDENCIES = [
 	'@ckeditor/ckeditor5-widget',
 	'@ckeditor/ckeditor5-word-count',
 	'@clayui/css',
+	'@jsonurl/jsonurl',
 	'@liferay/amd-loader',
 	'@types/request',
 	'@types/node-fetch',

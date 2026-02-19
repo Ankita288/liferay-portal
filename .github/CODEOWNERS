@@ -59,7 +59,7 @@ modules/apps/click-to-chat/    @liferay-site-management
 modules/apps/client-extension/    @liferay-frontend
 modules/apps/comment/    @liferay-content-management
 modules/apps/commerce/    @liferay-commerce
-modules/apps/company/
+modules/apps/company/    @liferay-database-infra
 modules/apps/configuration-admin/    @liferay-platform-experience
 modules/apps/connected-app/    @liferay-content-management
 modules/apps/contacts/    @liferay-commerce
@@ -92,6 +92,7 @@ modules/apps/frontend-data-set/    @liferay-frontend
 modules/apps/frontend-editor/    @liferay-frontend
 modules/apps/frontend-icons/    @liferay-frontend
 modules/apps/frontend-js/    @liferay-frontend
+modules/apps/frontend-js/frontend-js-components-web/src/main/resources/META-INF/resources/multiple_file_uploader/    @liferay-platform-experience
 modules/apps/frontend-js/frontend-js-item-selector-sample-web/    @liferay-platform-experience
 modules/apps/frontend-js/frontend-js-item-selector-web/    @liferay-platform-experience
 modules/apps/frontend-taglib/    @liferay-frontend
@@ -417,7 +418,6 @@ modules/dxp/apps/osb/osb-site-initializer/    @liferay-site-management
 modules/dxp/apps/osb/osb-testray/
 modules/dxp/apps/portal/
 modules/dxp/apps/portal/portal-dao-db    @liferay-database-infra
-modules/dxp/apps/portal/portal-properties-swapper/    @liferay-core-infra
 modules/dxp/apps/portal-reports-engine-console/    @liferay-bpm
 modules/dxp/apps/portal-rules-engine-drools/    @liferay-bpm
 modules/dxp/apps/portal-search-elasticsearch-cross-cluster-replication/    @liferay-search
@@ -511,14 +511,25 @@ modules/util/portal-tools-service-builder-test-test/    @liferay-core-infra
 modules/util/portal-tools-service-builder-test-uad/    @liferay-core-infra
 modules/util/release-util/    @liferay-devtools
 modules/util/source-formatter/    @liferay-devtools
+portal-impl/src/com/liferay/portal/dao/db/    @liferay-database-infra
+portal-impl/src/com/liferay/portal/dao/sql/    @liferay-database-infra
 portal-impl/src/com/liferay/portal/db/    @liferay-database-infra
+portal-impl/src/com/liferay/portal/internal/dao/sql/    @liferay-database-infra
 portal-impl/src/com/liferay/portal/tools/DBUpgrader.java    @liferay-database-infra
 portal-impl/src/com/liferay/portal/upgrade/    @liferay-database-infra
 portal-impl/src/com/liferay/portal/verify/    @liferay-database-infra
+portal-impl/test/unit/com/liferay/portal/dao/db/    @liferay-database-infra
+portal-impl/test/unit/com/liferay/portal/dao/sql/    @liferay-database-infra
+portal-impl/test/unit/com/liferay/portal/db/    @liferay-database-infra
+portal-impl/test/unit/com/liferay/portal/internal/dao/sql/    @liferay-database-infra
 portal-impl/test/unit/com/liferay/portal/upgrade/    @liferay-database-infra
 portal-impl/test/unit/com/liferay/portal/verify/    @liferay-database-infra
+portal-kernel/src/com/liferay/portal/kernel/dao/db/    @liferay-database-infra
 portal-kernel/src/com/liferay/portal/kernel/db/    @liferay-database-infra
 portal-kernel/src/com/liferay/portal/kernel/instance/    @liferay-database-infra
 portal-kernel/src/com/liferay/portal/kernel/upgrade/    @liferay-database-infra
+portal-kernel/src/com/liferay/portal/kernel/verify/    @liferay-database-infra
+portal-kernel/test/unit/com/liferay/portal/kernel/dao/db/    @liferay-database-infra
+portal-kernel/test/unit/com/liferay/portal/kernel/upgrade/    @liferay-database-infra
 util-taglib/    @liferay-frontend
 workspaces/liferay-marketplace-workspace/    @liferay-commerce

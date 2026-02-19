@@ -1,0 +1,32 @@
+{{- if .Values.enabled -}}
+{{- $overlay := .Values.overlay | default dict -}}
+{{- $search := .Values.search | default dict -}}
+{{- $storage := .Values.storage | default dict -}}
+{{- $storageBlue := $storage.blue | default dict -}}
+{{- $storageGreen := $storage.green | default dict -}}
+apiVersion: aws.liferay.com/v1alpha1
+kind: LiferayInfrastructure
+metadata:
+    annotations:
+        argocd.argoproj.io/sync-wave: "-20"
+    name: {{ .Release.Name }}
+    namespace: {{ .Release.Namespace }}
+spec:
+    backup: {{ .Values.backup | toYaml | nindent 8 }}
+    commonTags:
+        EnvironmentId: {{ .Values.environmentId }}
+        ProjectId: {{ .Values.projectId }}
+    database: {{ .Values.database | toYaml | nindent 8 }}
+    deletionProtection: {{ .Values.deletionProtection | default false }}
+    environmentId: {{ .Values.environmentId }}
+    overlay:
+        region: {{ $overlay.region | default "us-west-2" | quote }}
+    projectId: {{ .Values.projectId }}
+    search:
+        engineVersion: {{ $search.engineVersion | default "OpenSearch_2.15" | quote }}
+        instanceCount: {{ $search.instanceCount | default 2 }}
+        instanceType: {{ $search.instanceType | default "t3.small.search" | quote }}
+        region: {{ $search.region | default "us-west-2" | quote }}
+        username: {{ $search.username | default "liferay_search_admin" | quote }}
+    storage: {{ .Values.storage | toYaml | nindent 8 }}
+{{- end -}}
