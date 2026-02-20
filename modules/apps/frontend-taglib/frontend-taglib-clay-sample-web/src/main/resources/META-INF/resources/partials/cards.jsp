@@ -10,8 +10,13 @@
 <h3>Image Cards</h3>
 
 <%
+Map<String, Object> checkboxProps = HashMapBuilder.<String, Object>put(
+	"aria-label", "Select Card"
+).build();
 ClaySampleImageCard claySampleImageCard = new ClaySampleImageCard();
 %>
+
+<div class="h4">Image Cards</div>
 
 <clay:row>
 	<clay:col
@@ -154,7 +159,7 @@ ClaySampleImageCard claySampleImageCard = new ClaySampleImageCard();
 			imageAlt="thumbnail"
 			imageSrc="https://images.unsplash.com/photo-1503703294279-c83bdf7b4bf4"
 			labels="<%= claySampleImageCard.getLabels() %>"
-			stickerLabel="<% claySampleImageCard.getStickerLabel() %>"
+			stickerLabel="<%= claySampleImageCard.getStickerLabel() %>"
 			stickerStyle="danger"
 			subtitle="<%= claySampleImageCard.getSubtitle() %>"
 			title="Beetle"
@@ -216,6 +221,7 @@ ClaySampleImageCard claySampleImageCard = new ClaySampleImageCard();
 	>
 		<clay:image-card
 			actionDropdownItems="<%= claySampleImageCard.getActionDropdownItems() %>"
+			checkboxProps="<%= checkboxProps %>"
 			icon="camera"
 			labels="<%= claySampleImageCard.getLabels() %>"
 			selectable="<%= true %>"
@@ -322,6 +328,7 @@ ClaySampleFileCard claySampleFileCard = new ClaySampleFileCard();
 	>
 		<clay:file-card
 			actionDropdownItems="<%= claySampleFileCard.getActionDropdownItems() %>"
+			checkboxProps="<%= checkboxProps %>"
 			icon="list"
 			labels="<%= claySampleFileCard.getLabels() %>"
 			selectable="<%= true %>"
@@ -350,6 +357,7 @@ ClaySampleFileCard claySampleFileCard = new ClaySampleFileCard();
 		%>
 
 		<clay:file-card
+			checkboxProps="<%= checkboxProps %>"
 			fileCard="<%= claySampleFileCard %>"
 		/>
 	</clay:col>
@@ -370,6 +378,7 @@ ClaySampleFileCard claySampleFileCard = new ClaySampleFileCard();
 		%>
 
 		<clay:file-card
+			checkboxProps="<%= checkboxProps %>"
 			fileCard="<%= claySampleFileCard %>"
 		/>
 	</clay:col>
@@ -533,6 +542,7 @@ ClaySampleUserCard claySampleUserCard = new ClaySampleUserCard();
 		%>
 
 		<clay:user-card
+			checkboxProps="<%= checkboxProps %>"
 			userCard="<%= claySampleUserCard %>"
 		/>
 	</clay:col>
@@ -549,6 +559,7 @@ ClaySampleUserCard claySampleUserCard = new ClaySampleUserCard();
 		%>
 
 		<clay:user-card
+			checkboxProps="<%= checkboxProps %>"
 			userCard="<%= claySampleUserCard %>"
 		/>
 	</clay:col>
@@ -650,6 +661,7 @@ ClaySampleVerticalCard claySampleVerticalCard = new ClaySampleVerticalCard();
 	>
 		<clay:vertical-card
 			actionDropdownItems="<%= claySampleVerticalCard.getActionDropdownItems() %>"
+			checkboxProps="<%= checkboxProps %>"
 			icon="camera"
 			labels="<%= claySampleVerticalCard.getLabels() %>"
 			selectable="<%= true %>"

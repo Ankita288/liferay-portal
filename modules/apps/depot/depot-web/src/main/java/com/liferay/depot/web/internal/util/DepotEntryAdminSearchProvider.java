@@ -14,7 +14,9 @@ import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.module.framework.ModuleServiceLifecycle;
-import com.liferay.portal.kernel.search.Document;
+import com.liferay.portal.kernel.search.BooleanClause;
+import com.liferay.portal.kernel.search.BooleanClauseFactoryUtil;
+import com.liferay.portal.kernel.search.BooleanClauseOccur;
 import com.liferay.portal.kernel.search.Field;
 import com.liferay.portal.kernel.search.Hits;
 import com.liferay.portal.kernel.search.Indexer;
@@ -22,6 +24,9 @@ import com.liferay.portal.kernel.search.IndexerRegistryUtil;
 import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
 import com.liferay.portal.kernel.search.Sort;
+import com.liferay.portal.kernel.search.filter.BooleanFilter;
+import com.liferay.portal.kernel.search.filter.TermsFilter;
+import com.liferay.portal.kernel.search.generic.BooleanQueryImpl;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.ParamUtil;
@@ -33,7 +38,6 @@ import jakarta.portlet.PortletRequest;
 import jakarta.portlet.PortletResponse;
 import jakarta.portlet.PortletURL;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.osgi.service.component.annotations.Component;
@@ -96,6 +100,25 @@ public class DepotEntryAdminSearchProvider {
 		return groupSearch;
 	}
 
+	private BooleanClause[] _getBooleanClauses() {
+		BooleanQueryImpl booleanQueryImpl = new BooleanQueryImpl();
+
+		BooleanFilter booleanFilter = new BooleanFilter();
+
+		TermsFilter termsFilter = new TermsFilter(Field.STAGING_GROUP);
+
+		termsFilter.addValue("false");
+
+		booleanFilter.add(termsFilter, BooleanClauseOccur.MUST);
+
+		booleanQueryImpl.setPreBooleanFilter(booleanFilter);
+
+		return new BooleanClause[] {
+			BooleanClauseFactoryUtil.create(
+				booleanQueryImpl, BooleanClauseOccur.MUST.getName())
+		};
+	}
+
 	private DepotEntrySearch _getDepotEntrySearch(
 			int depotEntryType, PortletRequest portletRequest,
 			PortletResponse portletResponse, PortletURL portletURL)
@@ -145,8 +168,6 @@ public class DepotEntryAdminSearchProvider {
 			PortletRequest portletRequest)
 		throws PortalException {
 
-		List<DepotEntry> depotEntries = new ArrayList<>();
-
 		Indexer<Object> indexer = IndexerRegistryUtil.getIndexer(
 			DepotEntry.class.getName());
 
@@ -159,14 +180,10 @@ public class DepotEntryAdminSearchProvider {
 
 		Hits hits = indexer.search(searchContext);
 
-		for (Document document : hits.getDocs()) {
-			long classPK = GetterUtil.getLong(
-				document.get(Field.ENTRY_CLASS_PK));
-
-			depotEntries.add(_depotEntryService.getDepotEntry(classPK));
-		}
-
-		return depotEntries;
+		return TransformUtil.transformToList(
+			hits.getDocs(),
+			document -> _depotEntryService.getDepotEntry(
+				GetterUtil.getLong(document.get(Field.ENTRY_CLASS_PK))));
 	}
 
 	private SearchContext _getSearchContext(
@@ -175,6 +192,7 @@ public class DepotEntryAdminSearchProvider {
 		SearchContext searchContext = new SearchContext();
 
 		searchContext.setAttribute(Field.TYPE, depotEntryType);
+		searchContext.setBooleanClauses(_getBooleanClauses());
 
 		ThemeDisplay themeDisplay = (ThemeDisplay)portletRequest.getAttribute(
 			WebKeys.THEME_DISPLAY);

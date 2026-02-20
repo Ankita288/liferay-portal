@@ -23,7 +23,7 @@ import com.liferay.portal.search.aggregation.metrics.ScriptedMetricAggregationRe
 import com.liferay.portal.search.aggregation.metrics.ValueCountAggregationResult;
 import com.liferay.portal.search.aggregation.pipeline.BucketSelectorPipelineAggregation;
 import com.liferay.portal.search.document.Document;
-import com.liferay.portal.search.engine.adapter.search.SearchRequestExecutor;
+import com.liferay.portal.search.engine.adapter.SearchEngineAdapter;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchRequest;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchResponse;
 import com.liferay.portal.search.hits.SearchHit;
@@ -185,7 +185,8 @@ public class ProcessMetricResourceImpl extends BaseProcessMetricResourceImpl {
 
 		BucketSelectorPipelineAggregation bucketSelectorPipelineAggregation =
 			_aggregations.bucketSelector(
-				"bucketSelector", _scripts.script("params.instanceCount > 0"));
+				"bucketSelector",
+				Scripts.INSTANCE.script("params.instanceCount > 0"));
 
 		bucketSelectorPipelineAggregation.addBucketPath(
 			"instanceCount", "instanceCount.value");
@@ -351,7 +352,7 @@ public class ProcessMetricResourceImpl extends BaseProcessMetricResourceImpl {
 			_createInstanceBooleanQuery(completed, null, null, processIds));
 
 		SearchSearchResponse searchSearchResponse =
-			_searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+			_searchEngineAdapter.execute(searchSearchRequest);
 
 		Map<String, AggregationResult> aggregationResultsMap =
 			searchSearchResponse.getAggregationResultsMap();
@@ -402,7 +403,7 @@ public class ProcessMetricResourceImpl extends BaseProcessMetricResourceImpl {
 				Collections.singleton(processId)));
 
 		SearchSearchResponse searchSearchResponse =
-			_searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+			_searchEngineAdapter.execute(searchSearchRequest);
 
 		Map<String, AggregationResult> aggregationResultsMap =
 			searchSearchResponse.getAggregationResultsMap();
@@ -509,7 +510,7 @@ public class ProcessMetricResourceImpl extends BaseProcessMetricResourceImpl {
 			searchSearchRequest.setStart(0);
 		}
 
-		return _searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+		return _searchEngineAdapter.execute(searchSearchRequest);
 	}
 
 	private TermsAggregationResult _getSLATermsAggregationResult(
@@ -557,7 +558,7 @@ public class ProcessMetricResourceImpl extends BaseProcessMetricResourceImpl {
 				completed, null, null, processIds));
 
 		SearchSearchResponse searchSearchResponse =
-			_searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+			_searchEngineAdapter.execute(searchSearchRequest);
 
 		Map<String, AggregationResult> aggregationResultsMap =
 			searchSearchResponse.getAggregationResultsMap();
@@ -696,10 +697,7 @@ public class ProcessMetricResourceImpl extends BaseProcessMetricResourceImpl {
 	private ResourceHelper _resourceHelper;
 
 	@Reference
-	private Scripts _scripts;
-
-	@Reference
-	private SearchRequestExecutor _searchRequestExecutor;
+	private SearchEngineAdapter _searchEngineAdapter;
 
 	@Reference
 	private Sorts _sorts;

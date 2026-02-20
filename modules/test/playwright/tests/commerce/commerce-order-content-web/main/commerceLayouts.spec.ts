@@ -39,7 +39,6 @@ export const test = mergeTests(
 	featureFlagsTest({
 		'LPD-10562': {enabled: true},
 		'LPD-20379': {enabled: true},
-		'LPD-58472': {enabled: true},
 		'LPS-178052': {enabled: true},
 	}),
 	pageEditorPagesTest,
@@ -2022,6 +2021,10 @@ test(
 			)
 		).toBe(true);
 
+		await expect(
+			commerceLayoutsPage.infoBoxButton('Order notes')
+		).toBeVisible();
+
 		await commerceLayoutsPage.infoBoxButton('Order notes').click();
 
 		await expect(page.getByText(comment.items[0].author)).toBeVisible();
@@ -2029,6 +2032,34 @@ test(
 		await expect(commerceLayoutsPage.iconLock).toBeHidden();
 
 		await performLogout(page);
+
+		await performLoginViaApi({page, screenName: 'test'});
+
+		await apiHelpers.headlessCommerceAdminOrder.postOrder({
+			accountId: account.id,
+			channelId: channel.id,
+			name: 'order',
+			orderItems: [
+				{
+					quantity: 1,
+					skuId: sku.id.toString(),
+				},
+			],
+			orderStatus: '1',
+		});
+
+		await performLogout(page);
+
+		await performLoginViaApi({page, screenName: 'demo.unprivileged'});
+
+		await page.goto(
+			liferayConfig.environment.baseUrl +
+				`/web/${site.name}/order/${cart.id}`
+		);
+
+		await expect(
+			commerceLayoutsPage.infoBoxButton('Order notes')
+		).toBeVisible();
 	}
 );
 

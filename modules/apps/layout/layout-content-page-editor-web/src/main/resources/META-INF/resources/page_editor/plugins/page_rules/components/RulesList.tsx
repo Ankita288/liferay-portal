@@ -10,6 +10,7 @@ import ClayIcon from '@clayui/icon';
 import ClayLabel from '@clayui/label';
 import ClayList from '@clayui/list';
 import {useEventListener} from '@liferay/frontend-js-react-web';
+import {useDragAndDrop} from '@liferay/layout-js-components-web';
 import classNames from 'classnames';
 import {openToast} from 'frontend-js-components-web';
 import {sub} from 'frontend-js-web';
@@ -22,6 +23,8 @@ import {useHighlightItems, useKeyboardNavigation} from '../../../app/js-index';
 import selectLayoutDataItemLabel from '../../../app/selectors/selectLayoutDataItemLabel';
 import deleteRule from '../../../app/thunks/deleteRule';
 import updateRule from '../../../app/thunks/updateRule';
+import updateRules from '../../../app/thunks/updateRules';
+import {isAdvancedRule} from '../../../app/utils/isAdvancedRule';
 import {isLayoutDataItemDeleted} from '../../../app/utils/isLayoutDataItemDeleted';
 import useActionValues, {
 	ActionValues,
@@ -116,13 +119,15 @@ export default function RulesList({
 					</ClayAlert>
 				) : null}
 
-				<ClayList role="menubar">
-					{rules.map((rule) => (
+				<ClayList data-menu role="menu">
+					{rules.map((rule, index) => (
 						<RuleItem
+							index={index}
 							key={rule.id}
 							onDelete={onDeleteRule}
 							onEdit={onEditRule}
 							rule={rule}
+							rules={rules}
 						/>
 					))}
 				</ClayList>
@@ -132,16 +137,20 @@ export default function RulesList({
 }
 
 function RuleItem({
+	index,
 	onDelete,
 	onEdit,
 	rule,
+	rules,
 }: {
+	index: number;
 	onDelete: (rule: Rule) => void;
 	onEdit: (rule: Rule, trigger: HTMLButtonElement | null) => void;
 	rule: Rule;
+	rules: Rule[];
 }) {
 	const highlightItems = useHighlightItems();
-	const {isTarget, setElement} = useKeyboardNavigation({
+	const {isTarget: isNavigationTarget, setElement} = useKeyboardNavigation({
 		type: LIST_ITEM_TYPES.listItem,
 	});
 	const layoutData = useSelector((state) => state.layoutData);
@@ -151,9 +160,28 @@ function RuleItem({
 	const [editing, setEditing] = useState(false);
 	const [name, setName] = useState(rule.name);
 
+	const dragHandlerRef = useRef<HTMLButtonElement | null>(null);
+	const dropItemRef = useRef<HTMLLIElement | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const dispatch = useDispatch();
+
+	const {
+		handleKeyboardDragAndDrop,
+		isDragging,
+		isDropBottomPosition,
+		isDropTopPosition,
+		isKeyboardDragging,
+	} = useDragAndDrop({
+		dragHandlerRef,
+		dropItemRef,
+		item: rule,
+		itemIndex: index,
+		items: rules,
+		onDrop: (rules) => {
+			dispatch(updateRules(rules));
+		},
+	});
 
 	useEffect(() => {
 		if (editing && inputRef.current) {
@@ -194,11 +222,15 @@ function RuleItem({
 			}))
 	);
 
-	const conditions = useConditionValues({...rule, items});
+	const conditions = useConditionValues({
+		...rule,
+		conditions: rule.conditions || [],
+		items,
+	});
 	const actions = useActionValues({...rule, items});
 
 	const ruleItemIds = useMemo(
-		() => getRuleItemIds(rule.actions, rule.conditions),
+		() => getRuleItemIds(rule.actions, rule.conditions || []),
 		[rule.actions, rule.conditions]
 	);
 
@@ -220,6 +252,22 @@ function RuleItem({
 		isLayoutDataItemDeleted(layoutData, id)
 	);
 
+	const setListItemRef = useCallback(
+		(node: HTMLLIElement) => {
+			dropItemRef.current = node;
+
+			if (!isKeyboardDragging) {
+				setElement(node);
+			}
+		},
+		[setElement, isKeyboardDragging]
+	);
+
+	const tabIndex = useMemo(
+		() => (isNavigationTarget ? 0 : -1),
+		[isNavigationTarget]
+	);
+
 	return (
 		<ClayList.Item
 			aria-description={Liferay.Language.get(
@@ -231,7 +279,11 @@ function RuleItem({
 				actions,
 				isRuleDisabled
 			)}
-			className="p-2 page-editor__rule"
+			className={classNames('drag-and-drop p-2 page-editor__rule', {
+				'dragging': isDragging,
+				'drop-bottom': isDropBottomPosition,
+				'drop-top': isDropTopPosition,
+			})}
 			key={rule.id}
 			onClick={async () => {
 				await onHighlightItems();
@@ -245,12 +297,27 @@ function RuleItem({
 					onScroll();
 				}
 			}}
-			ref={setElement}
+			ref={setListItemRef}
 			role="menuitem"
-			tabIndex={isTarget ? 0 : -1}
+			tabIndex={tabIndex}
 		>
 			<ClayList.ItemField expand>
 				<div className="align-items-center d-flex">
+					<ClayButtonWithIcon
+						aria-label={sub(Liferay.Language.get('move-x'), name)}
+						borderless
+						className="ml-n2 text-secondary"
+						onClick={(event) => {
+							event.stopPropagation();
+						}}
+						onKeyDown={handleKeyboardDragAndDrop}
+						ref={dragHandlerRef}
+						size="sm"
+						symbol="drag"
+						tabIndex={tabIndex}
+						title={sub(Liferay.Language.get('move-x'), name)}
+					/>
+
 					{editing ? (
 						<input
 							onBlur={() => {
@@ -294,21 +361,22 @@ function RuleItem({
 						/>
 					) : (
 						<span
-							aria-hidden="true"
 							className="flex-grow-1 font-weight-semi-bold"
 							onDoubleClick={() => setEditing(true)}
 						>
-							{name}
+							<span aria-hidden="true">
+								{name}
 
-							{isRuleDisabled ? (
-								<ClayIcon
-									className="lfr-tooltip-scope ml-2 text-warning"
-									data-title={Liferay.Language.get(
-										'disabled-rule'
-									)}
-									symbol="warning-full"
-								/>
-							) : null}
+								{isRuleDisabled ? (
+									<ClayIcon
+										className="lfr-tooltip-scope ml-2 text-warning"
+										data-title={Liferay.Language.get(
+											'disabled-rule'
+										)}
+										symbol="warning-full"
+									/>
+								) : null}
+							</span>
 						</span>
 					)}
 
@@ -330,6 +398,7 @@ function RuleItem({
 								ref={setTriggerElement}
 								size="sm"
 								symbol="ellipsis-v"
+								tabIndex={tabIndex}
 								title={sub(
 									Liferay.Language.get('view-x-options'),
 									rule.name
@@ -367,22 +436,30 @@ function RuleItem({
 				className={classNames('mt-3', {'text-muted': isRuleDisabled})}
 				expand
 			>
-				<p
-					aria-hidden="true"
-					className="align-items-center c-gap-2 d-flex flex-wrap"
-				>
-					{conditions.map((condition, index) => (
-						<Condition
-							condition={condition}
-							index={index}
-							key={condition.id}
-						/>
-					))}
+				{isAdvancedRule(rule) ? (
+					<p className="mb-0">
+						<ClayLabel className="m-0" displayType="info">
+							{Liferay.Language.get('advanced-rule')}
+						</ClayLabel>
+					</p>
+				) : (
+					<p
+						aria-hidden="true"
+						className="align-items-center c-gap-2 d-flex flex-wrap"
+					>
+						{conditions.map((condition, index) => (
+							<Condition
+								condition={condition}
+								index={index}
+								key={condition.id}
+							/>
+						))}
 
-					{actions.map((action) => (
-						<Action action={action} key={action.id} />
-					))}
-				</p>
+						{actions.map((action) => (
+							<Action action={action} key={action.id} />
+						))}
+					</p>
+				)}
 			</ClayList.ItemField>
 		</ClayList.Item>
 	);
@@ -466,9 +543,11 @@ function getRuleItemIds(actions: ActionType[], conditions: ConditionType[]) {
 		}
 	}
 
-	for (const {field, type} of conditions) {
-		if (field && type === 'form') {
-			ruleItemIds.add(field);
+	if (conditions) {
+		for (const {field, type} of conditions) {
+			if (field && type === 'form') {
+				ruleItemIds.add(field);
+			}
 		}
 	}
 

@@ -5,6 +5,7 @@
 
 package com.liferay.site.cms.site.initializer.internal.display.context.test;
 
+import com.liferay.frontend.data.set.model.FDSActionDropdownItem;
 import com.liferay.info.constants.InfoDisplayWebKeys;
 import com.liferay.layout.test.util.LayoutTestUtil;
 import com.liferay.object.constants.ObjectDefinitionConstants;
@@ -15,9 +16,12 @@ import com.liferay.object.model.ObjectEntryFolder;
 import com.liferay.object.service.ObjectDefinitionLocalService;
 import com.liferay.object.service.ObjectFolderLocalService;
 import com.liferay.object.test.util.ObjectDefinitionTestUtil;
+import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
 import com.liferay.portal.kernel.service.CompanyLocalService;
+import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
@@ -32,7 +36,9 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+import org.junit.Assert;
 import org.junit.Before;
 
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -73,7 +79,7 @@ public abstract class BaseDisplayContextTestCase {
 					ObjectFieldUtil.createObjectField(
 						"Text", "String", true, true, null,
 						RandomTestUtil.randomString(), "text", false)),
-				Collections.emptyList());
+				Collections.emptyList(), new ServiceContext());
 
 		if (status == WorkflowConstants.STATUS_DRAFT) {
 			return objectDefinition;
@@ -110,7 +116,8 @@ public abstract class BaseDisplayContextTestCase {
 			objectDefinition.isPortlet(), objectDefinition.getPluralLabelMap(),
 			objectDefinition.getScope(), objectDefinition.getStatus(),
 			objectDefinition.getObjectDefinitionSettings(),
-			Collections.emptyList(), Collections.emptyList());
+			Collections.emptyList(), Collections.emptyList(),
+			new ServiceContext());
 	}
 
 	protected ObjectDefinition addCustomObjectDefinition(
@@ -121,6 +128,27 @@ public abstract class BaseDisplayContextTestCase {
 		return addCustomObjectDefinition(
 			objectFolderId, active, enableObjectEntryDraft,
 			Collections.emptyList(), scope, status);
+	}
+
+	protected void assertFDSActionDropdownItem(
+		FDSActionDropdownItem fdsActionDropdownItem, String icon, String id,
+		String label, String method, String type,
+		Map<String, Object> visibilityFilters) {
+
+		Assert.assertNotNull(fdsActionDropdownItem);
+
+		Map<String, Object> data =
+			(Map<String, Object>)fdsActionDropdownItem.get("data");
+
+		Assert.assertEquals(id, data.get("id"));
+		Assert.assertEquals(method, data.get("method"));
+
+		Assert.assertEquals(icon, fdsActionDropdownItem.get("icon"));
+		Assert.assertEquals(
+			language.get(LocaleUtil.getDefault(), label),
+			fdsActionDropdownItem.get("label"));
+		Assert.assertEquals(type, fdsActionDropdownItem.get("type"));
+		Assert.assertEquals(visibilityFilters, data.get("visibilityFilters"));
 	}
 
 	protected MockHttpServletRequest getMockHttpServletRequest()
@@ -156,8 +184,13 @@ public abstract class BaseDisplayContextTestCase {
 		themeDisplay.setCompany(
 			companyLocalService.getCompany(TestPropsValues.getCompanyId()));
 		themeDisplay.setLanguageId(group.getDefaultLanguageId());
-		themeDisplay.setLayout(
-			LayoutTestUtil.addTypeContentLayout(group, "test"));
+
+		Layout layout = LayoutTestUtil.addTypeContentLayout(group, "test");
+
+		themeDisplay.setLayout(layout);
+		themeDisplay.setLayoutSet(layout.getLayoutSet());
+
+		themeDisplay.setLocale(LocaleUtil.getDefault());
 		themeDisplay.setPathMain(portal.getPathMain());
 		themeDisplay.setPermissionChecker(
 			PermissionThreadLocal.getPermissionChecker());
@@ -176,6 +209,10 @@ public abstract class BaseDisplayContextTestCase {
 	protected CompanyLocalService companyLocalService;
 
 	protected Group group;
+
+	@Inject
+	protected Language language;
+
 	protected MockHttpServletRequest mockHttpServletRequest;
 
 	@Inject

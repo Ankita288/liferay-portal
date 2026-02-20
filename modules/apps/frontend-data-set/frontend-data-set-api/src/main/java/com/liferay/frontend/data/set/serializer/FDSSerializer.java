@@ -66,6 +66,9 @@ public interface FDSSerializer {
 	public JSONArray serializeFilters(
 		String fdsName, HttpServletRequest httpServletRequest);
 
+	public JSONArray serializeGroupedFilters(
+		String fdsName, HttpServletRequest httpServletRequest);
+
 	public boolean serializeHideManagementBarInEmptyState(
 		String fdsName, HttpServletRequest httpServletRequest);
 
@@ -76,6 +79,12 @@ public interface FDSSerializer {
 		String fdsName, HttpServletRequest httpServletRequest);
 
 	public String serializePropsTransformer(
+		String fdsName, HttpServletRequest httpServletRequest);
+
+	public JSONArray serializeSnapshots(
+		String fdsName, HttpServletRequest httpServletRequest);
+
+	public boolean serializeSnapshotsEnabled(
 		String fdsName, HttpServletRequest httpServletRequest);
 
 	public List<FDSSortItem> serializeSorts(

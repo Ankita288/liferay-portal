@@ -5,13 +5,13 @@
 
 package com.liferay.portal.search.elasticsearch7.internal.highlight;
 
-import com.liferay.portal.search.elasticsearch7.internal.query.ElasticsearchQueryTranslator;
+import com.liferay.portal.search.elasticsearch7.internal.query.ElasticsearchQueryVisitor;
 import com.liferay.portal.search.highlight.FieldConfig;
 import com.liferay.portal.search.highlight.Highlight;
 import com.liferay.portal.search.internal.highlight.FieldConfigImpl;
 import com.liferay.portal.search.internal.highlight.HighlightImpl;
-import com.liferay.portal.search.internal.query.StringQueryImpl;
 import com.liferay.portal.search.query.Query;
+import com.liferay.portal.search.query.StringQuery;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.util.ArrayList;
@@ -43,7 +43,6 @@ public class HighlightTranslatorTest {
 
 	@Before
 	public void setUp() {
-		_elasticsearchQueryTranslator = new ElasticsearchQueryTranslator();
 		_highlightPrototype = _createHighlightPrototype();
 	}
 
@@ -95,7 +94,7 @@ public class HighlightTranslatorTest {
 
 	@Test
 	public void testHighlightQuery() {
-		_highlightPrototype._highlightQuery = new StringQueryImpl("title:test");
+		_highlightPrototype._highlightQuery = new StringQuery("title:test");
 
 		_assertTranslation(_highlightPrototype);
 	}
@@ -471,7 +470,7 @@ public class HighlightTranslatorTest {
 		Highlight highlight = _buildHighlight(highlightPrototype);
 
 		HighlightBuilder highlightBuilder = _highlightTranslator.translate(
-			highlight, _elasticsearchQueryTranslator);
+			highlight);
 
 		_assertHighlightBuilder(highlightBuilder, highlight);
 	}
@@ -582,7 +581,7 @@ public class HighlightTranslatorTest {
 		Integer fragmentSize = 3;
 		String highlighterType = "highlighterType";
 		Boolean highlightFilter = true;
-		Query highlightQuery = new StringQueryImpl("title:test");
+		Query highlightQuery = new StringQuery("title:test");
 		String[] matchedFields = null;
 		Integer noMatchSize = 4;
 		Integer numFragments = 5;
@@ -672,13 +671,12 @@ public class HighlightTranslatorTest {
 
 	private QueryBuilder _getQueryBuilder(Query query) {
 		if (query != null) {
-			return _elasticsearchQueryTranslator.translate(query);
+			return ElasticsearchQueryVisitor.INSTANCE.translate(query);
 		}
 
 		return null;
 	}
 
-	private ElasticsearchQueryTranslator _elasticsearchQueryTranslator;
 	private HighlightPrototype _highlightPrototype;
 	private final HighlightTranslator _highlightTranslator =
 		new HighlightTranslator();

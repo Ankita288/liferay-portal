@@ -218,7 +218,7 @@ public class DDMFieldUpgradeProcess extends UpgradeProcess {
 
 	private void _addDDMFieldAndDDMFieldAttribute(
 			long companyId, long contentId,
-			Map<String, DDMFieldInfo> ddmFieldInfoMap,
+			Map<String, DDMFieldInfo> ddmFieldInfosMap,
 			Map<String, DDMFormField> ddmFormFieldsMap,
 			List<DDMFormFieldValue> ddmFormValues,
 			PreparedStatement insertDDMFieldAttributePreparedStatement,
@@ -233,7 +233,7 @@ public class DDMFieldUpgradeProcess extends UpgradeProcess {
 
 			String instanceId = ddmFormFieldValue.getInstanceId();
 
-			if (ddmFieldInfoMap.containsKey(instanceId)) {
+			if (ddmFieldInfosMap.containsKey(instanceId)) {
 				instanceId =
 					com.liferay.portal.kernel.util.StringUtil.randomString(8);
 			}
@@ -241,7 +241,7 @@ public class DDMFieldUpgradeProcess extends UpgradeProcess {
 			DDMFieldInfo ddmFieldInfo = new DDMFieldInfo(
 				ddmFormFieldValue.getName(), instanceId, parentInstanceId);
 
-			ddmFieldInfoMap.put(ddmFieldInfo._instanceId, ddmFieldInfo);
+			ddmFieldInfosMap.put(ddmFieldInfo._instanceId, ddmFieldInfo);
 
 			Value value = ddmFormFieldValue.getValue();
 
@@ -298,7 +298,7 @@ public class DDMFieldUpgradeProcess extends UpgradeProcess {
 			instanceToFieldIdMap.put(ddmFieldInfo._instanceId, fieldId);
 
 			_addDDMFieldAndDDMFieldAttribute(
-				companyId, contentId, ddmFieldInfoMap, ddmFormFieldsMap,
+				companyId, contentId, ddmFieldInfosMap, ddmFormFieldsMap,
 				ddmFormFieldValue.getNestedDDMFormFieldValues(),
 				insertDDMFieldAttributePreparedStatement,
 				insertDDMFieldPreparedStatement, instanceToFieldIdMap,
@@ -366,24 +366,23 @@ public class DDMFieldUpgradeProcess extends UpgradeProcess {
 				Set<String> keySet = jsonObject.keySet();
 
 				if (!keySet.isEmpty()) {
-					List<DDMFieldAttributeInfo> ddmFieldAttributeInfos =
-						new ArrayList<>(keySet.size());
+					return TransformUtil.transform(
+						jsonObject.keySet(),
+						key -> {
+							DDMFieldAttributeInfo ddmFieldAttributeInfo =
+								new DDMFieldAttributeInfo(
+									key,
+									jsonSerializer.serialize(
+										jsonObject.get(key)),
+									languageId);
 
-					for (String key : jsonObject.keySet()) {
-						DDMFieldAttributeInfo ddmFieldAttributeInfo =
-							new DDMFieldAttributeInfo(
-								key,
-								jsonSerializer.serialize(jsonObject.get(key)),
-								languageId);
+							_insertDDMFieldAttribute(
+								companyId, contentId, ddmFieldAttributeInfo,
+								fieldId,
+								insertDDMFieldAttributePreparedStatement);
 
-						_insertDDMFieldAttribute(
-							companyId, contentId, ddmFieldAttributeInfo,
-							fieldId, insertDDMFieldAttributePreparedStatement);
-
-						ddmFieldAttributeInfos.add(ddmFieldAttributeInfo);
-					}
-
-					return ddmFieldAttributeInfos;
+							return ddmFieldAttributeInfo;
+						});
 				}
 			}
 			catch (JSONException jsonException) {
@@ -579,7 +578,7 @@ public class DDMFieldUpgradeProcess extends UpgradeProcess {
 		DDMFieldInfo rootDDMFieldInfo = new DDMFieldInfo(
 			StringPool.BLANK, StringPool.BLANK, null);
 
-		Map<String, DDMFieldInfo> ddmFieldInfoMap = LinkedHashMapBuilder.put(
+		Map<String, DDMFieldInfo> ddmFieldInfosMap = LinkedHashMapBuilder.put(
 			StringPool.BLANK, rootDDMFieldInfo
 		).build();
 
@@ -604,7 +603,7 @@ public class DDMFieldUpgradeProcess extends UpgradeProcess {
 			rootDDMFieldInfo, structureVersionId);
 
 		_addDDMFieldAndDDMFieldAttribute(
-			companyId, contentId, ddmFieldInfoMap, ddmFormFieldsMap,
+			companyId, contentId, ddmFieldInfosMap, ddmFormFieldsMap,
 			ddmFormValues.getDDMFormFieldValues(),
 			insertDDMFieldAttributePreparedStatement,
 			insertDDMFieldPreparedStatement, instanceToFieldIdMap, null, 1,

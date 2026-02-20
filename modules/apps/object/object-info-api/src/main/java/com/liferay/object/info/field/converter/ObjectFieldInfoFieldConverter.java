@@ -24,6 +24,7 @@ import com.liferay.list.type.service.ListTypeEntryLocalService;
 import com.liferay.object.configuration.ObjectConfiguration;
 import com.liferay.object.constants.ObjectFieldConstants;
 import com.liferay.object.constants.ObjectFieldValidationConstants;
+import com.liferay.object.constants.ObjectRelationshipConstants;
 import com.liferay.object.field.setting.util.ObjectFieldSettingUtil;
 import com.liferay.object.field.util.ObjectFieldUtil;
 import com.liferay.object.info.field.type.util.ObjectFieldInfoFieldTypeUtil;
@@ -46,10 +47,12 @@ import com.liferay.object.service.ObjectRelationshipLocalService;
 import com.liferay.object.service.ObjectStateFlowLocalService;
 import com.liferay.object.service.ObjectStateLocalService;
 import com.liferay.petra.function.transform.TransformUtil;
+import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
 import com.liferay.portal.kernel.service.ServiceContext;
@@ -101,6 +104,26 @@ public class ObjectFieldInfoFieldConverter {
 		_portal = portal;
 		_restContextPathResolverRegistry = restContextPathResolverRegistry;
 		_userLocalService = userLocalService;
+	}
+
+	public InfoField<?> addRelationshipInfoFieldAttributes(
+		InfoField.FinalStep finalStep, ObjectRelationship objectRelationship) {
+
+		return finalStep.attribute(
+			RelationshipInfoFieldType.INHERITANCE, objectRelationship.isEdge()
+		).attribute(
+			RelationshipInfoFieldType.LABEL_FIELD_NAME,
+			_getRelationshipLabelFieldName(objectRelationship)
+		).attribute(
+			RelationshipInfoFieldType.MULTIPLE,
+			objectRelationship.compareType(
+				ObjectRelationshipConstants.TYPE_MANY_TO_MANY)
+		).attribute(
+			RelationshipInfoFieldType.URL,
+			_getRelationshipURL(objectRelationship)
+		).attribute(
+			RelationshipInfoFieldType.VALUE_FIELD_NAME, "id"
+		).build();
 	}
 
 	public InfoField<?> getInfoField(
@@ -249,14 +272,13 @@ public class ObjectFieldInfoFieldConverter {
 					objectField.getBusinessType(),
 					ObjectFieldConstants.BUSINESS_TYPE_RELATIONSHIP)) {
 
-			finalStep.attribute(
-				RelationshipInfoFieldType.LABEL_FIELD_NAME,
-				_getRelationshipLabelFieldName(objectField)
-			).attribute(
-				RelationshipInfoFieldType.URL, _getRelationshipURL(objectField)
-			).attribute(
-				RelationshipInfoFieldType.VALUE_FIELD_NAME, "id"
-			);
+			ObjectRelationship objectRelationship =
+				_objectRelationshipLocalService.
+					fetchObjectRelationshipByObjectFieldId2(
+						objectField.getObjectFieldId());
+
+			return addRelationshipInfoFieldAttributes(
+				finalStep, objectRelationship);
 		}
 		else if (Objects.equals(
 					objectField.getBusinessType(),
@@ -301,6 +323,17 @@ public class ObjectFieldInfoFieldConverter {
 					objectFieldSetting.getValue(), "userComputer")) {
 
 			return FileInfoFieldType.FileSourceType.USER_COMPUTER;
+		}
+
+		return null;
+	}
+
+	private Group _getGroup(ServiceContext serviceContext) {
+		try {
+			return serviceContext.getScopeGroup();
+		}
+		catch (Exception exception) {
+			_log.error(exception);
 		}
 
 		return null;
@@ -454,15 +487,23 @@ public class ObjectFieldInfoFieldConverter {
 				listTypeEntry.getKey()));
 	}
 
-	private String _getRelationshipLabelFieldName(ObjectField objectField) {
-		ObjectRelationship objectRelationship =
-			_objectRelationshipLocalService.
-				fetchObjectRelationshipByObjectFieldId2(
-					objectField.getObjectFieldId());
+	private String _getRelationshipLabelFieldName(
+		ObjectRelationship objectRelationship) {
 
-		ObjectDefinition relatedObjectDefinition =
-			_objectDefinitionLocalService.fetchObjectDefinition(
-				objectRelationship.getObjectDefinitionId1());
+		ObjectDefinition relatedObjectDefinition = null;
+
+		if (objectRelationship.compareType(
+				ObjectRelationshipConstants.TYPE_MANY_TO_MANY)) {
+
+			relatedObjectDefinition =
+				_objectDefinitionLocalService.fetchObjectDefinition(
+					objectRelationship.getObjectDefinitionId2());
+		}
+		else {
+			relatedObjectDefinition =
+				_objectDefinitionLocalService.fetchObjectDefinition(
+					objectRelationship.getObjectDefinitionId1());
+		}
 
 		if (relatedObjectDefinition == null) {
 			return "id";
@@ -485,7 +526,7 @@ public class ObjectFieldInfoFieldConverter {
 		return titleObjectField.getName();
 	}
 
-	private String _getRelationshipURL(ObjectField objectField) {
+	private String _getRelationshipURL(ObjectRelationship objectRelationship) {
 		ServiceContext serviceContext =
 			ServiceContextThreadLocal.getServiceContext();
 
@@ -493,17 +534,34 @@ public class ObjectFieldInfoFieldConverter {
 			return StringPool.BLANK;
 		}
 
-		ObjectRelationship objectRelationship =
-			_objectRelationshipLocalService.
-				fetchObjectRelationshipByObjectFieldId2(
-					objectField.getObjectFieldId());
+		ObjectDefinition relatedObjectDefinition = null;
 
-		ObjectDefinition relatedObjectDefinition =
-			_objectDefinitionLocalService.fetchObjectDefinition(
-				objectRelationship.getObjectDefinitionId1());
+		if (objectRelationship.compareType(
+				ObjectRelationshipConstants.TYPE_MANY_TO_MANY)) {
+
+			relatedObjectDefinition =
+				_objectDefinitionLocalService.fetchObjectDefinition(
+					objectRelationship.getObjectDefinitionId2());
+		}
+		else {
+			relatedObjectDefinition =
+				_objectDefinitionLocalService.fetchObjectDefinition(
+					objectRelationship.getObjectDefinitionId1());
+		}
 
 		if (relatedObjectDefinition == null) {
 			return StringPool.BLANK;
+		}
+
+		Group group = _getGroup(serviceContext);
+
+		if ((group != null) && group.isCMS()) {
+			return StringBundler.concat(
+				_portal.getPortalURL(serviceContext.getRequest()),
+				"/o/search/v1.0/search?emptySearch=true&filter=status in (0) ",
+				"and objectDefinitionId in (",
+				relatedObjectDefinition.getObjectDefinitionId(),
+				")&nestedFields=embedded");
 		}
 
 		RESTContextPathResolver restContextPathResolver =

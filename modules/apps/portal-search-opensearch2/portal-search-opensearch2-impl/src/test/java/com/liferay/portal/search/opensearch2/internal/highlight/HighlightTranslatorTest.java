@@ -13,11 +13,10 @@ import com.liferay.portal.search.highlight.FieldConfigBuilder;
 import com.liferay.portal.search.highlight.Highlight;
 import com.liferay.portal.search.internal.highlight.FieldConfigImpl;
 import com.liferay.portal.search.internal.highlight.HighlightImpl;
-import com.liferay.portal.search.internal.query.StringQueryImpl;
 import com.liferay.portal.search.opensearch2.internal.OpenSearchTestRule;
-import com.liferay.portal.search.opensearch2.internal.query.OpenSearchQueryTranslator;
-import com.liferay.portal.search.opensearch2.internal.query.OpenSearchQueryTranslatorFixture;
+import com.liferay.portal.search.opensearch2.internal.query.OpenSearchQueryVisitor;
 import com.liferay.portal.search.query.Query;
+import com.liferay.portal.search.query.StringQuery;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.util.ArrayList;
@@ -60,8 +59,6 @@ public class HighlightTranslatorTest {
 
 	@Before
 	public void setUp() {
-		_openSearchQueryTranslator =
-			_openSearchQueryTranslatorFixture.getOpenSearchQueryTranslator();
 		_highlightPrototype = _createHighlightPrototype();
 	}
 
@@ -113,7 +110,7 @@ public class HighlightTranslatorTest {
 
 	@Test
 	public void testHighlightQuery() {
-		_highlightPrototype._highlightQuery = new StringQueryImpl("title:test");
+		_highlightPrototype._highlightQuery = new StringQuery("title:test");
 
 		_assertTranslation(_highlightPrototype);
 	}
@@ -490,8 +487,7 @@ public class HighlightTranslatorTest {
 		Highlight highlight = _buildHighlight(highlightPrototype);
 
 		org.opensearch.client.opensearch.core.search.Highlight
-			openSearchHighlight = _highlightTranslator.translate(
-				highlight, _openSearchQueryTranslator);
+			openSearchHighlight = _highlightTranslator.translate(highlight);
 
 		_assertHighlightBuilder(openSearchHighlight, highlight);
 	}
@@ -602,7 +598,7 @@ public class HighlightTranslatorTest {
 		Integer fragmentSize = 3;
 		String highlighterType = "plain";
 		Boolean highlightFilter = true;
-		Query highlightQuery = new StringQueryImpl("title:test");
+		Query highlightQuery = new StringQuery("title:test");
 		String[] matchedFields = null;
 		Integer noMatchSize = 4;
 		Integer numFragments = 5;
@@ -746,7 +742,7 @@ public class HighlightTranslatorTest {
 		org.opensearch.client.opensearch._types.query_dsl.Query
 			openSearchQuery =
 				new org.opensearch.client.opensearch._types.query_dsl.Query(
-					_openSearchQueryTranslator.translate(query));
+					OpenSearchQueryVisitor.INSTANCE.translate(query));
 
 		Kind kind = openSearchQuery._kind();
 
@@ -756,9 +752,5 @@ public class HighlightTranslatorTest {
 	private HighlightPrototype _highlightPrototype;
 	private final HighlightTranslator _highlightTranslator =
 		new HighlightTranslator();
-	private OpenSearchQueryTranslator _openSearchQueryTranslator;
-	private final OpenSearchQueryTranslatorFixture
-		_openSearchQueryTranslatorFixture =
-			new OpenSearchQueryTranslatorFixture();
 
 }

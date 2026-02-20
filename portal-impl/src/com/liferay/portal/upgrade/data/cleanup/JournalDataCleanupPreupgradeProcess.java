@@ -36,12 +36,25 @@ public class JournalDataCleanupPreupgradeProcess
 				"JournalFeed"));
 		upgrade(
 			new TableOrphanReferencesDataCleanupPreupgradeProcess(
-				null, "articlePK", "JournalArticleLocalization", "id_",
+				null, null, "articlePK", "JournalArticleLocalization", "id_",
 				"JournalArticle"));
 		upgrade(
 			new TableOrphanReferencesDataCleanupPreupgradeProcess(
-				null, "resourcePrimKey", "JournalArticleResource",
+				null, null, "resourcePrimKey", "JournalArticleResource",
 				"resourcePrimKey", "JournalArticle"));
+		upgrade(
+			new TableOrphanReferencesDataCleanupPreupgradeProcess(
+				null,
+				"[$SOURCE_TABLE_ALIAS$].name = 'com.liferay.journal.model." +
+					"JournalArticle'",
+				"primKeyId", "ResourcePermission", "resourcePrimKey",
+				"JournalArticle"));
+		upgrade(
+			new TableOrphanReferencesDataCleanupPreupgradeProcess(
+				null,
+				"[$SOURCE_TABLE_ALIAS$].name = 'com.liferay.journal.model." +
+					"JournalFeed'",
+				"primKeyId", "ResourcePermission", "id_", "JournalFeed"));
 	}
 
 }

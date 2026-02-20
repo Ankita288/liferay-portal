@@ -9,6 +9,7 @@ import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.model.ResourceAction;
 import com.liferay.portal.kernel.model.ResourceConstants;
+import com.liferay.portal.kernel.model.Role;
 import com.liferay.portal.kernel.model.role.RoleConstants;
 import com.liferay.portal.kernel.module.util.SystemBundleUtil;
 import com.liferay.portal.kernel.security.auth.CompanyThreadLocal;
@@ -17,6 +18,7 @@ import com.liferay.portal.kernel.service.ResourcePermissionLocalService;
 import com.liferay.portal.kernel.service.RoleLocalService;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
+import com.liferay.portal.test.log.LoggerTestUtil;
 import com.liferay.portal.test.rule.Inject;
 
 import java.sql.Connection;
@@ -76,8 +78,8 @@ public class ResourceActionPostUpgradeDataCleanupProcessTest
 			new AtomicReference<>();
 		AtomicReference<ResourceAction> resourceActionAtomicReference2 =
 			new AtomicReference<>();
-		String resourceActionActionId1 = "VIEW";
-		String resourceActionActionId2 = "EDIT";
+		String resourceActionActionId1 = "EDIT";
+		String resourceActionActionId2 = "VIEW";
 		String resourceActionName =
 			"com.liferay.test." + RandomTestUtil.randomString();
 
@@ -172,15 +174,16 @@ public class ResourceActionPostUpgradeDataCleanupProcessTest
 					_resourceActionLocalService.addResourceAction(
 						resourceActionName, resourceActionActionId, 1));
 
+				Role role = _roleLocalService.getRole(
+					TestPropsValues.getCompanyId(), RoleConstants.GUEST);
+
 				_resourcePermissionLocalService.addResourcePermission(
 					CompanyThreadLocal.getCompanyId(), resourceActionName,
 					ResourceConstants.SCOPE_COMPANY,
 					String.valueOf(CompanyThreadLocal.getCompanyId()),
-					_roleLocalService.getRole(
-						TestPropsValues.getCompanyId(), RoleConstants.GUEST
-					).getRoleId(),
-					resourceActionActionId);
-			});
+					role.getRoleId(), resourceActionActionId);
+			},
+			getPostUpgradeDataCleanupProcessClassName(), LoggerTestUtil.DEBUG);
 	}
 
 	@Test

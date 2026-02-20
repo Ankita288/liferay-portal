@@ -12,6 +12,14 @@ import java.util.Objects;
  */
 public class MarketplaceConstants {
 
+	public static final String[] KORONEIKI_AC_ENTITLEMENTS = {
+		"Liferay Analytics Cloud"
+	};
+
+	public static final String[] KORONEIKI_DXP_ENTITLEMENTS = {
+		"DXP", "Liferay SaaS", "Liferay Self-Hosted", "Liferay PaaS"
+	};
+
 	public static final String ORDER_PAYMENT_METHOD_MONEY_ORDER = "money-order";
 
 	public static final String ORDER_PAYMENT_METHOD_MONEY_ORDER_LABEL =
@@ -55,6 +63,15 @@ public class MarketplaceConstants {
 	public static final int ORDER_STATUS_PROCESSING = 10;
 
 	public static final String ORDER_STATUS_PROCESSING_LABEL = "Processing";
+
+	public static final String PUBSUB_TOPIC_NAME_KORONEIKI_ACCOUNT_CREATE =
+		"koroneiki.account.create";
+
+	public static final String PUBSUB_TOPIC_NAME_KORONEIKI_ACCOUNT_UPDATE =
+		"koroneiki.account.update";
+
+	public static final String PUBSUB_TOPIC_NAME_KORONEIKI_ENTITLEMENT_CREATE =
+		"koroneiki.entitlement.create";
 
 	public static String getOrderPaymentMethodLabel(String paymentMethod) {
 		if (Objects.equals(paymentMethod, ORDER_PAYMENT_METHOD_MONEY_ORDER)) {

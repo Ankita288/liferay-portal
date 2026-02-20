@@ -178,6 +178,60 @@ export async function configureBuyerUserForSite(
 	return user;
 }
 
+export async function configureOrderManagerUserForSite(
+	account: TAccount,
+	apiHelpers: DataApiHelpers,
+	isOrderAdministrator: boolean,
+	site: Site,
+	userEmail: any
+) {
+	const user =
+		await apiHelpers.headlessAdminUser.getUserAccountByEmailAddress(
+			userEmail
+		);
+
+	const rolesResponse = await apiHelpers.headlessAdminUser.getAccountRoles(
+		account.id
+	);
+
+	const accountRoleBuyer = rolesResponse?.items?.filter((role) => {
+		return role.name === 'Order Manager';
+	});
+
+	await apiHelpers.headlessAdminUser.assignAccountRoles(
+		account.externalReferenceCode,
+		accountRoleBuyer[0].id,
+		user.emailAddress
+	);
+
+	const siteRole =
+		await apiHelpers.headlessAdminUser.getRoleByName('Site Member');
+
+	await apiHelpers.headlessAdminUser.assignUserToSite(
+		siteRole.id,
+		site.id,
+		user.id
+	);
+	await apiHelpers.headlessAdminUser.assignUserToAccountByEmailAddress(
+		account.id,
+		[user.emailAddress]
+	);
+
+	if (isOrderAdministrator) {
+		const orderAdministratorRole =
+			await apiHelpers.headlessAdminUser.getRoleByName(
+				'Order Administrator'
+			);
+
+		await apiHelpers.headlessAdminUser.assignUserToRole(
+			orderAdministratorRole.externalReferenceCode,
+			user.id
+		);
+	}
+
+	return user;
+}
+
 export async function configureOperationsManagerUserForSite(
 	account: TAccount,
 	apiHelpers: DataApiHelpers,
@@ -513,13 +567,13 @@ export async function guestCheckoutSetUp(
 
 	await openProductMenu(page);
 
-	const productMenuSiteBuilderButton = await page.getByRole('menuitem', {
+	const productMenuSiteBuilderButton = page.getByRole('menuitem', {
 		name: 'Site Builder',
 	});
 
 	await productMenuSiteBuilderButton.click();
 
-	const productMenuPagesButton = await page.getByRole('menuitem', {
+	const productMenuPagesButton = page.getByRole('menuitem', {
 		name: 'Pages',
 	});
 
@@ -530,6 +584,8 @@ export async function guestCheckoutSetUp(
 	const guestActionViewCheckbox = page
 		.frameLocator('iframe[title="Permissions"]')
 		.locator('#guest_ACTION_VIEW');
+
+	await expect(guestActionViewCheckbox).toBeVisible();
 
 	await guestActionViewCheckbox.click({clickCount: 2});
 
@@ -543,6 +599,8 @@ export async function guestCheckoutSetUp(
 		page.frameLocator('iframe[title="Permissions"]'),
 		'success'
 	);
+
+	await page.reload();
 
 	await commerceAdminChannelsPage.goto();
 
@@ -562,7 +620,7 @@ export async function guestCheckoutSetUp(
 
 	await performLogout(page);
 
-	await page.goto(siteURL);
+	await page.goto(siteURL, {waitUntil: 'networkidle'});
 
 	await expect(page.locator('.btn-account-selector')).not.toBeVisible();
 }

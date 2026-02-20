@@ -13,15 +13,20 @@ export default function VerticalNav({
 	activation,
 	active,
 	additionalProps: _additionalProps,
+	collapse,
 	componentId: _componentId,
 	cssClass,
 	decorated,
 	defaultExpandedKeys,
+	displayType,
 	items,
 	large,
 	locale: _locale,
+	nestMargins,
 	portletId: _portletId,
 	portletNamespace: _portletNamespace,
+	size,
+	stacked,
 	triggerLabel,
 	...otherProps
 }) {
@@ -30,10 +35,15 @@ export default function VerticalNav({
 			activation={activation}
 			active={active}
 			className={cssClass}
+			collapse={collapse}
 			decorated={decorated}
 			defaultExpandedKeys={new Set(defaultExpandedKeys)}
+			displayType={displayType}
 			items={items}
 			large={large}
+			nestMargins={nestMargins}
+			size={size}
+			stacked={stacked}
 			triggerLabel={triggerLabel}
 			{...otherProps}
 		>
@@ -45,6 +55,15 @@ export default function VerticalNav({
 					key={item.id}
 					textValue={item.label}
 				>
+					{item.leadingIcon?.symbol && (
+						<ClayIcon
+							className="c-mr-2"
+							key={item.leadingIcon.symbol}
+							symbol={item.leadingIcon.symbol}
+							title={item.leadingIcon.title}
+						/>
+					)}
+
 					{item.label}
 
 					{item.icons?.map((icon) => {

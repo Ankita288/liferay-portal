@@ -5,24 +5,99 @@
 
 package com.liferay.segments.model.impl;
 
+import com.liferay.petra.string.StringBundler;
+import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.service.LayoutLocalServiceUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
+import com.liferay.portal.kernel.util.ScopeUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
+import com.liferay.portal.kernel.util.Validator;
+import com.liferay.segments.constants.SegmentsEntryConstants;
+import com.liferay.segments.constants.SegmentsExperienceConstants;
 import com.liferay.segments.constants.SegmentsExperimentConstants;
+import com.liferay.segments.model.SegmentsEntry;
 import com.liferay.segments.model.SegmentsExperience;
 import com.liferay.segments.model.SegmentsExperiment;
+import com.liferay.segments.service.SegmentsEntryLocalServiceUtil;
 import com.liferay.segments.service.SegmentsExperienceLocalServiceUtil;
 import com.liferay.segments.service.SegmentsExperimentLocalServiceUtil;
 
 import java.io.IOException;
 
+import java.util.Locale;
+import java.util.Objects;
+
 /**
  * @author Eduardo García
  */
 public class SegmentsExperienceImpl extends SegmentsExperienceBaseImpl {
+
+	@Override
+	public long getSegmentsEntryGroupId() {
+		Long groupId = ScopeUtil.getItemGroupId(
+			getCompanyId(), getSegmentsEntryScopeERC(), getGroupId());
+
+		if (groupId == null) {
+			return 0;
+		}
+
+		return groupId;
+	}
+
+	@Override
+	public long getSegmentsEntryId() {
+		if (hasDefaultSegmentsEntry()) {
+			return SegmentsEntryConstants.ID_DEFAULT;
+		}
+
+		SegmentsEntry segmentsEntry =
+			SegmentsEntryLocalServiceUtil.
+				fetchSegmentsEntryByExternalReferenceCode(
+					getSegmentsEntryERC(), getSegmentsEntryGroupId());
+
+		if (segmentsEntry == null) {
+			if (_log.isWarnEnabled()) {
+				_log.warn(
+					StringBundler.concat(
+						"Unable to get segments entry with external reference ",
+						"code ", getSegmentsEntryERC(), " and group ID ",
+						getSegmentsEntryGroupId()));
+			}
+
+			return SegmentsEntryConstants.ID_MISSING;
+		}
+
+		return segmentsEntry.getSegmentsEntryId();
+	}
+
+	@Override
+	public String getSegmentsEntryName(Locale locale) {
+		if (hasDefaultSegmentsEntry()) {
+			return SegmentsEntryConstants.getDefaultSegmentsEntryName(locale);
+		}
+
+		SegmentsEntry segmentsEntry =
+			SegmentsEntryLocalServiceUtil.
+				fetchSegmentsEntryByExternalReferenceCode(
+					getSegmentsEntryERC(), getSegmentsEntryGroupId());
+
+		if (segmentsEntry == null) {
+			if (_log.isWarnEnabled()) {
+				_log.warn(
+					StringBundler.concat(
+						"Unable to get segments entry with external reference ",
+						"code ", getSegmentsEntryERC(), " and group ID ",
+						getSegmentsEntryGroupId()));
+			}
+
+			return StringPool.BLANK;
+		}
+
+		return segmentsEntry.getName(locale);
+	}
 
 	@Override
 	public UnicodeProperties getTypeSettingsUnicodeProperties() {
@@ -38,6 +113,10 @@ public class SegmentsExperienceImpl extends SegmentsExperienceBaseImpl {
 		}
 
 		return _typeSettingsUnicodeProperties;
+	}
+
+	public boolean hasDefaultSegmentsEntry() {
+		return Validator.isNull(getSegmentsEntryERC());
 	}
 
 	@Override
@@ -60,6 +139,13 @@ public class SegmentsExperienceImpl extends SegmentsExperienceBaseImpl {
 		}
 
 		return true;
+	}
+
+	@Override
+	public boolean isDefault() {
+		return Objects.equals(
+			getSegmentsExperienceKey(),
+			SegmentsExperienceConstants.KEY_DEFAULT);
 	}
 
 	@Override

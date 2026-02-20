@@ -5,8 +5,10 @@
 
 package com.liferay.headless.admin.site.internal.dto.v1_0.converter;
 
+import com.liferay.headless.admin.site.dto.v1_0.ItemExternalReference;
 import com.liferay.headless.admin.site.dto.v1_0.PageElement;
 import com.liferay.headless.admin.site.dto.v1_0.PageExperience;
+import com.liferay.headless.admin.site.internal.dto.v1_0.util.ItemScopeUtil;
 import com.liferay.layout.page.template.model.LayoutPageTemplateStructureRel;
 import com.liferay.layout.util.structure.LayoutStructure;
 import com.liferay.layout.util.structure.LayoutStructureItem;
@@ -15,11 +17,9 @@ import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.service.LayoutLocalService;
 import com.liferay.portal.vulcan.dto.converter.DTOConverter;
 import com.liferay.portal.vulcan.dto.converter.DTOConverterContext;
-import com.liferay.portal.vulcan.dto.converter.DefaultDTOConverterContext;
 import com.liferay.portal.vulcan.util.LocalizedMapUtil;
 import com.liferay.segments.model.SegmentsEntry;
 import com.liferay.segments.model.SegmentsExperience;
-import com.liferay.segments.service.SegmentsEntryLocalService;
 import com.liferay.segments.service.SegmentsExperienceLocalService;
 
 import org.osgi.service.component.annotations.Component;
@@ -62,45 +62,49 @@ public class PageExperienceDTOConverter
 					() -> LocalizedMapUtil.getI18nMap(
 						true, segmentsExperience.getNameMap()));
 				setPageElements(
-					() -> _getPageElements(layoutPageTemplateStructureRel));
+					() -> _getPageElements(
+						dtoConverterContext, layoutPageTemplateStructureRel));
 				setPageSpecificationExternalReferenceCode(
 					layout::getExternalReferenceCode);
 				setPriority(segmentsExperience::getPriority);
-				setSegmentExternalReferenceCode(
+				setSegmentItemExternalReference(
 					() -> {
-						SegmentsEntry segmentsEntry =
-							_segmentsEntryLocalService.fetchSegmentsEntry(
-								segmentsExperience.getSegmentsEntryId());
-
-						if (segmentsEntry == null) {
+						if (segmentsExperience.hasDefaultSegmentsEntry()) {
 							return null;
 						}
 
-						return segmentsEntry.getSegmentsEntryKey();
+						return new ItemExternalReference() {
+							{
+								setClassName(SegmentsEntry.class::getName);
+								setExternalReferenceCode(
+									segmentsExperience::getSegmentsEntryERC);
+								setScope(
+									() -> ItemScopeUtil.getItemScope(
+										segmentsExperience.
+											getSegmentsEntryGroupId(),
+										layout.getGroupId()));
+							}
+						};
 					});
+				setUuid(segmentsExperience::getUuid);
 			}
 		};
 	}
 
-	private DTOConverterContext _getDTOConverterContext(
-		long companyId, LayoutStructure layoutStructure, long scopeGroupId) {
-
-		DTOConverterContext dtoConverterContext =
-			new DefaultDTOConverterContext(null, null, null, null, null);
-
-		dtoConverterContext.setAttribute(
-			LayoutStructure.class.getName(), layoutStructure);
-		dtoConverterContext.setAttribute("companyId", companyId);
-		dtoConverterContext.setAttribute("scopeGroupId", scopeGroupId);
-
-		return dtoConverterContext;
-	}
-
 	private PageElement[] _getPageElements(
+		DTOConverterContext dtoConverterContext,
 		LayoutPageTemplateStructureRel layoutPageTemplateStructureRel) {
 
 		LayoutStructure layoutStructure = LayoutStructure.of(
 			layoutPageTemplateStructureRel.getData());
+
+		dtoConverterContext.setAttribute(
+			LayoutStructure.class.getName(), layoutStructure);
+
+		dtoConverterContext.setAttribute(
+			"companyId", layoutPageTemplateStructureRel.getCompanyId());
+		dtoConverterContext.setAttribute(
+			"scopeGroupId", layoutPageTemplateStructureRel.getGroupId());
 
 		LayoutStructureItem rootLayoutStructureItem =
 			layoutStructure.getMainLayoutStructureItem();
@@ -108,10 +112,7 @@ public class PageExperienceDTOConverter
 		return TransformUtil.transformToArray(
 			rootLayoutStructureItem.getChildrenItemIds(),
 			childrenItemId -> _pageElementDTOConverter.toDTO(
-				_getDTOConverterContext(
-					layoutPageTemplateStructureRel.getCompanyId(),
-					layoutStructure,
-					layoutPageTemplateStructureRel.getGroupId()),
+				dtoConverterContext,
 				layoutStructure.getLayoutStructureItem(childrenItemId)),
 			PageElement.class);
 	}
@@ -124,9 +125,6 @@ public class PageExperienceDTOConverter
 	)
 	private DTOConverter<LayoutStructureItem, PageElement>
 		_pageElementDTOConverter;
-
-	@Reference
-	private SegmentsEntryLocalService _segmentsEntryLocalService;
 
 	@Reference
 	private SegmentsExperienceLocalService _segmentsExperienceLocalService;

@@ -29,7 +29,7 @@ export interface IBulkActionFDSDataItemTransformed {
 	name: string;
 }
 
-export interface IBulkactionSelectionScope {
+export interface IBulkActionSelectionScope {
 	selectAll: boolean;
 }
 
@@ -45,6 +45,7 @@ export interface IBulkActionTask {
 		};
 	};
 	id: number;
+	numberOfFailedItems: number;
 	numberOfItems: number;
 	taskResult: string;
 	totalCount: number;
@@ -76,6 +77,8 @@ export interface IBulkActionTaskStarterDTO<
 	T extends keyof IBulkActionTaskType,
 > {
 	apiURL?: string;
+	dataSetId?: string;
+	entryClassName?: string;
 	keyValues?: IBulkActionTaskType[T];
 	onCreateError?:
 		| ((response: RequestResult<IBulkActionTaskPage>) => void)
@@ -90,16 +93,30 @@ export interface IBulkActionTaskStarterDTO<
 }
 
 export interface IBulkActionTaskType {
+	AssignToBulkAction: {
+		className: string;
+		externalReferenceCode: string;
+		name: string;
+	};
 	DefaultPermissionBulkAction: {
 		defaultPermissions: string;
 		depotGroupId?: number;
 		roleKey?: string;
 		treePath?: string;
 	};
+	DeleteAssetVersionBulkAction: {
+		versions?: number[];
+	};
 	DeleteBulkAction: {};
 	DownloadBulkAction: {};
+	DueDateBulkAction: {
+		dueDate?: string;
+	};
+	ExpireBulkAction: {};
 	KeywordBulkAction: {
-		keywords: string[];
+		append?: boolean;
+		keywordsToAdd?: string[];
+		keywordsToRemove?: string[];
 	};
 	MoveBulkAction: {
 		objectEntryFolderId: number;
@@ -109,13 +126,23 @@ export interface IBulkActionTaskType {
 		roleKey?: string;
 	};
 	ResetPermissionBulkAction: {};
+	StatusBulkAction: {
+		status?: string;
+	};
 	TaxonomyCategoryBulkAction: {
-		taxonomyCategoryIds: number[];
+		append?: boolean;
+		taxonomyCategoryIdsToAdd?: number[];
+		taxonomyCategoryIdsToRemove?: number[];
 	};
 }
 
 export type TBulkActionTaskDTO = {
 	bulkActionItems: IBulkActionFDSDataItemTransformed[] | [];
-	selectionScope: IBulkactionSelectionScope | null;
+	selectAll?: IBulkActionFDSData['selectAll'];
+	selectionScope?: {
+		selectAll: IBulkActionFDSData['selectAll'];
+		[k: string]: any;
+	};
 	type: keyof IBulkActionTaskType;
+	versions?: number[] | [];
 } & IBulkActionTaskType[keyof IBulkActionTaskType];

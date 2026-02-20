@@ -396,7 +396,7 @@ public class ObjectDefinitionNotificationTermEvaluator
 			return StringPool.BLANK;
 		}
 
-		if (parentObjectDefinition.isSystem()) {
+		if (parentObjectDefinition.isUnmodifiableSystemObject()) {
 			return MapUtil.getString(
 				_objectEntryLocalService.getSystemModelAttributes(
 					parentObjectDefinition, primaryKey),
@@ -422,7 +422,8 @@ public class ObjectDefinitionNotificationTermEvaluator
 
 		return String.valueOf(
 			ObjectDefinitionNotificationTermEvaluatorUtil.getTermValue(
-				parentObjectField, values.get(parentObjectField.getName())));
+				null, parentObjectField,
+				values.get(parentObjectField.getName())));
 	}
 
 	private String _format(Date date, Locale locale) {

@@ -220,6 +220,9 @@ async function postFormData<T>(formData: FormData, url: string) {
 	return handleRequest<T>(() =>
 		fetch(url, {
 			body: formData,
+			headers: new Headers({
+				'Accept-Language': Liferay.ThemeDisplay.getBCP47LanguageId(),
+			}),
 			method: 'POST',
 		})
 	);
@@ -235,7 +238,7 @@ async function patch<T>(data: any, url: string) {
 	);
 }
 
-export default {
+const ApiHelper = {
 	batch,
 	delete: deleteRequest,
 	get,
@@ -245,3 +248,5 @@ export default {
 	postFormData,
 	put,
 };
+
+export default ApiHelper;

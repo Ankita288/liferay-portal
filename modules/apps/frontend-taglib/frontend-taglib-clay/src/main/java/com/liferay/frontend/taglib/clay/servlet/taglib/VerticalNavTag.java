@@ -6,6 +6,7 @@
 package com.liferay.frontend.taglib.clay.servlet.taglib;
 
 import com.liferay.frontend.taglib.clay.internal.servlet.taglib.BaseContainerTag;
+import com.liferay.frontend.taglib.clay.internal.servlet.taglib.util.CssClassesBuilder;
 import com.liferay.frontend.taglib.clay.servlet.taglib.util.IconItem;
 import com.liferay.frontend.taglib.clay.servlet.taglib.util.LabelItem;
 import com.liferay.frontend.taglib.clay.servlet.taglib.util.VerticalNavItem;
@@ -22,6 +23,7 @@ import jakarta.servlet.jsp.JspWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -32,8 +34,7 @@ public class VerticalNavTag extends BaseContainerTag {
 
 	@Override
 	public int doStartTag() throws JspException {
-		setAttributeNamespace(_ATTRIBUTE_NAMESPACE);
-
+		setAttributeNamespace("clay:vertical_nav:");
 		setContainerElement("nav");
 
 		return super.doStartTag();
@@ -67,12 +68,24 @@ public class VerticalNavTag extends BaseContainerTag {
 		return _large;
 	}
 
+	public boolean getNestMargins() {
+		return _nestMargins;
+	}
+
+	public boolean getStacked() {
+		return _stacked;
+	}
+
 	public List<VerticalNavItem> getVerticalNavItems() {
 		return _verticalNavItems;
 	}
 
 	public void setActive(String active) {
 		_active = active;
+	}
+
+	public void setCollapse(boolean collapse) {
+		_collapse = collapse;
 	}
 
 	public void setDecorated(boolean decorated) {
@@ -83,8 +96,30 @@ public class VerticalNavTag extends BaseContainerTag {
 		_defaultExpandedKeys = defaultExpandedKeys;
 	}
 
+	public void setDisplayType(String displayType) {
+		if (Objects.equals(displayType, "primary") ||
+			Objects.equals(displayType, "transparent")) {
+
+			_displayType = displayType;
+		}
+	}
+
 	public void setLarge(boolean large) {
 		_large = large;
+	}
+
+	public void setNestMargins(boolean nestMargins) {
+		_nestMargins = nestMargins;
+	}
+
+	public void setSize(String size) {
+		if (Objects.equals(size, "lg") || Objects.equals(size, "md")) {
+			_size = size;
+		}
+	}
+
+	public void setStacked(boolean stacked) {
+		_stacked = stacked;
 	}
 
 	public void setVerticalNavItems(List<VerticalNavItem> verticalNavItems) {
@@ -96,9 +131,14 @@ public class VerticalNavTag extends BaseContainerTag {
 		super.cleanUp();
 
 		_active = null;
+		_collapse = false;
 		_decorated = false;
 		_defaultExpandedKeys = null;
+		_displayType = "transparent";
 		_large = false;
+		_nestMargins = false;
+		_size = null;
+		_stacked = false;
 		_verticalNavItems = null;
 	}
 
@@ -115,27 +155,43 @@ public class VerticalNavTag extends BaseContainerTag {
 			props.put("active", getActive());
 		}
 
+		props.put("collapse", _collapse);
 		props.put("decorated", _decorated);
 		props.put("defaultExpandedKeys", getDefaultExpandedKeys());
+		props.put("displayType", _displayType);
 		props.put("large", _large);
+		props.put("nestMargins", _nestMargins);
 		props.put("items", _verticalNavItems);
+		props.put("size", _size);
+		props.put("stacked", _stacked);
 
 		return super.prepareProps(props);
 	}
 
 	@Override
 	protected String processCssClasses(Set<String> cssClasses) {
-		cssClasses.add("menubar menubar-transparent");
+		boolean sizeIsNull = Validator.isNull(_size);
 
-		if (_decorated) {
-			cssClasses.add("menubar-decorated");
-		}
+		CssClassesBuilder cssClassesBuilder = new CssClassesBuilder(
+			cssClasses
+		).add(
+			"menubar"
+		).add(
+			"menubar-decorated", _decorated
+		).add(
+			"menubar-primary", _displayType.equals("primary")
+		).add(
+			"menubar-transparent", _displayType.equals("transparent")
+		).add(
+			"menubar-vertical-expand-lg", sizeIsNull && _large
+		).add(
+			"menubar-vertical-expand-md",
+			sizeIsNull && !_large && !_displayType.equals("primary")
+		).add(
+			String.format("menubar-vertical-expand-%s", _size), !sizeIsNull
+		);
 
-		cssClasses.add(
-			_large ? "menubar-vertical-expand-lg" :
-				"menubar-vertical-expand-md");
-
-		return super.processCssClasses(cssClasses);
+		return super.processCssClasses(cssClassesBuilder.build());
 	}
 
 	@Override
@@ -144,11 +200,16 @@ public class VerticalNavTag extends BaseContainerTag {
 
 		JspWriter jspWriter = pageContext.getOut();
 
-		jspWriter.write("<div class=\"collapse menubar-collapse\">");
+		if (_collapse) {
+			jspWriter.write("<div class=\"collapse menubar-collapse\">");
+		}
 
-		_renderVerticalNavItems(jspWriter, _verticalNavItems, 0);
+		_renderVerticalNavItems(
+			jspWriter, _verticalNavItems, 0, _nestMargins, _stacked);
 
-		jspWriter.write("</div>");
+		if (_collapse) {
+			jspWriter.write("</div>");
+		}
 
 		return EVAL_BODY_INCLUDE;
 	}
@@ -210,14 +271,40 @@ public class VerticalNavTag extends BaseContainerTag {
 		return null;
 	}
 
+	private void _renderIcons(List<IconItem> iconItems, String cssClass)
+		throws Exception {
+
+		if (ListUtil.isEmpty(iconItems)) {
+			return;
+		}
+
+		for (IconItem iconItem : iconItems) {
+			String symbol = (String)iconItem.get("symbol");
+
+			if (Validator.isNull(symbol)) {
+				continue;
+			}
+
+			IconTag iconTag = new IconTag();
+
+			iconTag.setCssClass(cssClass);
+			iconTag.setSymbol(symbol);
+
+			iconTag.doTag(pageContext);
+		}
+	}
+
 	private void _renderVerticalNavItems(
 			JspWriter jspWriter, List<VerticalNavItem> verticalNavItems,
-			int depth)
+			int depth, boolean nestMargins, boolean stacked)
 		throws Exception {
 
 		jspWriter.write("<ul aria-orientation=\"vertical\" class=\"nav ");
 
-		if (depth == 0) {
+		if (nestMargins) {
+			jspWriter.write("nav-nested-margins");
+		}
+		else if ((depth == 0) && !stacked) {
 			jspWriter.write("nav-nested");
 		}
 		else {
@@ -296,28 +383,19 @@ public class VerticalNavTag extends BaseContainerTag {
 				jspWriter.write("\" role=\"menuitem\" tabindex=\"-1\">");
 			}
 
+			IconItem leadingIconItem = (IconItem)verticalNavItem.get(
+				"leadingIcon");
+
+			if (leadingIconItem != null) {
+				_renderIcons(List.of(leadingIconItem), "c-mr-2");
+			}
+
 			jspWriter.write(
 				HtmlUtil.escape((String)verticalNavItem.get("label")));
 
-			List<IconItem> iconItems = (List<IconItem>)verticalNavItem.get(
-				"icons");
-
-			if (ListUtil.isNotEmpty(iconItems)) {
-				for (IconItem iconItem : iconItems) {
-					String symbol = (String)iconItem.get("symbol");
-
-					if (Validator.isNull(symbol)) {
-						continue;
-					}
-
-					IconTag iconTag = new IconTag();
-
-					iconTag.setCssClass("c-ml-2 c-mr-2 text-muted");
-					iconTag.setSymbol(symbol);
-
-					iconTag.doTag(pageContext);
-				}
-			}
+			_renderIcons(
+				(List<IconItem>)verticalNavItem.get("icons"),
+				"c-ml-2 c-mr-2 text-muted");
 
 			List<LabelItem> labelItems = (List<LabelItem>)verticalNavItem.get(
 				"labelItems");
@@ -358,11 +436,11 @@ public class VerticalNavTag extends BaseContainerTag {
 
 				if (expanded) {
 					jspWriter.write("<span class=\"collapse-icon-open\">");
-					iconTag.setSymbol("caret-bottom");
+					iconTag.setSymbol("angle-down-small");
 				}
 				else {
 					jspWriter.write("<span class=\"collapse-icon-closed\">");
-					iconTag.setSymbol("caret-right");
+					iconTag.setSymbol("angle-right-small");
 				}
 
 				iconTag.doTag(pageContext);
@@ -377,7 +455,8 @@ public class VerticalNavTag extends BaseContainerTag {
 			}
 
 			if ((items != null) && expanded) {
-				_renderVerticalNavItems(jspWriter, items, depth++);
+				_renderVerticalNavItems(
+					jspWriter, items, depth++, _nestMargins, _stacked);
 			}
 
 			jspWriter.write("</li>");
@@ -386,12 +465,15 @@ public class VerticalNavTag extends BaseContainerTag {
 		jspWriter.write("</ul>");
 	}
 
-	private static final String _ATTRIBUTE_NAMESPACE = "clay:vertical_nav:";
-
 	private String _active;
+	private boolean _collapse;
 	private boolean _decorated;
 	private List<String> _defaultExpandedKeys;
+	private String _displayType = "transparent";
 	private boolean _large;
+	private boolean _nestMargins;
+	private String _size;
+	private boolean _stacked;
 	private List<VerticalNavItem> _verticalNavItems;
 
 }

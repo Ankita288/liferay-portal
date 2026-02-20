@@ -594,7 +594,7 @@ public abstract class BaseBuild implements Build {
 			return 0;
 		}
 
-		long duration = buildJSONObject.getLong("duration");
+		long duration = buildJSONObject.optLong("duration");
 
 		if (duration == 0) {
 			long timestamp = buildJSONObject.getLong("timestamp");
@@ -736,6 +736,11 @@ public abstract class BaseBuild implements Build {
 		_gitHubMessageElement = messageElement;
 
 		return _gitHubMessageElement;
+	}
+
+	@Override
+	public Element getGitHubMessageUpstreamJobFailureElement() {
+		return upstreamJobFailureMessageElement;
 	}
 
 	@Override
@@ -956,7 +961,7 @@ public abstract class BaseBuild implements Build {
 		}
 
 		String jobURL = JenkinsResultsParserUtil.combine(
-			"https://", jenkinsMaster.getName(), ".liferay.com/job/", _jobName);
+			jenkinsMaster.getRemoteURL(), "job/", _jobName);
 
 		try {
 			return JenkinsResultsParserUtil.encode(jobURL);
@@ -1705,6 +1710,11 @@ public abstract class BaseBuild implements Build {
 	}
 
 	@Override
+	public void setParameterValue(String name, String value) {
+		_parameters.put(name, value);
+	}
+
+	@Override
 	public void setResult(String result) {
 		_result = result;
 	}
@@ -1724,7 +1734,22 @@ public abstract class BaseBuild implements Build {
 		_statusDurations.put(
 			_previousStatus, _statusModifiedTime - previousStatusModifiedTime);
 
-		if (different && isParentBuildRoot()) {
+		String buildURL = getBuildURL();
+
+		if (!JenkinsResultsParserUtil.isURL(buildURL)) {
+			return;
+		}
+
+		BuildDatabase buildDatabase = getBuildDatabase();
+
+		Properties properties = buildDatabase.getProperties(
+			CACHED_BUILD_URLS_PROPERTIES_KEY);
+
+		Set<String> cachedBuildURLs = properties.stringPropertyNames();
+
+		if (!cachedBuildURLs.contains(buildURL) && different &&
+			isParentBuildRoot()) {
+
 			System.out.println(getBuildMessage());
 		}
 	}
@@ -3141,6 +3166,7 @@ public abstract class BaseBuild implements Build {
 	protected String gitRepositoryName;
 	protected Long invokedTime;
 	protected Long startTime;
+	protected Element upstreamJobFailureMessageElement;
 
 	private void _archive(String content, boolean required, String urlSuffix) {
 		boolean readyToArchive = true;
@@ -3338,8 +3364,7 @@ public abstract class BaseBuild implements Build {
 		else {
 			Dom4JUtil.getNewElement(
 				"td", buildInfoElement,
-				JenkinsResultsParserUtil.toDurationString(
-					stopWatchRecord.getDuration()));
+				JenkinsResultsParserUtil.toDurationString(duration));
 		}
 
 		Dom4JUtil.getNewElement("td", buildInfoElement, "&nbsp;");
@@ -3566,7 +3591,8 @@ public abstract class BaseBuild implements Build {
 		JenkinsCohort jenkinsCohort = JenkinsCohort.getInstance(
 			invocationURLMatcher.group("cohortName"));
 
-		loadParametersFromQueryString(invocationURL);
+		loadParametersFromQueryString(
+			invocationURLMatcher.group("queryString"));
 
 		String masterId = invocationURLMatcher.group("masterId");
 

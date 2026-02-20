@@ -7,17 +7,12 @@ package com.liferay.portal.search.opensearch2.internal.search.engine.adapter.doc
 
 import com.liferay.portal.kernel.search.BooleanQuery;
 import com.liferay.portal.kernel.search.generic.BooleanQueryImpl;
-import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.search.engine.adapter.document.UpdateByQueryDocumentRequest;
-import com.liferay.portal.search.internal.script.ScriptsImpl;
 import com.liferay.portal.search.opensearch2.internal.BaseOpenSearchTestCase;
 import com.liferay.portal.search.opensearch2.internal.OpenSearchTestRule;
-import com.liferay.portal.search.opensearch2.internal.query.OpenSearchQueryTranslatorFixture;
-import com.liferay.portal.search.opensearch2.internal.script.ScriptTranslator;
 import com.liferay.portal.search.opensearch2.internal.util.JsonpUtil;
-import com.liferay.portal.search.script.Scripts;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import org.junit.Assert;
@@ -56,43 +51,19 @@ public class UpdateByQueryDocumentRequestExecutorTest
 
 		booleanQuery.addExactTerm(_FIELD_NAME, true);
 
-		com.liferay.portal.search.opensearch2.internal.legacy.query.
-			OpenSearchQueryTranslatorFixture
-				lecacyOpenSearchQueryTranslatorFixture =
-					new com.liferay.portal.search.opensearch2.internal.legacy.
-						query.OpenSearchQueryTranslatorFixture();
-
-		OpenSearchQueryTranslatorFixture openSearchQueryTranslatorFixture =
-			new OpenSearchQueryTranslatorFixture();
-
 		UpdateByQueryDocumentRequest updateByQueryDocumentRequest =
 			new UpdateByQueryDocumentRequest(
 				booleanQuery, null, new String[] {TEST_INDEX_NAME});
 
 		updateByQueryDocumentRequest.setRefresh(refresh);
 
-		UpdateByQueryDocumentRequestExecutorImpl
-			updateByQueryDocumentRequestExecutorImpl =
-				new UpdateByQueryDocumentRequestExecutorImpl();
-
-		ReflectionTestUtil.setFieldValue(
-			updateByQueryDocumentRequestExecutorImpl, "_legacyQueryTranslator",
-			lecacyOpenSearchQueryTranslatorFixture.
-				getOpenSearchQueryTranslator());
-		ReflectionTestUtil.setFieldValue(
-			updateByQueryDocumentRequestExecutorImpl,
-			"_openSearchConnectionManager", openSearchConnectionManager);
-		ReflectionTestUtil.setFieldValue(
-			updateByQueryDocumentRequestExecutorImpl, "_queryTranslator",
-			openSearchQueryTranslatorFixture.getOpenSearchQueryTranslator());
-		ReflectionTestUtil.setFieldValue(
-			updateByQueryDocumentRequestExecutorImpl, "_scripts", _scripts);
-		ReflectionTestUtil.setFieldValue(
-			updateByQueryDocumentRequestExecutorImpl, "_scriptTranslator",
-			new ScriptTranslator());
+		UpdateByQueryDocumentRequestExecutor
+			updateByQueryDocumentRequestExecutor =
+				new UpdateByQueryDocumentRequestExecutor(
+					openSearchConnectionManager);
 
 		UpdateByQueryRequest updateByQueryRequest =
-			updateByQueryDocumentRequestExecutorImpl.createUpdateByQueryRequest(
+			updateByQueryDocumentRequestExecutor.createUpdateByQueryRequest(
 				updateByQueryDocumentRequest);
 
 		Assert.assertArrayEquals(
@@ -110,7 +81,5 @@ public class UpdateByQueryDocumentRequestExecutorTest
 	}
 
 	private static final String _FIELD_NAME = "testField";
-
-	private static final Scripts _scripts = new ScriptsImpl();
 
 }

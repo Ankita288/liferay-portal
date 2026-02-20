@@ -92,6 +92,8 @@ public interface Build {
 
 	public Element getGitHubMessageElement();
 
+	public Element getGitHubMessageUpstreamJobFailureElement();
+
 	public Map<String, String> getInjectedEnvironmentVariablesMap()
 		throws IOException;
 
@@ -215,6 +217,8 @@ public interface Build {
 
 	public void setJenkinsMaster(JenkinsMaster jenkinsMaster);
 
+	public void setParameterValue(String name, String value);
+
 	public void setResult(String result);
 
 	public void setStatus(String status);
@@ -277,6 +281,11 @@ public interface Build {
 
 			_buildURL = JenkinsResultsParserUtil.getBuildURL(
 				_build.getJobName(), getJenkinsMaster(), getQueueId());
+
+			String localBuildURL = JenkinsResultsParserUtil.getLocalURL(
+				_buildURL);
+
+			_buildURL = JenkinsResultsParserUtil.getRemoteURL(localBuildURL);
 
 			return _buildURL;
 		}

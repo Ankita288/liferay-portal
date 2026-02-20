@@ -456,6 +456,7 @@ public class GroupLocalServiceImpl extends GroupLocalServiceBaseImpl {
 				  groupKey.equals(GroupConstants.CALENDAR) ||
 				  groupKey.equals(GroupConstants.CMS) ||
 				  groupKey.equals(GroupConstants.CONTROL_PANEL) ||
+				  groupKey.equals(GroupConstants.DSR) ||
 				  groupKey.equals(GroupConstants.FORMS))) {
 
 				throw new IllegalArgumentException();
@@ -2333,15 +2334,29 @@ public class GroupLocalServiceImpl extends GroupLocalServiceBaseImpl {
 		if (inherit) {
 			User user = _userPersistence.findByPrimaryKey(userId);
 
-			return search(
-				user.getCompanyId(), null, null,
-				LinkedHashMapBuilder.<String, Object>put(
-					"usersGroups", Long.valueOf(userId)
-				).build(),
-				start, end);
+			return _getUserGroups(
+				user.getCompanyId(), user.getUserId(), inherit, start, end);
 		}
 
-		return _userPersistence.getGroups(userId, start, end);
+		return _getUserGroups(-1, userId, inherit, start, end);
+	}
+
+	@Override
+	public List<Group> getUserGroups(User user, boolean inherit)
+		throws PortalException {
+
+		return _getUserGroups(
+			user.getCompanyId(), user.getUserId(), inherit, QueryUtil.ALL_POS,
+			QueryUtil.ALL_POS);
+	}
+
+	@Override
+	public List<Group> getUserGroups(
+			User user, boolean inherit, int start, int end)
+		throws PortalException {
+
+		return _getUserGroups(
+			user.getCompanyId(), user.getUserId(), inherit, start, end);
 	}
 
 	/**
@@ -5468,6 +5483,22 @@ public class GroupLocalServiceImpl extends GroupLocalServiceBaseImpl {
 		finally {
 			groupPersistence.closeSession(session);
 		}
+	}
+
+	private List<Group> _getUserGroups(
+			long companyId, long userId, boolean inherit, int start, int end)
+		throws PortalException {
+
+		if (inherit) {
+			return search(
+				companyId, null, null,
+				LinkedHashMapBuilder.<String, Object>put(
+					"usersGroups", userId
+				).build(),
+				start, end);
+		}
+
+		return _userPersistence.getGroups(userId, start, end);
 	}
 
 	private Map<Locale, String> _normalizeNameMap(Map<Locale, String> nameMap) {

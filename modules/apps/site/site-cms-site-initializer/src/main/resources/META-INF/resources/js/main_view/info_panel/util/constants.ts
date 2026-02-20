@@ -4,10 +4,14 @@
  */
 
 export const ASSET_TYPE = {
-	BLOGS: 'blogs',
 	CONTENTS: 'basic-web-contents',
 	FILES: 'files',
 	FOLDER: 'folder',
+};
+
+export const ASSET_TYPE_ERC = {
+	BASIC_DOCUMENT: 'L_CMS_BASIC_DOCUMENT',
+	BASIC_WEB_CONTENT: 'L_CMS_BASIC_WEB_CONTENT',
 };
 
 export const COPY = 'copy';

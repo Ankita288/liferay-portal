@@ -23,12 +23,10 @@ import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.search.elasticsearch7.internal.connection.ElasticsearchClientResolver;
 import com.liferay.portal.search.elasticsearch7.internal.connection.ElasticsearchFixture;
-import com.liferay.portal.search.elasticsearch7.internal.document.ElasticsearchDocumentFactory;
-import com.liferay.portal.search.elasticsearch7.internal.search.engine.adapter.search.SearchRequestExecutorFixture;
+import com.liferay.portal.search.elasticsearch7.internal.document.ElasticsearchDocumentFactoryUtil;
 import com.liferay.portal.search.engine.adapter.SearchEngineAdapter;
 import com.liferay.portal.search.engine.adapter.search.OpenPointInTimeRequest;
 import com.liferay.portal.search.engine.adapter.search.OpenPointInTimeResponse;
-import com.liferay.portal.search.engine.adapter.search.SearchRequestExecutor;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchRequest;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchResponse;
 import com.liferay.portal.search.engine.adapter.search.SuggestSearchRequest;
@@ -42,6 +40,7 @@ import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.io.IOException;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -138,8 +137,6 @@ public class ElasticsearchSearchEngineAdapterSearchRequestTest {
 		_deleteIndex();
 
 		_documentFixture.tearDown();
-
-		_searchRequestExecutorFixture.tearDown();
 	}
 
 	@Test
@@ -343,14 +340,17 @@ public class ElasticsearchSearchEngineAdapterSearchRequestTest {
 	protected SearchEngineAdapter createSearchEngineAdapter(
 		ElasticsearchClientResolver elasticsearchClientResolver) {
 
-		SearchEngineAdapter searchEngineAdapter =
-			new ElasticsearchSearchEngineAdapterImpl();
+		ElasticsearchSearchEngineAdapterImpl
+			elasticsearchSearchEngineAdapterImpl =
+				new ElasticsearchSearchEngineAdapterImpl();
 
 		ReflectionTestUtil.setFieldValue(
-			searchEngineAdapter, "_searchRequestExecutor",
-			_createSearchRequestExecutor(elasticsearchClientResolver));
+			elasticsearchSearchEngineAdapterImpl,
+			"_elasticsearchClientResolver", elasticsearchClientResolver);
 
-		return searchEngineAdapter;
+		elasticsearchSearchEngineAdapterImpl.activate(Collections.emptyMap());
+
+		return elasticsearchSearchEngineAdapterImpl;
 	}
 
 	private void _assertSuggestion(
@@ -412,20 +412,6 @@ public class ElasticsearchSearchEngineAdapterSearchRequestTest {
 		}
 	}
 
-	private SearchRequestExecutor _createSearchRequestExecutor(
-		ElasticsearchClientResolver elasticsearchClientResolver) {
-
-		_searchRequestExecutorFixture = new SearchRequestExecutorFixture() {
-			{
-				setElasticsearchClientResolver(elasticsearchClientResolver);
-			}
-		};
-
-		_searchRequestExecutorFixture.setUp();
-
-		return _searchRequestExecutorFixture.getSearchRequestExecutor();
-	}
-
 	private void _deleteIndex() {
 		DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(
 			_INDEX_NAME);
@@ -471,11 +457,8 @@ public class ElasticsearchSearchEngineAdapterSearchRequestTest {
 		indexRequest.id(document.getUID());
 		indexRequest.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
 
-		ElasticsearchDocumentFactory elasticsearchDocumentFactory =
-			new ElasticsearchDocumentFactory();
-
 		indexRequest.source(
-			elasticsearchDocumentFactory.getElasticsearchDocument(document),
+			ElasticsearchDocumentFactoryUtil.getElasticsearchDocument(document),
 			XContentType.JSON);
 
 		try {
@@ -547,6 +530,5 @@ public class ElasticsearchSearchEngineAdapterSearchRequestTest {
 	private IndicesClient _indicesClient;
 	private RestHighLevelClient _restHighLevelClient;
 	private SearchEngineAdapter _searchEngineAdapter;
-	private SearchRequestExecutorFixture _searchRequestExecutorFixture;
 
 }

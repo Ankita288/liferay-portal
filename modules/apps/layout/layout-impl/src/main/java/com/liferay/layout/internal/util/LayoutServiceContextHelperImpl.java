@@ -322,7 +322,11 @@ public class LayoutServiceContextHelperImpl
 					}
 
 					public String getRequestURI() {
-						return StringPool.BLANK;
+						return StringPool.SLASH;
+					}
+
+					public String getScheme() {
+						return "http";
 					}
 
 					public ServletContext getServletContext() {
@@ -397,6 +401,8 @@ public class LayoutServiceContextHelperImpl
 				}
 
 				themeDisplay.setPlid(_layout.getPlid());
+				themeDisplay.setSiteDefaultLocale(
+					_portal.getSiteDefaultLocale(_group.getGroupId()));
 			}
 			else {
 				Locale locale = _portal.getSiteDefaultLocale(
@@ -404,12 +410,13 @@ public class LayoutServiceContextHelperImpl
 
 				themeDisplay.setLanguageId(LocaleUtil.toLanguageId(locale));
 				themeDisplay.setLocale(locale);
+				themeDisplay.setSiteDefaultLocale(locale);
 			}
 
 			themeDisplay.setPermissionChecker(permissionChecker);
 			themeDisplay.setPortalDomain(company.getVirtualHostname());
 
-			boolean secure = _isHttpsEnabled();
+			boolean secure = _isSecure();
 
 			int portalServerPort = _portal.getPortalServerPort(secure);
 
@@ -428,7 +435,7 @@ public class LayoutServiceContextHelperImpl
 			return themeDisplay;
 		}
 
-		private boolean _isHttpsEnabled() {
+		private boolean _isSecure() {
 			if (Objects.equals(
 					Http.HTTPS,
 					PropsUtil.get(PropsKeys.PORTAL_INSTANCE_PROTOCOL)) ||

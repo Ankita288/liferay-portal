@@ -15,7 +15,6 @@ import com.liferay.portal.search.engine.adapter.search.SearchSearchRequest;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchResponse;
 import com.liferay.portal.search.hits.SearchHit;
 import com.liferay.portal.search.hits.SearchHits;
-import com.liferay.portal.search.internal.document.DocumentBuilderImpl;
 import com.liferay.portal.search.query.MoreLikeThisQuery;
 import com.liferay.portal.search.test.util.indexing.BaseIndexingTestCase;
 import com.liferay.portal.search.test.util.indexing.DocumentCreationHelpers;
@@ -41,7 +40,7 @@ public abstract class BaseMoreLikeThisQueryTestCase
 		com.liferay.portal.kernel.search.generic.MoreLikeThisQuery
 			moreLikeThisQuery =
 				new com.liferay.portal.kernel.search.generic.MoreLikeThisQuery(
-					getCompanyId());
+					getIndexName());
 
 		moreLikeThisQuery.addField(_FIELD_TITLE);
 		moreLikeThisQuery.setLikeText("java");
@@ -280,7 +279,7 @@ public abstract class BaseMoreLikeThisQueryTestCase
 	protected String indexDocumentWithNoFieldsExceptTitle(String title) {
 		SearchEngineAdapter searchEngineAdapter = getSearchEngineAdapter();
 
-		DocumentBuilder documentBuilder = new DocumentBuilderImpl();
+		DocumentBuilder documentBuilder = new DocumentBuilder();
 
 		documentBuilder.setString(_FIELD_TITLE, title);
 

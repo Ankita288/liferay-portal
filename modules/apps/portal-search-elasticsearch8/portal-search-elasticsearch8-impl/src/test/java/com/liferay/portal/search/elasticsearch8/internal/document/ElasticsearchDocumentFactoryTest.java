@@ -5,24 +5,28 @@
 
 package com.liferay.portal.search.elasticsearch8.internal.document;
 
+import co.elastic.clients.json.JsonData;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.json.JSONFactoryUtil;
+import com.liferay.portal.kernel.json.JSONObject;
+import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.search.DocumentImpl;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.search.document.Document;
 import com.liferay.portal.search.document.DocumentBuilder;
-import com.liferay.portal.search.internal.document.DocumentBuilderImpl;
 import com.liferay.portal.search.test.util.indexing.DocumentFixture;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.io.IOException;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
-
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentFactory;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -44,8 +48,6 @@ public class ElasticsearchDocumentFactoryTest {
 	@Before
 	public void setUp() throws Exception {
 		_documentFixture.setUp();
-
-		_elasticsearchDocumentFactory = new ElasticsearchDocumentFactory();
 	}
 
 	@After
@@ -55,122 +57,80 @@ public class ElasticsearchDocumentFactoryTest {
 
 	@Test
 	public void testArrayOfArrays() throws IOException {
+		Collection<Object> values = Arrays.asList(
+			Arrays.asList("one", "two", "three"),
+			Arrays.asList("four", "five", "six"));
+
 		_assertDocument(
-			xContentBuilder -> xContentBuilder.startArray(
-				"alpha"
-			).startArray(
-			).value(
-				"one"
-			).value(
-				"two"
-			).value(
-				"three"
-			).endArray(
-			).startArray(
-			).value(
-				"four"
-			).value(
-				"five"
-			).value(
-				"six"
-			).endArray(
-			).endArray(),
-			documentBuilder -> documentBuilder.setValues(
-				"alpha",
-				Arrays.asList(
-					Arrays.asList("one", "two", "three"),
-					Arrays.asList("four", "five", "six"))));
+			JSONUtil.put("alpha", values),
+			documentBuilder -> documentBuilder.setValues("alpha", values));
 	}
 
 	@Test
 	public void testArrayOfObjects() throws IOException {
+		List<Map<String, Object>> values = Arrays.asList(
+			HashMapBuilder.<String, Object>put(
+				"first", "John"
+			).put(
+				"last", "Smith"
+			).build(),
+			HashMapBuilder.<String, Object>put(
+				"first", "Alice"
+			).put(
+				"last", "White"
+			).build());
+
 		_assertDocument(
-			xContentBuilder -> xContentBuilder.field(
+			JSONUtil.put(
 				"group", "fans"
-			).field(
-				"user",
-				Arrays.asList(
-					HashMapBuilder.<String, Object>put(
-						"first", "John"
-					).put(
-						"last", "Smith"
-					).build(),
-					HashMapBuilder.<String, Object>put(
-						"first", "Alice"
-					).put(
-						"last", "White"
-					).build())
+			).put(
+				"user", JSONFactoryUtil.createJSONArray(values)
 			),
 			documentBuilder -> documentBuilder.setString(
 				"group", "fans"
 			).setValue(
-				"user",
-				Arrays.asList(
-					HashMapBuilder.<String, Object>put(
-						"first", "John"
-					).put(
-						"last", "Smith"
-					).build(),
-					HashMapBuilder.<String, Object>put(
-						"first", "Alice"
-					).put(
-						"last", "White"
-					).build())
+				"user", values
 			));
 	}
 
 	@Test
 	public void testInnerObject() throws IOException {
 		_assertDocument(
-			xContentBuilder -> xContentBuilder.startObject(
-				"alpha"
-			).field(
-				"position", "1"
-			).endObject(),
+			JSONUtil.put("alpha", JSONUtil.put("position", "1")),
 			documentBuilder -> documentBuilder.setValue(
 				"alpha", Collections.singletonMap("position", "1")));
 	}
 
 	@Test
 	public void testMultipleInnerObjects() throws IOException {
+		Map<String, Object> values = HashMapBuilder.<String, Object>put(
+			"age", 30
+		).put(
+			"name",
+			HashMapBuilder.put(
+				"first", "John"
+			).put(
+				"last", "Smith"
+			).build()
+		).build();
+
 		_assertDocument(
-			xContentBuilder -> xContentBuilder.field(
+			JSONUtil.put(
+				"manager", JSONFactoryUtil.createJSONObject(values)
+			).put(
 				"region", "US"
-			).field(
-				"manager",
-				HashMapBuilder.<String, Object>put(
-					"age", 30
-				).put(
-					"name",
-					HashMapBuilder.put(
-						"first", "John"
-					).put(
-						"last", "Smith"
-					).build()
-				).build()
 			),
 			documentBuilder -> documentBuilder.setString(
 				"region", "US"
 			).setValue(
-				"manager",
-				HashMapBuilder.<String, Object>put(
-					"age", 30
-				).put(
-					"name",
-					HashMapBuilder.put(
-						"first", "John"
-					).put(
-						"last", "Smith"
-					).build()
-				).build()
+				"manager", values
 			));
 	}
 
 	@Test
 	public void testMultipleValuesSetStrings() throws IOException {
 		_assertDocument(
-			xContentBuilder -> xContentBuilder.array(
-				"alpha", new String[] {"one", "two", "three"}),
+			_toJsonData("alpha", new String[] {"one", "two", "three"}),
 			documentBuilder -> documentBuilder.setStrings(
 				"alpha", "one", "two", "three"));
 	}
@@ -178,8 +138,7 @@ public class ElasticsearchDocumentFactoryTest {
 	@Test
 	public void testMultipleValuesSetValue() throws IOException {
 		_assertDocument(
-			xContentBuilder -> xContentBuilder.array(
-				"alpha", new String[] {"one", "two", "three"}),
+			_toJsonData("alpha", new String[] {"one", "two", "three"}),
 			documentBuilder -> documentBuilder.setValue(
 				"alpha", Arrays.asList("one", "two", "three")));
 	}
@@ -187,15 +146,14 @@ public class ElasticsearchDocumentFactoryTest {
 	@Test
 	public void testMultipleValuesSetValues() throws IOException {
 		_assertDocument(
-			xContentBuilder -> xContentBuilder.array(
-				"alpha", new String[] {"one", "two", "three"}),
+			_toJsonData("alpha", new String[] {"one", "two", "three"}),
 			documentBuilder -> documentBuilder.setValues(
 				"alpha", Arrays.asList("one", "two", "three")));
 	}
 
 	@Test
 	public void testNull() throws Exception {
-		_assertDocumentSameAsLegacy(null, "{}");
+		_assertDocumentSameAsLegacy("{}", null);
 	}
 
 	@Test
@@ -214,83 +172,90 @@ public class ElasticsearchDocumentFactoryTest {
 
 	@Test
 	public void testSpaces() throws Exception {
-		_assertDocument(StringPool.SPACE, "{\"field\":\" \"}");
-
-		_assertDocument(StringPool.THREE_SPACES, "{\"field\":\"   \"}");
+		_assertDocument("{\"field\":\" \"}", StringPool.SPACE);
+		_assertDocument("{\"field\":\"   \"}", StringPool.THREE_SPACES);
 	}
 
 	@Test
 	public void testSpacesLegacy() throws Exception {
-		assertDocumentLegacy(StringPool.SPACE, "{\"field\":\"\"}");
-
-		assertDocumentLegacy(StringPool.THREE_SPACES, "{\"field\":\"\"}");
+		assertDocumentLegacy("{\"field\":\"\"}", StringPool.SPACE);
+		assertDocumentLegacy("{\"field\":\"\"}", StringPool.THREE_SPACES);
 	}
 
 	@Test
 	public void testStringBlank() throws Exception {
-		_assertDocumentSameAsLegacy(StringPool.BLANK, "{\"field\":\"\"}");
+		_assertDocumentSameAsLegacy("{\"field\":\"\"}", StringPool.BLANK);
 	}
 
 	@Test
 	public void testStringNull() throws Exception {
-		_assertDocumentSameAsLegacy(StringPool.NULL, "{\"field\":\"null\"}");
-	}
-
-	public interface XContentBuilderConsumer {
-
-		public void accept(XContentBuilder xContentBuilder) throws IOException;
-
+		_assertDocumentSameAsLegacy("{\"field\":\"null\"}", StringPool.NULL);
 	}
 
 	@SuppressWarnings("deprecation")
-	protected void assertDocumentLegacy(String value, String json) {
+	protected void assertDocumentLegacy(String expected, String value) {
 		com.liferay.portal.kernel.search.Document document = new DocumentImpl();
 
 		document.addText(_FIELD, new String[] {value});
 
+		JsonData jsonData =
+			ElasticsearchDocumentFactoryUtil.getElasticsearchDocument(document);
+
 		Assert.assertEquals(
-			json,
-			_elasticsearchDocumentFactory.getElasticsearchDocument(document));
+			expected,
+			String.valueOf(jsonData.toJson(new JacksonJsonpMapper())));
 	}
 
 	protected DocumentBuilder builder() {
-		return new DocumentBuilderImpl();
+		return new DocumentBuilder();
+	}
+
+	private void _assertDocument(
+		JsonData expectedJsonData,
+		Consumer<DocumentBuilder> documentBuilderConsumer) {
+
+		JsonData actualJsonData =
+			ElasticsearchDocumentFactoryUtil.getElasticsearchDocument(
+				_buildDocument(documentBuilderConsumer));
+
+		Assert.assertEquals(
+			String.valueOf(expectedJsonData.toJson(new JacksonJsonpMapper())),
+			String.valueOf(actualJsonData.toJson(new JacksonJsonpMapper())));
+	}
+
+	private void _assertDocument(
+		JSONObject expectedJSONObject,
+		Consumer<DocumentBuilder> documentBuilderConsumer) {
+
+		JsonData jsonData =
+			ElasticsearchDocumentFactoryUtil.getElasticsearchDocument(
+				_buildDocument(documentBuilderConsumer));
+
+		Assert.assertEquals(
+			expectedJSONObject.toString(),
+			String.valueOf(jsonData.toJson(new JacksonJsonpMapper())));
 	}
 
 	private void _assertDocument(
 		String expected, DocumentBuilder documentBuilder) {
 
+		JsonData jsonData =
+			ElasticsearchDocumentFactoryUtil.getElasticsearchDocument(
+				documentBuilder.build());
+
 		Assert.assertEquals(
 			expected,
-			Strings.toString(
-				_elasticsearchDocumentFactory.getElasticsearchDocument(
-					documentBuilder.build())));
+			String.valueOf(jsonData.toJson(new JacksonJsonpMapper())));
 	}
 
-	private void _assertDocument(String value, String json) {
+	private void _assertDocument(String expected, String value) {
 		_assertDocument(
-			json, builder().setStrings(_FIELD, new String[] {value}));
+			expected, builder().setStrings(_FIELD, new String[] {value}));
 	}
 
-	private void _assertDocument(
-		XContentBuilderConsumer expectedXContentBuilderConsumer,
-		Consumer<DocumentBuilder> actualDocumentBuilderConsumer) {
-
-		XContentBuilder expectedXContentBuilder = _createXContentBuilder(
-			expectedXContentBuilderConsumer);
-
-		XContentBuilder actualXContentBuilder =
-			_elasticsearchDocumentFactory.getElasticsearchDocument(
-				_buildDocument(actualDocumentBuilderConsumer));
-
-		Assert.assertEquals(
-			Strings.toString(expectedXContentBuilder),
-			Strings.toString(actualXContentBuilder));
-	}
-
-	private void _assertDocumentSameAsLegacy(String value, String json) {
-		_assertDocument(value, json);
-		assertDocumentLegacy(value, json);
+	private void _assertDocumentSameAsLegacy(String expected, String value) {
+		_assertDocument(expected, value);
+		assertDocumentLegacy(expected, value);
 	}
 
 	private Document _buildDocument(
@@ -303,26 +268,15 @@ public class ElasticsearchDocumentFactoryTest {
 		return documentBuilder.build();
 	}
 
-	private XContentBuilder _createXContentBuilder(
-		XContentBuilderConsumer xContentBuilderConsumer) {
-
-		try {
-			XContentBuilder xContentBuilder = XContentFactory.jsonBuilder();
-
-			xContentBuilder.startObject();
-
-			xContentBuilderConsumer.accept(xContentBuilder);
-
-			return xContentBuilder.endObject();
-		}
-		catch (IOException ioException) {
-			throw new RuntimeException(ioException);
-		}
+	private JsonData _toJsonData(String fieldName, String[] values) {
+		return JsonData.of(
+			HashMapBuilder.put(
+				fieldName, values
+			).build());
 	}
 
 	private static final String _FIELD = "field";
 
 	private final DocumentFixture _documentFixture = new DocumentFixture();
-	private ElasticsearchDocumentFactory _elasticsearchDocumentFactory;
 
 }

@@ -5,6 +5,7 @@
 
 package com.liferay.object.internal.search.spi.model.index.contributor;
 
+import com.liferay.object.constants.ObjectFieldConstants;
 import com.liferay.object.constants.ObjectFieldSettingConstants;
 import com.liferay.object.model.ObjectField;
 import com.liferay.object.model.ObjectFieldSetting;
@@ -51,9 +52,11 @@ public class ObjectFieldModelDocumentContributor
 		document.addKeyword("objectFieldId", objectField.getObjectFieldId());
 		document.addKeyword("state", objectField.isState());
 
-		if (objectField.hasUniqueValues()) {
-			document.addKeyword(
-				"unique", _isUnique(objectField.getObjectFieldId()));
+		if (objectField.compareBusinessType(
+				ObjectFieldConstants.BUSINESS_TYPE_AUTO_INCREMENT) ||
+			_isUnique(objectField.getObjectFieldId())) {
+
+			document.addKeyword("unique", true);
 		}
 
 		document.remove(Field.USER_NAME);
@@ -62,12 +65,7 @@ public class ObjectFieldModelDocumentContributor
 	private boolean _isUnique(long objectFieldId) {
 		Set<Long> uniqueObjectFieldIds =
 			ReindexCacheThreadLocal.getGlobalReindexCache(
-
-				// Skip size check because there are only a limited number of
-				// unique object field settings
-
-				() -> -1,
-				ObjectFieldModelDocumentContributor.class.getName(),
+				() -> -1, ObjectFieldModelDocumentContributor.class.getName(),
 				count -> new HashSet<>(
 					_objectFieldSettingLocalService.dslQuery(
 						DSLQueryFactoryUtil.select(
@@ -80,8 +78,7 @@ public class ObjectFieldModelDocumentContributor
 							).and(
 								DSLFunctionFactoryUtil.lower(
 									DSLFunctionFactoryUtil.castClobText(
-										ObjectFieldSettingTable.INSTANCE.value
-									)
+										ObjectFieldSettingTable.INSTANCE.value)
 								).eq(
 									StringPool.TRUE
 								)

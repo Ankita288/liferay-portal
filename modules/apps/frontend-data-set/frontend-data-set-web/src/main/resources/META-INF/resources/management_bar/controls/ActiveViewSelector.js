@@ -10,7 +10,6 @@ import {sub} from 'frontend-js-web';
 import React, {useContext} from 'react';
 
 import FrontendDataSetContext from '../../FrontendDataSetContext';
-import {saveViewSettings} from '../../utils/saveViewSettings';
 import ViewsContext from '../../views/ViewsContext';
 
 const ActiveViewSelectorTrigger = React.forwardRef(
@@ -28,21 +27,8 @@ const ActiveViewSelectorTrigger = React.forwardRef(
 );
 
 function ActiveViewSelector({views}) {
-	const {appURL, id, portletId, updateView} = useContext(
-		FrontendDataSetContext
-	);
-	const [{activeView}, viewsDispatch] = useContext(ViewsContext);
-
-	const handleSelectionChange = (value) => {
-		viewsDispatch(updateView(value));
-
-		saveViewSettings({
-			appURL,
-			id,
-			portletId,
-			settings: {name: value},
-		});
-	};
+	const {onViewChange} = useContext(FrontendDataSetContext);
+	const [{activeView}] = useContext(ViewsContext);
 
 	return (
 		<Picker
@@ -57,7 +43,7 @@ function ActiveViewSelector({views}) {
 					Liferay.Language.get('scroll-to-bottom'),
 				scrollToTopAriaLabel: Liferay.Language.get('scroll-to-top'),
 			}}
-			onSelectionChange={handleSelectionChange}
+			onSelectionChange={onViewChange}
 			selectedKey={activeView.name}
 			symbol={activeView.thumbnail}
 			title={sub(

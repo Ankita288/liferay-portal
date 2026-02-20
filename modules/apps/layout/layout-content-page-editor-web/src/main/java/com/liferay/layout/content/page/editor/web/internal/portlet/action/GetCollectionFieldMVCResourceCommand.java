@@ -77,6 +77,7 @@ import com.liferay.portal.kernel.util.ParamUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
+import com.liferay.segments.constants.SegmentsEntryConstants;
 import com.liferay.segments.model.SegmentsExperience;
 import com.liferay.segments.service.SegmentsExperienceLocalService;
 
@@ -89,7 +90,6 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 import org.osgi.service.component.annotations.Component;
@@ -146,6 +146,7 @@ public class GetCollectionFieldMVCResourceCommand
 
 		try {
 			jsonObject = _getCollectionFieldsJSONObject(
+				themeDisplay.getCompanyId(),
 				_portal.getHttpServletRequest(resourceRequest),
 				_portal.getHttpServletResponse(resourceResponse), activePage,
 				displayAllItems, displayAllPages, languageId,
@@ -176,10 +177,16 @@ public class GetCollectionFieldMVCResourceCommand
 			_segmentsExperienceLocalService.fetchSegmentsExperience(
 				segmentsExperienceId);
 
+		long segmentsEntryId = segmentsExperience.getSegmentsEntryId();
+
+		if (segmentsEntryId == SegmentsEntryConstants.ID_MISSING) {
+			return new long[0];
+		}
+
 		if (!(layoutListRetriever instanceof
 				SegmentsEntryLayoutListRetriever)) {
 
-			return new long[] {segmentsExperience.getSegmentsEntryId()};
+			return new long[] {segmentsEntryId};
 		}
 
 		SegmentsEntryLayoutListRetriever<ListObjectReference>
@@ -188,9 +195,9 @@ public class GetCollectionFieldMVCResourceCommand
 					layoutListRetriever;
 
 		if (segmentsEntryLayoutListRetriever.hasSegmentsEntryVariation(
-				listObjectReference, segmentsExperience.getSegmentsEntryId())) {
+				listObjectReference, segmentsEntryId)) {
 
-			return new long[] {segmentsExperience.getSegmentsEntryId()};
+			return new long[] {segmentsEntryId};
 		}
 
 		return new long[] {
@@ -216,7 +223,7 @@ public class GetCollectionFieldMVCResourceCommand
 	}
 
 	private JSONObject _getCollectionFieldsJSONObject(
-			HttpServletRequest httpServletRequest,
+			long companyId, HttpServletRequest httpServletRequest,
 			HttpServletResponse httpServletResponse, int activePage,
 			boolean displayAllItems, boolean displayAllPages, String languageId,
 			String layoutObjectReference, String listStyle,
@@ -247,7 +254,7 @@ public class GetCollectionFieldMVCResourceCommand
 
 		ListObjectReference listObjectReference =
 			listObjectReferenceFactory.getListObjectReference(
-				layoutObjectReferenceJSONObject);
+				companyId, scopeGroupId, layoutObjectReferenceJSONObject);
 
 		String originalItemType = null;
 
@@ -308,7 +315,7 @@ public class GetCollectionFieldMVCResourceCommand
 			LayoutObjectReferenceUtil.getConfiguration(
 				layoutObjectReferenceJSONObject));
 		defaultLayoutListRetrieverContext.setContextObject(
-			_getInfoItem(httpServletRequest));
+			_getInfoItem(httpServletRequest, scopeGroupId));
 		defaultLayoutListRetrieverContext.setPagination(
 			CollectionPaginationUtil.getPagination(
 				activePage, displayAllItems, numberOfItems,
@@ -384,12 +391,17 @@ public class GetCollectionFieldMVCResourceCommand
 			() -> {
 				JSONArray jsonArray = _jsonFactory.createJSONArray();
 
+				FragmentEntryProcessorContext fragmentEntryProcessorContext =
+					new DefaultFragmentEntryProcessorContext(
+						companyId, httpServletRequest, httpServletResponse,
+						LocaleUtil.fromLanguageId(languageId),
+						FragmentEntryLinkConstants.EDIT, scopeGroupId);
+
 				for (Object object : infoPage.getPageItems()) {
 					jsonArray.put(
 						_getDisplayObjectJSONObject(
-							httpServletRequest, httpServletResponse,
-							infoItemFieldValuesProvider, object,
-							LocaleUtil.fromLanguageId(languageId)));
+							fragmentEntryProcessorContext,
+							infoItemFieldValuesProvider, object));
 				}
 
 				return jsonArray;
@@ -499,10 +511,9 @@ public class GetCollectionFieldMVCResourceCommand
 	}
 
 	private JSONObject _getDisplayObjectJSONObject(
-		HttpServletRequest httpServletRequest,
-		HttpServletResponse httpServletResponse,
+		FragmentEntryProcessorContext fragmentEntryProcessorContext,
 		InfoItemFieldValuesProvider<Object> infoItemFieldValuesProvider,
-		Object object, Locale locale) {
+		Object object) {
 
 		InfoItemFieldValues infoItemFieldValues =
 			infoItemFieldValuesProvider.getInfoItemFieldValues(object);
@@ -550,11 +561,6 @@ public class GetCollectionFieldMVCResourceCommand
 			}
 		);
 
-		FragmentEntryProcessorContext fragmentEntryProcessorContext =
-			new DefaultFragmentEntryProcessorContext(
-				httpServletRequest, httpServletResponse,
-				FragmentEntryLinkConstants.EDIT, locale);
-
 		for (InfoFieldValue<Object> infoFieldValue :
 				infoItemFieldValues.getInfoFieldValues()) {
 
@@ -568,6 +574,8 @@ public class GetCollectionFieldMVCResourceCommand
 					fragmentEntryProcessorContext, infoItemFieldValues);
 
 			displayObjectJSONObject.put(
+				infoField.getExternalUniqueId(), value
+			).put(
 				infoField.getName(), value
 			).put(
 				infoField.getUniqueId(), value
@@ -598,7 +606,9 @@ public class GetCollectionFieldMVCResourceCommand
 				InfoItemFieldValuesProvider.class, itemType);
 	}
 
-	private Object _getInfoItem(HttpServletRequest httpServletRequest) {
+	private Object _getInfoItem(
+		HttpServletRequest httpServletRequest, long scopeGroupId) {
+
 		String className = _portal.fetchClassName(
 			ParamUtil.getLong(httpServletRequest, "classNameId"));
 
@@ -643,7 +653,8 @@ public class GetCollectionFieldMVCResourceCommand
 		}
 
 		try {
-			return infoItemObjectProvider.getInfoItem(infoItemIdentifier);
+			return infoItemObjectProvider.getInfoItem(
+				scopeGroupId, infoItemIdentifier);
 		}
 		catch (NoSuchInfoItemException noSuchInfoItemException) {
 			if (_log.isDebugEnabled()) {

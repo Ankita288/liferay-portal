@@ -28,7 +28,6 @@ import com.liferay.layout.list.retriever.ListObjectReference;
 import com.liferay.layout.list.retriever.ListObjectReferenceFactory;
 import com.liferay.layout.list.retriever.ListObjectReferenceFactoryRegistry;
 import com.liferay.petra.string.StringPool;
-import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONException;
 import com.liferay.portal.kernel.json.JSONFactory;
@@ -37,9 +36,7 @@ import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
-import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
-import com.liferay.portal.kernel.service.LayoutSetLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.ServiceContextThreadLocal;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
@@ -214,7 +211,8 @@ public class FragmentEntryConfigurationParserImpl
 				}
 
 				Object contextListObject = _getInfoListObjectEntry(
-					themeDisplay.getScopeGroupId(), segmentsEntryIds,
+					themeDisplay.getCompanyId(), themeDisplay.getScopeGroupId(),
+					segmentsEntryIds,
 					fragmentConfigurationField.getTypeOptionsJSONObject(),
 					configurationValuesJSONObject.getString(name));
 
@@ -299,6 +297,15 @@ public class FragmentEntryConfigurationParserImpl
 		}
 
 		return null;
+	}
+
+	@Override
+	public Object getFieldValue(
+		JSONObject configurationJSONObject, JSONObject editableValuesJSONObject,
+		String name) {
+
+		return getFieldValue(
+			configurationJSONObject, editableValuesJSONObject, null, name);
 	}
 
 	@Override
@@ -387,24 +394,9 @@ public class FragmentEntryConfigurationParserImpl
 			return fieldValue;
 		}
 
-		FrontendTokenDefinition frontendTokenDefinition = null;
-
-		if (FeatureFlagManagerUtil.isEnabled(
-				themeDisplay.getCompanyId(), "LPD-30204")) {
-
-			frontendTokenDefinition =
-				_frontendTokenDefinitionRegistry.getFrontendTokenDefinition(
-					themeDisplay.getLayout());
-		}
-		else {
-			Group group = themeDisplay.getScopeGroup();
-
-			frontendTokenDefinition =
-				_frontendTokenDefinitionRegistry.getFrontendTokenDefinition(
-					_layoutSetLocalService.fetchLayoutSet(
-						themeDisplay.getSiteGroupId(),
-						group.isLayoutSetPrototype()));
-		}
+		FrontendTokenDefinition frontendTokenDefinition =
+			_frontendTokenDefinitionRegistry.getFrontendTokenDefinition(
+				themeDisplay.getLayout());
 
 		if (frontendTokenDefinition == null) {
 			return fieldValue;
@@ -455,7 +447,7 @@ public class FragmentEntryConfigurationParserImpl
 		String parsedValue = GetterUtil.getString(value);
 
 		if (fragmentConfigurationField.isLocalizable() &&
-			JSONUtil.isJSONObject(parsedValue)) {
+			JSONUtil.isJSONObject(parsedValue) && (locale != null)) {
 
 			try {
 				JSONObject valueJSONObject = _jsonFactory.createJSONObject(
@@ -478,6 +470,13 @@ public class FragmentEntryConfigurationParserImpl
 
 		if (StringUtil.equalsIgnoreCase(
 				fragmentConfigurationField.getType(), "checkbox")) {
+
+			if (fragmentConfigurationField.isLocalizable() &&
+				(locale == null)) {
+
+				return _getFieldValue(
+					FragmentConfigurationFieldDataType.OBJECT, parsedValue);
+			}
 
 			return _getFieldValue(
 				FragmentConfigurationFieldDataType.BOOLEAN, parsedValue);
@@ -505,6 +504,13 @@ public class FragmentEntryConfigurationParserImpl
 		else if (StringUtil.equalsIgnoreCase(
 					fragmentConfigurationField.getType(), "colorPicker")) {
 
+			if (fragmentConfigurationField.isLocalizable() &&
+				(locale == null)) {
+
+				return _getFieldValue(
+					FragmentConfigurationFieldDataType.OBJECT, parsedValue);
+			}
+
 			String fieldValue = (String)_getFieldValue(
 				FragmentConfigurationFieldDataType.STRING, parsedValue);
 
@@ -521,6 +527,13 @@ public class FragmentEntryConfigurationParserImpl
 					 fragmentConfigurationField.getType(), "select") ||
 				 StringUtil.equalsIgnoreCase(
 					 fragmentConfigurationField.getType(), "text")) {
+
+			if (fragmentConfigurationField.isLocalizable() &&
+				(locale == null)) {
+
+				return _getFieldValue(
+					FragmentConfigurationFieldDataType.OBJECT, parsedValue);
+			}
 
 			FragmentConfigurationFieldDataType
 				fragmentConfigurationFieldDataType =
@@ -711,7 +724,7 @@ public class FragmentEntryConfigurationParserImpl
 	}
 
 	private Object _getInfoListObjectEntry(
-		long scopeGroupId, long[] segmentsEntryIds,
+		long companyId, long scopeGroupId, long[] segmentsEntryIds,
 		JSONObject typeOptionsJSONObject, String value) {
 
 		if (Validator.isNull(value)) {
@@ -762,7 +775,8 @@ public class FragmentEntryConfigurationParserImpl
 				segmentsEntryIds);
 
 			InfoPage<?> infoPage = layoutListRetriever.getInfoPage(
-				listObjectReferenceFactory.getListObjectReference(jsonObject),
+				listObjectReferenceFactory.getListObjectReference(
+					companyId, scopeGroupId, jsonObject),
 				defaultLayoutListRetrieverContext);
 
 			return infoPage.getPageItems();
@@ -954,9 +968,6 @@ public class FragmentEntryConfigurationParserImpl
 
 	@Reference
 	private LayoutReferenceResolver _layoutReferenceResolver;
-
-	@Reference
-	private LayoutSetLocalService _layoutSetLocalService;
 
 	@Reference
 	private ListObjectReferenceFactoryRegistry

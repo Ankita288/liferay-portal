@@ -8,11 +8,26 @@ components:
                     type: string
                 url:
                     type: string
+        AssignToBulkAction:
+            allOf:
+                -   $ref: "#/components/schemas/BulkAction"
+                -   properties:
+                        className:
+                            type: string
+                        externalReferenceCode:
+                            type: string
+                        name:
+                            type: string
         BulkAction:
             discriminator:
                 mapping:
+                    AssignToBulkAction: "#/components/schemas/AssignToBulkAction"
+                    CopyBulkAction: "#/components/schemas/CopyBulkAction"
                     DefaultPermissionBulkAction: "#/components/schemas/DefaultPermissionBulkAction"
+                    DeleteAssetVersionBulkAction: "#/components/schemas/DeleteAssetVersionBulkAction"
                     DeleteBulkAction: "#/components/schemas/DeleteBulkAction"
+                    DueDateBulkAction: "#/components/schemas/DueDateBulkAction"
+                    ExpireBulkAction: "#/components/schemas/ExpireBulkAction"
                     KeywordBulkAction: "#/components/schemas/KeywordBulkAction"
                     MoveBulkAction: "#/components/schemas/MoveBulkAction"
                     PermissionBulkAction: "#/components/schemas/PermissionBulkAction"
@@ -29,8 +44,13 @@ components:
                     $ref: "#/components/schemas/SelectionScope"
                 type:
                     enum:
+                        -   AssignToBulkAction
+                        -   CopyBulkAction
                         -   DefaultPermissionBulkAction
+                        -   DeleteAssetVersionBulkAction
                         -   DeleteBulkAction
+                        -   DueDateBulkAction
+                        -   ExpireBulkAction
                         -   KeywordBulkAction
                         -   MoveBulkAction
                         -   PermissionBulkAction
@@ -76,6 +96,15 @@ components:
                     type: integer
                 type:
                     type: string
+        CopyBulkAction:
+            allOf:
+                -   $ref: "#/components/schemas/BulkAction"
+                -   properties:
+                        objectEntryFolderId:
+                            description:
+                                The object entry folder's ID.
+                            format: int64
+                            type: integer
         DefaultPermissionBulkAction:
             allOf:
                 -   $ref: "#/components/schemas/BulkAction"
@@ -89,6 +118,14 @@ components:
                             type: string
                         treePath:
                             type: string
+        DeleteAssetVersionBulkAction:
+            allOf:
+                -   $ref: "#/components/schemas/BulkAction"
+                -   properties:
+                        versions:
+                            items:
+                                type: integer
+                            type: array
         DeleteBulkAction:
             allOf:
                 -   $ref: "#/components/schemas/BulkAction"
@@ -100,6 +137,16 @@ components:
                     type: array
                 selectionScope:
                     $ref: "#/components/schemas/SelectionScope"
+        DueDateBulkAction:
+            allOf:
+                -   $ref: "#/components/schemas/BulkAction"
+                -   properties:
+                        dueDate:
+                            format: date-time
+                            type: string
+        ExpireBulkAction:
+            allOf:
+                -   $ref: "#/components/schemas/BulkAction"
         GenericError:
             description:
                 https://www.schema.org/GenericError
@@ -188,8 +235,7 @@ components:
                 -   $ref: "#/components/schemas/BulkAction"
                 -   properties:
                         status:
-                            format: int32
-                            type: integer
+                            type: string
         TaxonomyCategory:
             properties:
                 taxonomyCategoryId:
@@ -246,7 +292,7 @@ components:
 info:
     description:
         "A Java client JAR is available for use with the group ID 'com.liferay', artifact ID
-        'com.liferay.bulk.rest.client', and version '3.0.35'."
+        'com.liferay.bulk.rest.client', and version '3.0.38'."
     license:
         name: Apache 2.0
         url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -439,14 +485,63 @@ paths:
     "/keywords/common":
         post:
             operationId: postKeywordsCommonPage
+            parameters:
+                -   in: query
+                    name: blueprintExternalReferenceCode
+                    schema:
+                        type: string
+                -   in: query
+                    name: emptySearch
+                    schema:
+                        type: boolean
+                -   in: query
+                    description:
+                        Model class names to be searched for. Defaults to all.
+                    name: entryClassNames
+                    schema:
+                        type: string
+                -   in: query
+                    description:
+                        The list of fields to be returned.
+                    name: fields
+                    schema:
+                        type: string
+                -   in: query
+                    name: filter
+                    schema:
+                        type: string
+                -   in: query
+                    name: nestedFields
+                    schema:
+                        type: string
+                -   in: query
+                    name: restrictFields
+                    schema:
+                        type: string
+                -   in: query
+                    name: scope
+                    schema:
+                        type: string
+                -   in: query
+                    name: search
+                    schema:
+                        type: string
+                -   in: query
+                    name: sort
+                    schema:
+                        type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: "#/components/schemas/DocumentBulkSelection"
+                            oneOf:
+                                -   $ref: "#/components/schemas/BulkAction"
+                                -   $ref: "#/components/schemas/DocumentBulkSelection"
                     application/xml:
                         schema:
-                            $ref: "#/components/schemas/DocumentBulkSelection"
+                            oneOf:
+                                -   $ref: "#/components/schemas/BulkAction"
+                                -   $ref: "#/components/schemas/DocumentBulkSelection"
             responses:
                 200:
                     content:
@@ -471,14 +566,62 @@ paths:
                     schema:
                         format: int64
                         type: integer
+                -   in: query
+                    name: blueprintExternalReferenceCode
+                    schema:
+                        type: string
+                -   in: query
+                    name: emptySearch
+                    schema:
+                        type: boolean
+                -   in: query
+                    description:
+                        Model class names to be searched for. Defaults to all.
+                    name: entryClassNames
+                    schema:
+                        type: string
+                -   in: query
+                    description:
+                        The list of fields to be returned.
+                    name: fields
+                    schema:
+                        type: string
+                -   in: query
+                    name: filter
+                    schema:
+                        type: string
+                -   in: query
+                    name: nestedFields
+                    schema:
+                        type: string
+                -   in: query
+                    name: restrictFields
+                    schema:
+                        type: string
+                -   in: query
+                    name: scope
+                    schema:
+                        type: string
+                -   in: query
+                    name: search
+                    schema:
+                        type: string
+                -   in: query
+                    name: sort
+                    schema:
+                        type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: "#/components/schemas/DocumentBulkSelection"
+                            oneOf:
+                                -   $ref: "#/components/schemas/BulkAction"
+                                -   $ref: "#/components/schemas/DocumentBulkSelection"
                     application/xml:
                         schema:
-                            $ref: "#/components/schemas/DocumentBulkSelection"
+                            oneOf:
+                                -   $ref: "#/components/schemas/BulkAction"
+                                -   $ref: "#/components/schemas/DocumentBulkSelection"
             responses:
                 200:
                     content:

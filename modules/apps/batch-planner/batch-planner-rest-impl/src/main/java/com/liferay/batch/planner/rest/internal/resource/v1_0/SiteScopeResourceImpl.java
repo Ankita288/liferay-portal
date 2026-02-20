@@ -15,9 +15,11 @@ import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.model.Company;
 import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.model.GroupConstants;
 import com.liferay.portal.kernel.model.Organization;
 import com.liferay.portal.kernel.service.GroupService;
 import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.vulcan.pagination.Page;
 import com.liferay.portal.vulcan.util.OpenAPIUtil;
 import com.liferay.portal.vulcan.yaml.openapi.OpenAPIYAML;
@@ -43,34 +45,36 @@ public class SiteScopeResourceImpl extends BaseSiteScopeResourceImpl {
 			String internalClassNameKey, Boolean export)
 		throws Exception {
 
+		return Page.of(
+			_getSiteScopes(
+				_getEntityScopes(
+					GetterUtil.getBoolean(export), internalClassNameKey)));
+	}
+
+	private List<String> _getEntityScopes(
+			boolean export, String internalClassNameKey)
+		throws Exception {
+
 		if (internalClassNameKey.contains(StringPool.POUND)) {
 			ObjectDefinition objectDefinition =
 				_objectDefinitionLocalService.getObjectDefinition(
 					contextCompany.getCompanyId(),
 					TaskItemUtil.getTaskItemDelegateName(internalClassNameKey));
 
-			return Page.of(
-				_getSiteScopes(
-					Collections.singletonList(objectDefinition.getScope())));
+			return Collections.singletonList(objectDefinition.getScope());
 		}
-
-		List<String> entityScopes = null;
 
 		OpenAPIYAML openAPIYAML = _openAPIYAMLProvider.getOpenAPIYAML(
 			contextCompany.getCompanyId(), internalClassNameKey);
 
-		if (GetterUtil.getBoolean(export)) {
-			entityScopes = OpenAPIUtil.getReadEntityScopes(
-				TaskItemUtil.getSimpleClassName(internalClassNameKey),
-				openAPIYAML);
-		}
-		else {
-			entityScopes = OpenAPIUtil.getCreateEntityScopes(
+		if (export) {
+			return OpenAPIUtil.getReadEntityScopes(
 				TaskItemUtil.getSimpleClassName(internalClassNameKey),
 				openAPIYAML);
 		}
 
-		return Page.of(_getSiteScopes(entityScopes));
+		return OpenAPIUtil.getCreateEntityScopes(
+			TaskItemUtil.getSimpleClassName(internalClassNameKey), openAPIYAML);
 	}
 
 	private List<SiteScope> _getSiteScopes(List<String> entityScopes)
@@ -80,8 +84,21 @@ public class SiteScopeResourceImpl extends BaseSiteScopeResourceImpl {
 			return Collections.emptyList();
 		}
 
+		if (_portal.isOmniadmin(contextUser.getUserId())) {
+			return _toSiteScopes(
+				_groupService.getGroups(
+					contextCompany.getCompanyId(),
+					GroupConstants.ANY_PARENT_GROUP_ID, true));
+		}
+
+		return _toSiteScopes(
+			_groupService.getUserSitesGroups(
+				contextUser.getUserId(), _CLASS_NAMES, QueryUtil.ALL_POS));
+	}
+
+	private List<SiteScope> _toSiteScopes(List<Group> groups) {
 		return transform(
-			_groupService.getUserSitesGroups(_CLASS_NAMES, QueryUtil.ALL_POS),
+			groups,
 			group -> new SiteScope() {
 				{
 					setLabel(group::getDescriptiveName);
@@ -103,5 +120,8 @@ public class SiteScopeResourceImpl extends BaseSiteScopeResourceImpl {
 
 	@Reference
 	private OpenAPIYAMLProvider _openAPIYAMLProvider;
+
+	@Reference
+	private Portal _portal;
 
 }

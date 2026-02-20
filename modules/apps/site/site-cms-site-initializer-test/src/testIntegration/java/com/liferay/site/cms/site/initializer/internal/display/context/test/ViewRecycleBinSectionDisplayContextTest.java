@@ -26,6 +26,7 @@ import com.liferay.portal.kernel.test.rule.Sync;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.HashMapBuilder;
+import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.test.rule.FeatureFlag;
@@ -80,7 +81,8 @@ public class ViewRecycleBinSectionDisplayContextTest
 					).put(
 						"href", (String)null
 					).put(
-						"label", "recycle-bin"
+						"label",
+						language.get(LocaleUtil.getDefault(), "recycle-bin")
 					))
 			).put(
 				"hideSpace", true
@@ -135,13 +137,16 @@ public class ViewRecycleBinSectionDisplayContextTest
 
 		assertFDSActionDropdownItem(
 			fdsActionDropdownItems.get(0), "view", "actionLinkFolder",
-			"view-folder", "get", "item");
+			"view-folder", "get", "item",
+			HashMapBuilder.<String, Object>put(
+				"entryClassName", ObjectEntryFolder.class.getName()
+			).build());
 		assertFDSActionDropdownItem(
 			fdsActionDropdownItems.get(1), "trash", "delete", "delete",
-			"delete", "item");
+			"delete", "item", null);
 		assertFDSActionDropdownItem(
 			fdsActionDropdownItems.get(2), "restore", "restore", "restore",
-			"restore", "item");
+			"restore", "item", null);
 	}
 
 	@Override

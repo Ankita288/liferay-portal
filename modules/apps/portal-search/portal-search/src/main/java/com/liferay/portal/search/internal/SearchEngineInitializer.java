@@ -155,6 +155,8 @@ public class SearchEngineInitializer implements Runnable {
 		try {
 			Date date = null;
 
+			boolean fullMode = false;
+
 			if (_isExecuteConcurrentReindex()) {
 				SearchEngineHelperUtil.initialize(_companyId);
 
@@ -166,10 +168,14 @@ public class SearchEngineInitializer implements Runnable {
 				Thread.sleep(1000);
 			}
 			else {
+				fullMode = true;
+
 				SearchEngineHelperUtil.removeCompany(_companyId);
 
 				SearchEngineHelperUtil.initialize(_companyId);
 			}
+
+			boolean finalFullMode = fullMode;
 
 			long backgroundTaskId =
 				BackgroundTaskThreadLocal.getBackgroundTaskId();
@@ -204,7 +210,7 @@ public class SearchEngineInitializer implements Runnable {
 											backgroundTaskId);
 								SafeCloseable safeCloseable2 =
 									ReindexCacheThreadLocal.openReindexMode(
-										sharedReindexCacheMap)) {
+										finalFullMode, sharedReindexCacheMap)) {
 
 								reindex(indexer);
 

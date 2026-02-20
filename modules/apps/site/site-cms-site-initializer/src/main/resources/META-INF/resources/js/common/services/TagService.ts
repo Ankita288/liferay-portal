@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
+import {composeCreateTaskDTO} from '../../main_view/bulk_actions_monitor/util';
+import {IBulkActionFDSData} from '../types/BulkActionTask';
 import {Tag} from '../types/Tag';
 import ApiHelper from './ApiHelper';
 
@@ -27,12 +29,37 @@ async function createTag({
 		};
 	}
 
-	return await ApiHelper.post<Tag>(
-		`/o/headless-admin-taxonomy/v1.0/sites/${cmsGroupId}/keywords`,
-		requestBody
+	const url = `/o/headless-admin-taxonomy/v1.0/sites/${cmsGroupId}/keywords`;
+
+	const {data, error} = await ApiHelper.get<{items: Tag[]}>(
+		`${url}?filter=name eq '${name}'`
+	);
+
+	if (error) {
+		throw new Error(error);
+	}
+
+	const tag = data?.items[0];
+
+	if (tag) {
+		if (assetLibraryId) {
+			return ApiHelper.patch<Tag>(requestBody, url);
+		}
+
+		return {data: tag, error: null, status: null};
+	}
+
+	return ApiHelper.post<Tag>(url, requestBody);
+}
+
+async function getCommonTags(selectedData: IBulkActionFDSData) {
+	return await ApiHelper.post<any>(
+		`/o/bulk/v1.0/keywords/common`,
+		composeCreateTaskDTO('KeywordBulkAction', {}, selectedData)
 	);
 }
 
 export default {
 	createTag,
+	getCommonTags,
 };

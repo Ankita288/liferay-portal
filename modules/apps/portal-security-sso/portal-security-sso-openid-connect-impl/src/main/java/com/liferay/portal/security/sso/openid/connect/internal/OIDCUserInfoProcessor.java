@@ -5,6 +5,8 @@
 
 package com.liferay.portal.security.sso.openid.connect.internal;
 
+import com.liferay.asset.kernel.service.AssetCategoryLocalService;
+import com.liferay.asset.kernel.service.AssetTagLocalService;
 import com.liferay.expando.kernel.model.ExpandoColumn;
 import com.liferay.expando.kernel.model.ExpandoColumnConstants;
 import com.liferay.expando.kernel.model.ExpandoTable;
@@ -18,7 +20,6 @@ import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.UserEmailAddressException;
-import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
@@ -61,7 +62,6 @@ import com.liferay.portal.security.sso.openid.connect.persistence.service.OpenId
 
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Dictionary;
 import java.util.List;
 import java.util.Locale;
@@ -213,12 +213,6 @@ public class OIDCUserInfoProcessor {
 	private void _addOpenIdConnectUser(String issuer, String subject, User user)
 		throws Exception {
 
-		if (!FeatureFlagManagerUtil.isEnabled(
-				user.getCompanyId(), "LPD-20879")) {
-
-			return;
-		}
-
 		OpenIdConnectUser openIdConnectUser =
 			_openIdConnectUserLocalService.fetchOpenIdConnectUser(
 				user.getCompanyId(), issuer, subject);
@@ -324,6 +318,12 @@ public class OIDCUserInfoProcessor {
 
 		Contact contact = user.getContact();
 
+		serviceContext.setAssetCategoryIds(
+			_assetCategoryLocalService.getCategoryIds(
+				User.class.getName(), user.getUserId()));
+		serviceContext.setAssetTagNames(
+			_assetTagLocalService.getTagNames(
+				User.class.getName(), user.getUserId()));
 		serviceContext.setUuid(user.getUuid());
 
 		_addOrUpdateUserCustomClaims(
@@ -452,11 +452,6 @@ public class OIDCUserInfoProcessor {
 		long companyId, String emailAddress, String issuer, String matcherField,
 		String screenName, String subject) {
 
-		if (!FeatureFlagManagerUtil.isEnabled(companyId, "LPD-20879")) {
-			return _userLocalService.fetchUserByEmailAddress(
-				companyId, emailAddress);
-		}
-
 		OpenIdConnectUser openIdConnectUser =
 			_openIdConnectUserLocalService.fetchOpenIdConnectUser(
 				companyId, issuer, subject);
@@ -582,10 +577,6 @@ public class OIDCUserInfoProcessor {
 			String authServerWellKnownURI, String clientId, long companyId,
 			String issuer, String tokenEndpoint)
 		throws Exception {
-
-		if (!FeatureFlagManagerUtil.isEnabled(companyId, "LPD-20879")) {
-			return "email";
-		}
 
 		String filterString = null;
 
@@ -746,7 +737,7 @@ public class OIDCUserInfoProcessor {
 			"groups", usersGroupsMapperJSONObject, userInfoJSONObject);
 
 		if (userGroupsJSONArray == null) {
-			return Collections.emptyList();
+			return null;
 		}
 
 		List<Long> userGroupIds = new ArrayList<>();
@@ -883,6 +874,12 @@ public class OIDCUserInfoProcessor {
 
 	@Reference
 	private AddressLocalService _addressLocalService;
+
+	@Reference
+	private AssetCategoryLocalService _assetCategoryLocalService;
+
+	@Reference
+	private AssetTagLocalService _assetTagLocalService;
 
 	@Reference
 	private ClassNameLocalService _classNameLocalService;

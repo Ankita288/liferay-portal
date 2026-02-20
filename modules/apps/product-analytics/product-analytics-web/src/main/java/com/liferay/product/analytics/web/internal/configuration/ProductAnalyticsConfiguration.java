@@ -14,8 +14,7 @@ import com.liferay.portal.configuration.metatype.annotations.ExtendedObjectClass
  * @author Christopher Kian
  */
 @ExtendedObjectClassDefinition(
-	category = "privacy", featureFlagKey = "LPD-51356",
-	scope = ExtendedObjectClassDefinition.Scope.GROUP
+	category = "privacy", scope = ExtendedObjectClassDefinition.Scope.GROUP
 )
 @Meta.OCD(
 	description = "product-analytics-configuration-description",
@@ -25,7 +24,6 @@ import com.liferay.portal.configuration.metatype.annotations.ExtendedObjectClass
 )
 public interface ProductAnalyticsConfiguration {
 
-	@ExtendedAttributeDefinition(featureFlagKey = "LPD-65277")
 	@Meta.AD(
 		deflt = "12",
 		description = "product-analytics-cookie-consent-renewal-period-help",
@@ -35,14 +33,13 @@ public interface ProductAnalyticsConfiguration {
 	public int consentRenewalPeriod();
 
 	@Meta.AD(
-		deflt = "true",
+		deflt = "false",
 		description = "product-analytics-enable-user-preference-handling-help",
 		name = "enabled", required = false
 	)
 	public boolean enabled();
 
 	@ExtendedAttributeDefinition(
-		featureFlagKey = "LPD-65277",
 		visibilityControllerKey = "com.liferay.product.analytics.web.internal.configuration.admin.display.ProductAnalyticsConfigurationVisibilityController"
 	)
 	@Meta.AD(deflt = "0", name = "last-modified", required = false)

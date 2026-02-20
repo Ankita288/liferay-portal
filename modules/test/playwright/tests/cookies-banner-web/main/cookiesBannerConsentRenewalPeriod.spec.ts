@@ -11,8 +11,9 @@ import {systemSettingsPageTest} from '../../../fixtures/systemSettingsPageTest';
 import {waitForAlert} from '../../../utils/waitForAlert';
 import {
 	clearConsentCookies,
-	resetCookieManagerConfiguration,
-} from './utils/cookieManagerAfterEach';
+	resetConsentManagerConfiguration,
+	updateConsentManagerConfiguration,
+} from './utils/consentManagerConfigurationHelper';
 
 const cookieKeys = [
 	'CONSENT_TYPE_FUNCTIONAL',
@@ -21,19 +22,19 @@ const cookieKeys = [
 	'CONSENT_TYPE_PERSONALIZATION',
 	'USER_CONSENT_CONFIGURED',
 	'USER_CONSENT_CONFIGURED_DATE',
-];
+]; //
 
 export const test = mergeTests(
-	loginTest(),
 	featureFlagsTest({
-		'LPD-65277': {enabled: true},
+		'LPD-75032': {enabled: true},
 	}),
+	loginTest(),
 	systemSettingsPageTest
 );
 
 test.afterEach(async ({systemSettingsPage}) => {
-	await test.step('Reset Cookie Manager Configuration', async () => {
-		await resetCookieManagerConfiguration(systemSettingsPage);
+	await test.step('Reset Consent Manager Configuration', async () => {
+		await resetConsentManagerConfiguration(systemSettingsPage);
 	});
 
 	await test.step('Clear Consent Cookies if present', async () => {
@@ -41,21 +42,12 @@ test.afterEach(async ({systemSettingsPage}) => {
 	});
 });
 
-test.beforeEach(async ({page, systemSettingsPage}) => {
-	await test.step('Enable Cookie Manager', async () => {
-		await systemSettingsPage.goToSystemSetting('Privacy', 'Cookie Manager');
-
-		const enabledButton = page.getByLabel('Enabled');
-
-		await enabledButton.waitFor({state: 'visible'});
-
-		await page.waitForLoadState();
-
-		await enabledButton.setChecked(true);
-
-		await page.getByRole('button', {name: 'Save'}).click();
-
-		await waitForAlert(page);
+test.beforeEach(async ({page}) => {
+	await test.step('Enable Consent Manager', async () => {
+		await updateConsentManagerConfiguration(page, {
+			enabled: true,
+			forceReload: true,
+		});
 	});
 
 	await test.step('Verify Cookies Banner appears, then Accept All cookies', async () => {
@@ -129,6 +121,20 @@ test(
 				await dialogWindow.accept();
 			});
 			await validateConsentRenewalPeriodValue('1', page, true);
+		});
+	}
+);
+
+test(
+	'Verify Consent Manager can be saved with Enabled set to false',
+	{tag: '@LPD-78627'},
+	async ({page}) => {
+		await test.step('Disable Consent Manager and save configuration', async () => {
+			await updateConsentManagerConfiguration(page, {
+				enabled: false,
+			});
+
+			await expect(page.getByLabel('Enabled')).not.toBeChecked();
 		});
 	}
 );
@@ -213,15 +219,9 @@ test(
 		});
 
 		await test.step('Update Consent Renewal Period and expect cookies banner to appear', async () => {
-			page.once('dialog', async (dialogWindow) => {
-				await dialogWindow.accept();
+			await updateConsentManagerConfiguration(page, {
+				consentRenewalPeriod: '2',
 			});
-
-			await page.getByLabel('Consent Renewal Period').fill('2');
-
-			await page.getByRole('button', {name: 'Update'}).click();
-
-			await waitForAlert(page);
 
 			await expect(
 				await page.locator(

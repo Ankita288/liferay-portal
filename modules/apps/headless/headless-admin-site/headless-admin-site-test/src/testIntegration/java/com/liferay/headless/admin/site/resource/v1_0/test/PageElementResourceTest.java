@@ -19,6 +19,7 @@ import com.liferay.asset.list.service.AssetListEntryLocalService;
 import com.liferay.asset.publisher.constants.AssetPublisherPortletKeys;
 import com.liferay.document.library.kernel.model.DLFolderConstants;
 import com.liferay.document.library.kernel.service.DLAppLocalService;
+import com.liferay.document.library.util.DLURLHelper;
 import com.liferay.fragment.constants.FragmentConstants;
 import com.liferay.fragment.entry.processor.constants.FragmentEntryProcessorConstants;
 import com.liferay.fragment.model.FragmentCollection;
@@ -30,6 +31,8 @@ import com.liferay.fragment.renderer.FragmentRendererContext;
 import com.liferay.fragment.service.FragmentCollectionLocalService;
 import com.liferay.fragment.service.FragmentEntryLinkLocalService;
 import com.liferay.fragment.service.FragmentEntryLocalService;
+import com.liferay.headless.admin.site.client.dto.v1_0.BackgroundImageValue;
+import com.liferay.headless.admin.site.client.dto.v1_0.BasicFragmentInstancePageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.ClassNameReference;
 import com.liferay.headless.admin.site.client.dto.v1_0.CollectionDisplayListStyle;
 import com.liferay.headless.admin.site.client.dto.v1_0.CollectionDisplayPageElementDefinition;
@@ -41,6 +44,7 @@ import com.liferay.headless.admin.site.client.dto.v1_0.CollectionReference;
 import com.liferay.headless.admin.site.client.dto.v1_0.CollectionSettings;
 import com.liferay.headless.admin.site.client.dto.v1_0.ContainerPageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.ContextualMenuNavigationMenuValue;
+import com.liferay.headless.admin.site.client.dto.v1_0.DirectBackgroundImageValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.DisplayPageFormContainerSubmissionResult;
 import com.liferay.headless.admin.site.client.dto.v1_0.EmbeddedMessageFormContainerSubmissionResult;
 import com.liferay.headless.admin.site.client.dto.v1_0.EmptyCollectionConfig;
@@ -52,13 +56,15 @@ import com.liferay.headless.admin.site.client.dto.v1_0.FormContainerReference;
 import com.liferay.headless.admin.site.client.dto.v1_0.FormStepContainerPageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.FormStepPageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentEditableElement;
+import com.liferay.headless.admin.site.client.dto.v1_0.FragmentEditableElementValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentEditableElementValueFragmentLink;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentInlineValue;
-import com.liferay.headless.admin.site.client.dto.v1_0.FragmentInstancePageElementDefinition;
+import com.liferay.headless.admin.site.client.dto.v1_0.FragmentInstance;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentLink;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentLinkInlineValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentLinkMappedValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentLinkValue;
+import com.liferay.headless.admin.site.client.dto.v1_0.FragmentMappedValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentMappedValueItemContextReference;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentMappedValueItemExternalReference;
 import com.liferay.headless.admin.site.client.dto.v1_0.FragmentMappedValueItemReference;
@@ -67,10 +73,13 @@ import com.liferay.headless.admin.site.client.dto.v1_0.GridViewport;
 import com.liferay.headless.admin.site.client.dto.v1_0.GridViewportDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.HTMLFragmentValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.HtmlProperties;
+import com.liferay.headless.admin.site.client.dto.v1_0.ImageValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.ItemExternalReference;
+import com.liferay.headless.admin.site.client.dto.v1_0.ItemImageValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.ListStyle;
 import com.liferay.headless.admin.site.client.dto.v1_0.ListStyleDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.LocalizationConfig;
+import com.liferay.headless.admin.site.client.dto.v1_0.MappedBackgroundImageValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.Mapping;
 import com.liferay.headless.admin.site.client.dto.v1_0.ModulePageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.ModuleViewport;
@@ -84,15 +93,19 @@ import com.liferay.headless.admin.site.client.dto.v1_0.SuccessNotificationMessag
 import com.liferay.headless.admin.site.client.dto.v1_0.TemplateListStyle;
 import com.liferay.headless.admin.site.client.dto.v1_0.TextFragmentValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.URLFormContainerSubmissionResult;
+import com.liferay.headless.admin.site.client.dto.v1_0.URLImageValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.WidgetInstance;
 import com.liferay.headless.admin.site.client.dto.v1_0.WidgetInstancePageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.WidgetPermission;
 import com.liferay.headless.admin.site.client.problem.Problem;
+import com.liferay.headless.admin.site.client.scope.Scope;
 import com.liferay.headless.admin.site.client.serdes.v1_0.PageElementSerDes;
 import com.liferay.headless.admin.site.resource.v1_0.test.util.FragmentConfigurationTestUtil;
 import com.liferay.headless.admin.site.resource.v1_0.test.util.FragmentEditableElementTestUtil;
+import com.liferay.headless.admin.site.resource.v1_0.test.util.FragmentMappedValueTestUtil;
 import com.liferay.headless.admin.site.resource.v1_0.test.util.FragmentViewportStyleTestUtil;
 import com.liferay.headless.admin.site.resource.v1_0.test.util.FragmentViewportTestUtil;
+import com.liferay.headless.admin.site.resource.v1_0.test.util.ImageValueTestUtil;
 import com.liferay.headless.admin.site.resource.v1_0.test.util.PageElementsTestUtil;
 import com.liferay.headless.admin.site.resource.v1_0.test.util.ReferencesTestUtil;
 import com.liferay.journal.constants.JournalContentPortletKeys;
@@ -105,6 +118,8 @@ import com.liferay.layout.page.template.service.LayoutPageTemplateStructureLocal
 import com.liferay.layout.page.template.test.util.DisplayPageTemplateTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
 import com.liferay.layout.util.structure.LayoutStructure;
+import com.liferay.layout.util.structure.LayoutStructureItem;
+import com.liferay.layout.util.structure.StyledLayoutStructureItem;
 import com.liferay.object.constants.ObjectFieldConstants;
 import com.liferay.object.field.util.ObjectFieldUtil;
 import com.liferay.object.model.ObjectDefinition;
@@ -117,6 +132,7 @@ import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
+import com.liferay.portal.kernel.model.GroupedModel;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.role.RoleConstants;
 import com.liferay.portal.kernel.repository.model.FileEntry;
@@ -128,12 +144,14 @@ import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.util.ContentTypes;
+import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.MimeTypesUtil;
 import com.liferay.portal.kernel.util.Portal;
+import com.liferay.portal.kernel.util.ScopeUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
@@ -579,12 +597,31 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 		return _addFragmentEntry(
 			configuration, groupId,
 			StringBundler.concat(
+				"<button data-lfr-editable-id=\"element-action1\" ",
+				"data-lfr-editable-type=\"action\">",
+				RandomTestUtil.randomString(), "</button>",
+				"<button data-lfr-editable-id=\"element-action2\" ",
+				"data-lfr-editable-type=\"action\">",
+				RandomTestUtil.randomString(), "</button>",
 				"<div data-lfr-background-image-id=\"element-background-",
 				"image1\">", RandomTestUtil.randomString(), "</div>",
 				"<div data-lfr-background-image-id=\"element-background-",
 				"image2\">", RandomTestUtil.randomString(), "</div>",
 				"<div data-lfr-editable-id=\"element-html\" ",
 				"data-lfr-editable-type=\"html\">",
+				RandomTestUtil.randomString(), "</div>",
+				"<img data-lfr-editable-id=\"element-image1\" ",
+				"data-lfr-editable-type=\"image\">",
+				"<img data-lfr-editable-id=\"element-image2\" ",
+				"data-lfr-editable-type=\"image\">",
+				"<img data-lfr-editable-id=\"element-image3\" ",
+				"data-lfr-editable-type=\"image\">",
+				RandomTestUtil.randomString(), "</div>",
+				"<a data-lfr-editable-id=\"element-link\" ",
+				"data-lfr-editable-type=\"link\"  href=\"\">",
+				RandomTestUtil.randomString(), "</a>",
+				"<div data-lfr-editable-id=\"element-rich-text\" ",
+				"data-lfr-editable-type=\"rich-text\">",
 				RandomTestUtil.randomString(), "</div>",
 				"<h1 data-lfr-editable-id=\"element-text\" ",
 				"data-lfr-editable-type=\"text\">",
@@ -626,16 +663,18 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	}
 
 	private void _assertDefaultValues(
-			FragmentInstancePageElementDefinition
-				fragmentInstancePageElementDefinition,
+			BasicFragmentInstancePageElementDefinition
+				basicFragmentInstancePageElementDefinition,
 			String... keys)
 		throws Exception {
+
+		FragmentInstance fragmentInstance =
+			basicFragmentInstancePageElementDefinition.getFragmentInstance();
 
 		FragmentEntryLink fragmentEntryLink =
 			_fragmentEntryLinkLocalService.
 				getFragmentEntryLinkByExternalReferenceCode(
-					fragmentInstancePageElementDefinition.
-						getFragmentInstanceExternalReferenceCode(),
+					fragmentInstance.getFragmentInstanceExternalReferenceCode(),
 					testGroup.getGroupId());
 
 		JSONObject defaultEditableValuesJSONObject =
@@ -673,6 +712,91 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 		}
 	}
 
+	private void _assertDirectBackgroundImageJSONObject(
+			long classPK, DirectBackgroundImageValue directBackgroundImageValue,
+			FileEntry fileEntry, JSONObject jsonObject)
+		throws Exception {
+
+		ImageValue imageValue = directBackgroundImageValue.getImageValue();
+
+		if (Objects.equals(ImageValue.Type.URL, imageValue.getType())) {
+			URLImageValue urlImageValue = (URLImageValue)imageValue;
+
+			Assert.assertEquals(
+				urlImageValue.getUrl(), jsonObject.getString("url"));
+
+			return;
+		}
+
+		ItemImageValue itemImageValue = (ItemImageValue)imageValue;
+
+		ItemExternalReference itemExternalReference =
+			itemImageValue.getItemExternalReference();
+
+		_assertItemExternalReferenceJSONObject(
+			FileEntry.class.getName(), classPK,
+			itemExternalReference.getExternalReferenceCode(), fileEntry,
+			jsonObject, itemExternalReference.getScope());
+
+		if (fileEntry == null) {
+			return;
+		}
+
+		Assert.assertEquals(
+			fileEntry.getExternalReferenceCode(),
+			jsonObject.getString("externalReferenceCode"));
+		Assert.assertEquals(
+			fileEntry.getFileEntryId(), jsonObject.getLong("fileEntryId"));
+		Assert.assertEquals(
+			fileEntry.getTitle(), jsonObject.getString("title"));
+		Assert.assertEquals(
+			_dlURLHelper.getPreviewURL(
+				fileEntry, fileEntry.getFileVersion(), null, StringPool.BLANK,
+				false, false),
+			jsonObject.getString("url"));
+	}
+
+	private void _assertItemExternalReferenceJSONObject(
+			String className, long classPK, String externalReferenceCode,
+			GroupedModel groupedModel, JSONObject jsonObject, Scope scope)
+		throws Exception {
+
+		Assert.assertEquals(className, jsonObject.getString("className"));
+		Assert.assertEquals(
+			_portal.getClassNameId(className),
+			jsonObject.getLong("classNameId"));
+		Assert.assertEquals(classPK, jsonObject.getLong("classPK"));
+
+		Assert.assertEquals(
+			externalReferenceCode,
+			jsonObject.getString("externalReferenceCode"));
+
+		if (groupedModel != null) {
+			Assert.assertEquals(
+				GetterUtil.getString(
+					ScopeUtil.getItemScopeExternalReferenceCode(
+						groupedModel.getGroupId(), _layout.getGroupId())),
+				jsonObject.getString("scopeExternalReferenceCode"));
+
+			return;
+		}
+
+		if (scope != null) {
+			Assert.assertEquals(
+				scope.getExternalReferenceCode(),
+				jsonObject.getString("scopeExternalReferenceCode"));
+
+			return;
+		}
+
+		String scopeExternalReferenceCode = jsonObject.getString(
+			"scopeExternalReferenceCode");
+
+		Assert.assertTrue(
+			scopeExternalReferenceCode,
+			Validator.isNull(scopeExternalReferenceCode));
+	}
+
 	private void _assertProblemException(
 			String status, String title,
 			UnsafeRunnable<Exception> unsafeRunnable)
@@ -689,6 +813,135 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 			Assert.assertEquals(status, problem.getStatus());
 			Assert.assertEquals(title, problem.getTitle());
 		}
+	}
+
+	private void _assertStyledLayoutStructureItemBackgroundImage(
+			BackgroundImageValue backgroundImageValue, long classPK,
+			GroupedModel groupedModel, PageElement pageElement)
+		throws Exception {
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, classPK, groupedModel,
+			pageElement.getExternalReferenceCode());
+
+		for (PageElement childPageElement : pageElement.getPageElements()) {
+			_assertStyledLayoutStructureItemBackgroundImage(
+				backgroundImageValue, classPK, groupedModel,
+				childPageElement.getExternalReferenceCode());
+		}
+	}
+
+	private void _assertStyledLayoutStructureItemBackgroundImage(
+			BackgroundImageValue backgroundImageValue, long classPK,
+			GroupedModel groupedModel, String itemId)
+		throws Exception {
+
+		LayoutStructure layoutStructure = _getLayoutStructure();
+
+		LayoutStructureItem layoutStructureItem =
+			layoutStructure.getLayoutStructureItem(itemId);
+
+		Assert.assertTrue(
+			layoutStructureItem instanceof StyledLayoutStructureItem);
+
+		StyledLayoutStructureItem styledLayoutStructureItem =
+			(StyledLayoutStructureItem)layoutStructureItem;
+
+		JSONObject backgroundImageJSONObject =
+			styledLayoutStructureItem.getBackgroundImageJSONObject();
+
+		if (backgroundImageValue == null) {
+			Assert.assertEquals(
+				backgroundImageJSONObject.toString(), 0,
+				backgroundImageJSONObject.length());
+
+			return;
+		}
+
+		if (Objects.equals(
+				BackgroundImageValue.Type.DIRECT,
+				backgroundImageValue.getType())) {
+
+			_assertDirectBackgroundImageJSONObject(
+				classPK, (DirectBackgroundImageValue)backgroundImageValue,
+				(FileEntry)groupedModel, backgroundImageJSONObject);
+
+			return;
+		}
+
+		MappedBackgroundImageValue mappedBackgroundImageValue =
+			(MappedBackgroundImageValue)backgroundImageValue;
+
+		FragmentMappedValue fragmentMappedValue =
+			mappedBackgroundImageValue.getFragmentMappedValue();
+
+		Mapping mapping = fragmentMappedValue.getMapping();
+
+		if (mapping == null) {
+			Assert.assertEquals(
+				backgroundImageJSONObject.toString(), 0,
+				backgroundImageJSONObject.length());
+
+			return;
+		}
+
+		FragmentMappedValueItemReference fragmentMappedValueItemReference =
+			mapping.getItemReference();
+
+		if (fragmentMappedValueItemReference == null) {
+			Assert.assertEquals(
+				backgroundImageJSONObject.toString(), 0,
+				backgroundImageJSONObject.length());
+
+			return;
+		}
+
+		String fieldKey = mapping.getFieldKey();
+
+		if (Validator.isNull(fieldKey)) {
+			Assert.assertEquals(
+				backgroundImageJSONObject.toString(), 0,
+				backgroundImageJSONObject.length());
+
+			return;
+		}
+
+		if (Objects.equals(
+				FragmentMappedValueItemReference.Type.ITEM_EXTERNAL_REFERENCE,
+				fragmentMappedValueItemReference.getType())) {
+
+			FragmentMappedValueItemExternalReference
+				fragmentMappedValueItemExternalReference =
+					(FragmentMappedValueItemExternalReference)
+						fragmentMappedValueItemReference;
+
+			_assertItemExternalReferenceJSONObject(
+				fragmentMappedValueItemExternalReference.getClassName(),
+				classPK,
+				fragmentMappedValueItemExternalReference.
+					getExternalReferenceCode(),
+				groupedModel, backgroundImageJSONObject,
+				fragmentMappedValueItemExternalReference.getScope());
+
+			return;
+		}
+
+		String key = "collectionFieldId";
+
+		FragmentMappedValueItemContextReference
+			fragmentMappedValueItemContextReference =
+				(FragmentMappedValueItemContextReference)
+					fragmentMappedValueItemReference;
+
+		if (Objects.equals(
+				FragmentMappedValueItemContextReference.ContextSource.
+					DISPLAY_PAGE_ITEM,
+				fragmentMappedValueItemContextReference.getContextSource())) {
+
+			key = "mappedField";
+		}
+
+		Assert.assertEquals(fieldKey, backgroundImageJSONObject.getString(key));
 	}
 
 	private String[] _getActionIds(String roleName) {
@@ -972,7 +1225,8 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	}
 
 	private PageElement _getContainerPageElement(
-			String[] cssClasses, String fragmentLinkClassName,
+			BackgroundImageValue backgroundImageValue, String[] cssClasses,
+			String fragmentLinkClassName,
 			String fragmentLinkExternalReferenceCode,
 			String fragmentLinkFieldKey,
 			Map<String, String> fragmentLinkLocalizedValues, boolean indexed,
@@ -982,6 +1236,8 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 		ContainerPageElementDefinition containerPageElementDefinition =
 			new ContainerPageElementDefinition();
 
+		containerPageElementDefinition.setBackgroundImageValue(
+			() -> backgroundImageValue);
 		containerPageElementDefinition.setContentVisibility(
 			ContainerPageElementDefinition.ContentVisibility.AUTO);
 		containerPageElementDefinition.setCssClasses(cssClasses);
@@ -1077,7 +1333,8 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	}
 
 	private PageElement _getFormContainerPageElement(
-			String className, String[] cssClasses,
+			BackgroundImageValue backgroundImageValue, String className,
+			String[] cssClasses,
 			boolean formContainerSubmissionResultDefaultDisplayPage,
 			String formContainerSubmissionResultType,
 			FormContainerConfig.FormContainerType formContainerType,
@@ -1089,6 +1346,8 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 		FormContainerPageElementDefinition formContainerPageElementDefinition =
 			new FormContainerPageElementDefinition();
 
+		formContainerPageElementDefinition.setBackgroundImageValue(
+			backgroundImageValue);
 		formContainerPageElementDefinition.setCssClasses(cssClasses);
 		formContainerPageElementDefinition.setFormContainerConfig(
 			_getFormContainerConfig(
@@ -1120,7 +1379,8 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 			PageElement[] pageElements = new PageElement[1];
 
 			pageElements[0] = _getFormStepContainerPageElement(
-				numberOfSteps, pageElementExternalReferenceCode);
+				backgroundImageValue, numberOfSteps,
+				pageElementExternalReferenceCode);
 
 			return _getPageElement(
 				formContainerPageElementDefinition,
@@ -1133,13 +1393,16 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	}
 
 	private PageElement _getFormStepContainerPageElement(
-			int numberOfSteps, String parentExternalReferenceCode)
+			BackgroundImageValue backgroundImageValue, int numberOfSteps,
+			String parentExternalReferenceCode)
 		throws Exception {
 
 		FormStepContainerPageElementDefinition
 			formStepContainerPageElementDefinition =
 				new FormStepContainerPageElementDefinition();
 
+		formStepContainerPageElementDefinition.setBackgroundImageValue(
+			backgroundImageValue);
 		formStepContainerPageElementDefinition.setCssClasses(
 			RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)));
 		formStepContainerPageElementDefinition.setFragmentViewports(
@@ -1176,9 +1439,9 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	}
 
 	private PageElement _getFragmentInstancePageElement(
-			String externalReferenceCode,
-			FragmentInstancePageElementDefinition
-				fragmentInstancePageElementDefinition)
+			BasicFragmentInstancePageElementDefinition
+				basicFragmentInstancePageElementDefinition,
+			String externalReferenceCode)
 		throws Exception {
 
 		PageElement pageElement = super.randomPageElement();
@@ -1186,7 +1449,7 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 		pageElement.setExternalReferenceCode(externalReferenceCode);
 
 		pageElement.setPageElementDefinition(
-			() -> fragmentInstancePageElementDefinition);
+			() -> basicFragmentInstancePageElementDefinition);
 
 		pageElement.setPageElements(new PageElement[0]);
 		pageElement.setParentExternalReferenceCode(StringPool.BLANK);
@@ -1282,27 +1545,28 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	}
 
 	private PageElement _getGridPageElement(
-			String[] cssClasses, boolean gutters, boolean indexed,
-			Integer numberOfModules)
+			BackgroundImageValue backgroundImageValue, String[] cssClasses,
+			boolean gutters, boolean indexed, Integer numberOfModules)
 		throws Exception {
 
 		String externalReferenceCode = RandomTestUtil.randomString();
 
 		return _getGridPageElement(
-			cssClasses, gutters, indexed, numberOfModules,
+			backgroundImageValue, cssClasses, gutters, indexed, numberOfModules,
 			externalReferenceCode,
 			_getModulePageElements(externalReferenceCode, numberOfModules));
 	}
 
 	private PageElement _getGridPageElement(
-			String[] cssClasses, boolean gutters, boolean indexed,
-			Integer numberOfModules, String pageElementExternalReferenceCode,
-			PageElement[] pageElements)
+			BackgroundImageValue backgroundImageValue, String[] cssClasses,
+			boolean gutters, boolean indexed, Integer numberOfModules,
+			String pageElementExternalReferenceCode, PageElement[] pageElements)
 		throws Exception {
 
 		GridPageElementDefinition gridPageElementDefinition =
 			new GridPageElementDefinition();
 
+		gridPageElementDefinition.setBackgroundImageValue(backgroundImageValue);
 		gridPageElementDefinition.setCssClasses(cssClasses);
 		gridPageElementDefinition.setGridViewports(this::_getGridViewports);
 		gridPageElementDefinition.setGutters(gutters);
@@ -1823,7 +2087,7 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	}
 
 	private PageElement _getWidgetPageElement(
-			String[] cssClasses,
+			BackgroundImageValue backgroundImageValue, String[] cssClasses,
 			String draftWidgetInstanceExternalReferenceCode, boolean indexed,
 			String name, String pageElementExternalReferenceCode,
 			Map<String, Object> widgetConfig,
@@ -1835,6 +2099,8 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 			widgetInstancePageElementDefinition =
 				new WidgetInstancePageElementDefinition();
 
+		widgetInstancePageElementDefinition.setBackgroundImageValue(
+			backgroundImageValue);
 		widgetInstancePageElementDefinition.setCssClasses(cssClasses);
 		widgetInstancePageElementDefinition.
 			setDraftWidgetInstanceExternalReferenceCode(
@@ -1923,6 +2189,18 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 			}
 
 		};
+	}
+
+	private ItemExternalReference _randomItemExternalReference() {
+		return ReferencesTestUtil.getItemExternalReference(
+			HashMapBuilder.put(
+				"className", FileEntry.class.getName()
+			).put(
+				"externalReferenceCode", RandomTestUtil.randomString()
+			).put(
+				"scopeExternalReferenceCode", RandomTestUtil.randomString()
+			).build(),
+			testGroup.getGroupId());
 	}
 
 	private PageElement _randomPageElement(
@@ -2067,14 +2345,14 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
-				null, null, null, "FileEntry_fileName", null, false,
+				null, null, null, null, "FileEntry_fileName", null, false,
 				RandomTestUtil.randomString()));
 
 		FileEntry fileEntry = _getFileEntry(testGroup.getGroupId());
 
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
-				null, FileEntry.class.getName(),
+				null, null, FileEntry.class.getName(),
 				fileEntry.getExternalReferenceCode(), "FileEntry_fileName",
 				null, false, RandomTestUtil.randomString()));
 
@@ -2084,7 +2362,7 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
-				null, JournalArticle.class.getName(),
+				null, null, JournalArticle.class.getName(),
 				journalArticle.getExternalReferenceCode(),
 				"JournalArticle_title", null, false,
 				RandomTestUtil.randomString()));
@@ -2093,12 +2371,14 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
+				null,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				Layout.class.getName(), layout.getExternalReferenceCode(), null,
 				null, true, RandomTestUtil.randomString()));
 
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
+				null,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				null, null, null,
 				HashMapBuilder.put(
@@ -2124,7 +2404,7 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				objectDefinition.getClassName(),
+				null, objectDefinition.getClassName(),
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				true, "displayPage",
 				FormContainerConfig.FormContainerType.SIMPLE, true, 1,
@@ -2132,39 +2412,39 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 				LocalizationConfig.UnlocalizedFieldsState.READ_ONLY));
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				objectDefinition.getClassName(), null, false, "displayPage",
-				FormContainerConfig.FormContainerType.SIMPLE, false, 1,
-				RandomTestUtil.randomString(), null));
+				null, objectDefinition.getClassName(), null, false,
+				"displayPage", FormContainerConfig.FormContainerType.SIMPLE,
+				false, 1, RandomTestUtil.randomString(), null));
 
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				null,
+				null, null,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				false, "embedded", FormContainerConfig.FormContainerType.SIMPLE,
 				false, 1, RandomTestUtil.randomString(),
 				LocalizationConfig.UnlocalizedFieldsState.DISABLED));
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				objectDefinition.getClassName(), null, false, "none",
+				null, objectDefinition.getClassName(), null, false, "none",
 				FormContainerConfig.FormContainerType.SIMPLE, false, 1,
 				RandomTestUtil.randomString(), null));
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				null,
+				null, null,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				false, "page", FormContainerConfig.FormContainerType.SIMPLE,
 				false, 1, RandomTestUtil.randomString(),
 				LocalizationConfig.UnlocalizedFieldsState.READ_ONLY));
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				objectDefinition.getClassName(),
+				null, objectDefinition.getClassName(),
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				false, "url", FormContainerConfig.FormContainerType.SIMPLE,
 				false, 1, RandomTestUtil.randomString(),
 				LocalizationConfig.UnlocalizedFieldsState.DISABLED));
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				objectDefinition.getClassName(),
+				null, objectDefinition.getClassName(),
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				false, "url", FormContainerConfig.FormContainerType.MULTISTEP,
 				false, RandomTestUtil.randomInt(2, 10),
@@ -2176,7 +2456,7 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 		throws Exception {
 
 		PageElement fragmentPageElement = _randomPageElement(
-			PageElementDefinition.Type.FRAGMENT, StringPool.BLANK);
+			PageElementDefinition.Type.BASIC_FRAGMENT, StringPool.BLANK);
 
 		_testPostSitePageSpecificationPageExperiencePageElement(
 			fragmentPageElement);
@@ -2190,20 +2470,62 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	private void _testPostSitePageSpecificationPageExperiencePageElementWithGridPageElement()
 		throws Exception {
 
-		_testPostSitePageSpecificationPageExperiencePageElement(
+		BackgroundImageValue backgroundImageValue =
+			ImageValueTestUtil.getDirectBackgroundImageValue(
+				null, RandomTestUtil.randomString());
+
+		PageElement pageElement =
+			_testPostSitePageSpecificationPageExperiencePageElement(
+				_getGridPageElement(
+					backgroundImageValue,
+					RandomTestUtil.randomStrings(
+						RandomTestUtil.randomInt(1, 10)),
+					false, false, 6));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null,
+			pageElement.getExternalReferenceCode());
+
+		FileEntry fileEntry = _getFileEntry(testGroup.getGroupId());
+
+		backgroundImageValue = ImageValueTestUtil.getDirectBackgroundImageValue(
+			ReferencesTestUtil.getItemExternalReference(
+				fileEntry, testGroup.getGroupId()),
+			null);
+
+		pageElement = _testPostSitePageSpecificationPageExperiencePageElement(
+			_getGridPageElement(backgroundImageValue, null, true, true, 3));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, fileEntry.getFileEntryId(), fileEntry,
+			pageElement.getExternalReferenceCode());
+
+		JournalArticle journalArticle = JournalTestUtil.addArticle(
+			testGroup.getGroupId(),
+			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			JournalArticle.class.getName(),
+			journalArticle.getExternalReferenceCode(),
+			"JournalArticle_authorProfileImage", null);
+
+		pageElement = _testPostSitePageSpecificationPageExperiencePageElement(
 			_getGridPageElement(
-				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
-				false, false, 6));
-		_testPostSitePageSpecificationPageExperiencePageElement(
-			_getGridPageElement(null, true, true, 3));
-		_testPostSitePageSpecificationPageExperiencePageElement(
-			_getGridPageElement(
+				backgroundImageValue,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				false, false, 12));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, journalArticle.getResourcePrimKey(),
+			journalArticle, pageElement.getExternalReferenceCode());
 	}
 
 	private void _testPostSitePageSpecificationPageExperiencePageElementWithWidgetPageElement()
 		throws Exception {
+
+		BackgroundImageValue backgroundImageValue =
+			ImageValueTestUtil.getDirectBackgroundImageValue(
+				null, RandomTestUtil.randomString());
 
 		String draftWidgetInstanceExternalReferenceCode =
 			RandomTestUtil.randomString();
@@ -2212,14 +2534,21 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 		_addFragmentEntryLink(
 			draftWidgetInstanceExternalReferenceCode, namespace);
 
-		_testPostSitePageSpecificationPageExperiencePageElement(
-			_getWidgetPageElement(
-				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
-				draftWidgetInstanceExternalReferenceCode, false,
-				RandomTestUtil.randomString(), RandomTestUtil.randomString(),
-				_getWidgetConfig(), RandomTestUtil.randomString(), namespace,
-				JournalContentPortletKeys.JOURNAL_CONTENT,
-				_getWidgetPermissions()));
+		PageElement pageElement =
+			_testPostSitePageSpecificationPageExperiencePageElement(
+				_getWidgetPageElement(
+					backgroundImageValue,
+					RandomTestUtil.randomStrings(
+						RandomTestUtil.randomInt(1, 10)),
+					draftWidgetInstanceExternalReferenceCode, false,
+					RandomTestUtil.randomString(),
+					RandomTestUtil.randomString(), _getWidgetConfig(),
+					RandomTestUtil.randomString(), namespace,
+					JournalContentPortletKeys.JOURNAL_CONTENT,
+					_getWidgetPermissions()));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, pageElement);
 	}
 
 	private PageElement _testPutSitePageSpecificationPageExperiencePageElement(
@@ -2320,41 +2649,82 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	private void _testPutSitePageSpecificationPageExperiencePageElementWithContainerPageElement()
 		throws Exception {
 
+		BackgroundImageValue backgroundImageValue =
+			ImageValueTestUtil.getDirectBackgroundImageValue(
+				null, RandomTestUtil.randomString());
 		String externalReferenceCode = RandomTestUtil.randomString();
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
-				null, null, null, "FileEntry_fileName", null, false,
-				externalReferenceCode));
+				backgroundImageValue, null, null, null, "FileEntry_fileName",
+				null, false, externalReferenceCode));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
 
 		FileEntry fileEntry = _getFileEntry(testGroup.getGroupId());
 
+		backgroundImageValue = ImageValueTestUtil.getDirectBackgroundImageValue(
+			ReferencesTestUtil.getItemExternalReference(
+				fileEntry, testGroup.getGroupId()),
+			null);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
-				null, FileEntry.class.getName(),
+				backgroundImageValue, null, FileEntry.class.getName(),
 				fileEntry.getExternalReferenceCode(), "FileEntry_fileName",
 				null, false, externalReferenceCode));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, fileEntry.getFileEntryId(), fileEntry,
+			externalReferenceCode);
 
 		JournalArticle journalArticle = JournalTestUtil.addArticle(
 			testGroup.getGroupId(),
 			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
 
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			JournalArticle.class.getName(),
+			journalArticle.getExternalReferenceCode(),
+			"JournalArticle_authorProfileImage", null);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
-				null, JournalArticle.class.getName(),
+				backgroundImageValue, null, JournalArticle.class.getName(),
 				journalArticle.getExternalReferenceCode(),
 				"JournalArticle_title", null, false, externalReferenceCode));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, journalArticle.getResourcePrimKey(),
+			journalArticle, externalReferenceCode);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			FragmentMappedValueItemContextReference.ContextSource.
+				DISPLAY_PAGE_ITEM,
+			"JournalArticle_authorProfileImage",
+			FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
 
 		Layout layout = LayoutTestUtil.addTypeContentLayout(testGroup);
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
+				backgroundImageValue,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				Layout.class.getName(), layout.getExternalReferenceCode(), null,
 				null, true, externalReferenceCode));
 
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			FragmentMappedValueItemContextReference.ContextSource.
+				COLLECTION_ITEM,
+			"AssetEntry_userProfileImage",
+			FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getContainerPageElement(
+				backgroundImageValue,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				null, null, null,
 				HashMapBuilder.put(
@@ -2365,20 +2735,40 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 					"https://www.liferay.com"
 				).build(),
 				false, externalReferenceCode));
-		_testPutSitePageSpecificationPageExperiencePageElement(
-			_getPageElement(
-				new ContainerPageElementDefinition() {
-					{
-						setIndexed(false);
-						setType(Type.CONTAINER);
-					}
-				},
-				externalReferenceCode));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
+
+		BackgroundImageValue missingItemExternalReferenceBackgroundImageValue =
+			ImageValueTestUtil.getDirectBackgroundImageValue(
+				_randomItemExternalReference(), null);
+
+		_testMissingOptionalReference(
+			1,
+			() -> _testPutSitePageSpecificationPageExperiencePageElement(
+				_getPageElement(
+					new ContainerPageElementDefinition() {
+						{
+							setBackgroundImageValue(
+								() ->
+									missingItemExternalReferenceBackgroundImageValue);
+							setIndexed(false);
+							setType(Type.CONTAINER);
+						}
+					},
+					externalReferenceCode)));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			missingItemExternalReferenceBackgroundImageValue, 0, null,
+			externalReferenceCode);
 	}
 
 	private void _testPutSitePageSpecificationPageExperiencePageElementWithFormContainerPageElement()
 		throws Exception {
 
+		BackgroundImageValue backgroundImageValue =
+			ImageValueTestUtil.getDirectBackgroundImageValue(
+				null, RandomTestUtil.randomString());
 		ObjectDefinition objectDefinition =
 			ObjectDefinitionTestUtil.publishObjectDefinition(
 				Collections.singletonList(
@@ -2386,64 +2776,132 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 						ObjectFieldConstants.BUSINESS_TYPE_TEXT,
 						ObjectFieldConstants.DB_TYPE_STRING, "First Name",
 						"firstName")));
-
 		String externalReferenceCode = RandomTestUtil.randomString();
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				objectDefinition.getClassName(),
+				backgroundImageValue, objectDefinition.getClassName(),
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				true, "displayPage",
 				FormContainerConfig.FormContainerType.SIMPLE, true, 1,
 				externalReferenceCode,
 				LocalizationConfig.UnlocalizedFieldsState.READ_ONLY));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
+
+		FileEntry fileEntry = _getFileEntry(testGroup.getGroupId());
+
+		backgroundImageValue = ImageValueTestUtil.getDirectBackgroundImageValue(
+			ReferencesTestUtil.getItemExternalReference(
+				fileEntry, testGroup.getGroupId()),
+			null);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				objectDefinition.getClassName(), null, false, "displayPage",
+				backgroundImageValue, objectDefinition.getClassName(), null,
+				false, "displayPage",
 				FormContainerConfig.FormContainerType.SIMPLE, false, 1,
 				externalReferenceCode, null));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, fileEntry.getFileEntryId(), fileEntry,
+			externalReferenceCode);
+
+		JournalArticle journalArticle = JournalTestUtil.addArticle(
+			testGroup.getGroupId(),
+			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			JournalArticle.class.getName(),
+			journalArticle.getExternalReferenceCode(),
+			"JournalArticle_authorProfileImage", null);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				null,
+				backgroundImageValue, null,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				false, "embedded", FormContainerConfig.FormContainerType.SIMPLE,
 				false, 1, externalReferenceCode,
 				LocalizationConfig.UnlocalizedFieldsState.DISABLED));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, journalArticle.getResourcePrimKey(),
+			journalArticle, externalReferenceCode);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			FragmentMappedValueItemContextReference.ContextSource.
+				DISPLAY_PAGE_ITEM,
+			"JournalArticle_authorProfileImage",
+			FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				objectDefinition.getClassName(), null, false, "none",
-				FormContainerConfig.FormContainerType.SIMPLE, false, 1,
-				externalReferenceCode,
+				backgroundImageValue, objectDefinition.getClassName(), null,
+				false, "none", FormContainerConfig.FormContainerType.SIMPLE,
+				false, 1, externalReferenceCode,
 				LocalizationConfig.UnlocalizedFieldsState.READ_ONLY));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				null,
+				backgroundImageValue, null,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				false, "page", FormContainerConfig.FormContainerType.SIMPLE,
 				false, 1, externalReferenceCode, null));
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFormContainerPageElement(
-				objectDefinition.getClassName(),
+				null, objectDefinition.getClassName(),
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				false, "url", FormContainerConfig.FormContainerType.SIMPLE,
 				false, 1, externalReferenceCode,
 				LocalizationConfig.UnlocalizedFieldsState.DISABLED));
-		_testPutSitePageSpecificationPageExperiencePageElement(
-			_getFormContainerPageElement(
-				objectDefinition.getClassName(),
-				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
-				false, "url", FormContainerConfig.FormContainerType.MULTISTEP,
-				false, RandomTestUtil.randomInt(2, 10), externalReferenceCode,
-				LocalizationConfig.UnlocalizedFieldsState.DISABLED));
-		_testPutSitePageSpecificationPageExperiencePageElement(
-			_getPageElement(
-				new FormContainerPageElementDefinition() {
-					{
-						setIndexed(true);
-						setType(Type.FORM_CONTAINER);
-					}
-				},
-				externalReferenceCode));
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			FragmentMappedValueItemContextReference.ContextSource.
+				COLLECTION_ITEM,
+			"AssetEntry_userProfileImage",
+			FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
+
+		PageElement pageElement =
+			_testPutSitePageSpecificationPageExperiencePageElement(
+				_getFormContainerPageElement(
+					backgroundImageValue, objectDefinition.getClassName(),
+					RandomTestUtil.randomStrings(
+						RandomTestUtil.randomInt(1, 10)),
+					false, "url",
+					FormContainerConfig.FormContainerType.MULTISTEP, false,
+					RandomTestUtil.randomInt(2, 10), externalReferenceCode,
+					LocalizationConfig.UnlocalizedFieldsState.DISABLED));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, pageElement);
+
+		BackgroundImageValue missingItemExternalReferenceBackgroundImageValue =
+			ImageValueTestUtil.getDirectBackgroundImageValue(
+				_randomItemExternalReference(), null);
+
+		_testMissingOptionalReference(
+			1,
+			() -> _testPutSitePageSpecificationPageExperiencePageElement(
+				_getPageElement(
+					new FormContainerPageElementDefinition() {
+						{
+							setBackgroundImageValue(
+								() ->
+									missingItemExternalReferenceBackgroundImageValue);
+							setIndexed(true);
+							setType(Type.FORM_CONTAINER);
+						}
+					},
+					externalReferenceCode)));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			missingItemExternalReferenceBackgroundImageValue, 0, null,
+			externalReferenceCode);
 	}
 
 	private void _testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElement()
@@ -2451,52 +2909,111 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_randomPageElement(
-				PageElementDefinition.Type.FRAGMENT, StringPool.BLANK));
+				PageElementDefinition.Type.BASIC_FRAGMENT, StringPool.BLANK));
 
+		BackgroundImageValue backgroundImageValue =
+			ImageValueTestUtil.getDirectBackgroundImageValue(
+				null, RandomTestUtil.randomString());
 		String externalReferenceCode = RandomTestUtil.randomString();
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFragmentInstancePageElement(
-				externalReferenceCode,
-				PageElementsTestUtil.getFragmentInstancePageElementDefinition(
-					Collections.emptyMap(), "BASIC_COMPONENT-button",
-					testGroup.getGroupId())));
+				PageElementsTestUtil.
+					getBasicFragmentInstancePageElementDefinition(
+						backgroundImageValue, Collections.emptyMap(),
+						"BASIC_COMPONENT-button", testGroup.getGroupId()),
+				externalReferenceCode));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
+
+		FileEntry fileEntry = _getFileEntry(testGroup.getGroupId());
+
+		backgroundImageValue = ImageValueTestUtil.getDirectBackgroundImageValue(
+			ReferencesTestUtil.getItemExternalReference(
+				fileEntry, testGroup.getGroupId()),
+			null);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFragmentInstancePageElement(
-				externalReferenceCode,
-				PageElementsTestUtil.getFragmentInstancePageElementDefinition(
-					Collections.emptyMap(),
-					"com.liferay.fragment.internal.renderer." +
-						"ContentObjectFragmentRenderer",
-					testGroup.getGroupId())));
+				PageElementsTestUtil.
+					getBasicFragmentInstancePageElementDefinition(
+						backgroundImageValue, Collections.emptyMap(),
+						"com.liferay.fragment.internal.renderer." +
+							"ContentObjectFragmentRenderer",
+						testGroup.getGroupId()),
+				externalReferenceCode));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, fileEntry.getFileEntryId(), fileEntry,
+			externalReferenceCode);
+
+		JournalArticle journalArticle = JournalTestUtil.addArticle(
+			testGroup.getGroupId(),
+			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			JournalArticle.class.getName(),
+			journalArticle.getExternalReferenceCode(),
+			"JournalArticle_authorProfileImage", null);
 
 		ServiceContext serviceContext =
 			ServiceContextTestUtil.getServiceContext(testGroup.getGroupId());
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFragmentInstancePageElement(
-				externalReferenceCode,
-				PageElementsTestUtil.getFragmentInstancePageElementDefinition(
-					Collections.emptyMap(), new FragmentEditableElement[0],
-					_addFragmentEntry(
-						null, irrelevantGroup.getGroupId(), serviceContext),
-					testGroup.getGroupId())));
+				PageElementsTestUtil.
+					getBasicFragmentInstancePageElementDefinition(
+						backgroundImageValue, Collections.emptyMap(),
+						new FragmentEditableElement[0],
+						_addFragmentEntry(
+							null, irrelevantGroup.getGroupId(), serviceContext),
+						testGroup.getGroupId()),
+				externalReferenceCode));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, journalArticle.getResourcePrimKey(),
+			journalArticle, externalReferenceCode);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			FragmentMappedValueItemContextReference.ContextSource.
+				DISPLAY_PAGE_ITEM,
+			"JournalArticle_authorProfileImage",
+			FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFragmentInstancePageElement(
-				externalReferenceCode,
-				PageElementsTestUtil.getFragmentInstancePageElementDefinition(
-					Collections.emptyMap(), new FragmentEditableElement[0],
-					_addFragmentEntry(
-						null, testGroup.getGroupId(), serviceContext),
-					testGroup.getGroupId())));
+				PageElementsTestUtil.
+					getBasicFragmentInstancePageElementDefinition(
+						backgroundImageValue, Collections.emptyMap(),
+						new FragmentEditableElement[0],
+						_addFragmentEntry(
+							null, testGroup.getGroupId(), serviceContext),
+						testGroup.getGroupId()),
+				externalReferenceCode));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			FragmentMappedValueItemContextReference.ContextSource.
+				COLLECTION_ITEM,
+			"AssetEntry_userProfileImage",
+			FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFragmentInstancePageElement(
-				externalReferenceCode,
-				PageElementsTestUtil.getFragmentInstancePageElementDefinition(
-					Collections.emptyMap(), new FragmentEditableElement[0],
-					_addFragmentEntry(
-						null, testGroup.getGroupId(), serviceContext),
-					testGroup.getGroupId())));
+				PageElementsTestUtil.
+					getBasicFragmentInstancePageElementDefinition(
+						backgroundImageValue, Collections.emptyMap(),
+						new FragmentEditableElement[0],
+						_addFragmentEntry(
+							null, testGroup.getGroupId(), serviceContext),
+						testGroup.getGroupId()),
+				externalReferenceCode));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
 
 		externalReferenceCode = RandomTestUtil.randomString();
 
@@ -2511,30 +3028,34 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFragmentInstancePageElement(
-				externalReferenceCode,
-				PageElementsTestUtil.getFragmentInstancePageElementDefinition(
-					Collections.emptyMap(), new FragmentEditableElement[0],
-					fragmentEntry, fragmentInstanceExternalReferenceCode,
-					testGroup.getGroupId(), namespace, uuid,
-					new WidgetInstance[] {
-						_getWidgetInstance(
-							_getWidgetConfig(), namespace,
-							JournalContentPortletKeys.JOURNAL_CONTENT,
-							_getWidgetPermissions())
-					})));
+				PageElementsTestUtil.
+					getBasicFragmentInstancePageElementDefinition(
+						null, Collections.emptyMap(),
+						new FragmentEditableElement[0], fragmentEntry,
+						fragmentInstanceExternalReferenceCode, namespace,
+						testGroup.getGroupId(), uuid,
+						new WidgetInstance[] {
+							_getWidgetInstance(
+								_getWidgetConfig(), namespace,
+								JournalContentPortletKeys.JOURNAL_CONTENT,
+								_getWidgetPermissions())
+						}),
+				externalReferenceCode));
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getFragmentInstancePageElement(
-				externalReferenceCode,
-				PageElementsTestUtil.getFragmentInstancePageElementDefinition(
-					Collections.emptyMap(), new FragmentEditableElement[0],
-					fragmentEntry, fragmentInstanceExternalReferenceCode,
-					testGroup.getGroupId(), namespace, uuid,
-					new WidgetInstance[] {
-						_getWidgetInstance(
-							new HashMap<>(), namespace,
-							JournalContentPortletKeys.JOURNAL_CONTENT,
-							new WidgetPermission[0])
-					})));
+				PageElementsTestUtil.
+					getBasicFragmentInstancePageElementDefinition(
+						null, Collections.emptyMap(),
+						new FragmentEditableElement[0], fragmentEntry,
+						fragmentInstanceExternalReferenceCode, namespace,
+						testGroup.getGroupId(), uuid,
+						new WidgetInstance[] {
+							_getWidgetInstance(
+								new HashMap<>(), namespace,
+								JournalContentPortletKeys.JOURNAL_CONTENT,
+								new WidgetPermission[0])
+						}),
+				externalReferenceCode));
 
 		_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithConfiguration();
 		_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithFragmentEditableElements();
@@ -2543,49 +3064,64 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 			externalReferenceCode,
 			_randomFragmentEntry(
 				RandomTestUtil.randomLong(), StringPool.BLANK,
-				irrelevantGroup.getGroupId()));
+				irrelevantGroup.getGroupId()),
+			_randomItemExternalReference());
 		_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementAndMissingOptionalReference(
 			externalReferenceCode,
 			_randomFragmentEntry(
 				RandomTestUtil.randomLong(), StringPool.BLANK,
+				testGroup.getGroupId()),
+			ReferencesTestUtil.getItemExternalReference(
+				HashMapBuilder.put(
+					"className", FileEntry.class.getName()
+				).put(
+					"externalReferenceCode", RandomTestUtil.randomString()
+				).build(),
 				testGroup.getGroupId()));
 		_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementAndMissingOptionalReference(
 			externalReferenceCode,
-			_randomFragmentRenderer(RandomTestUtil.randomString()));
+			_randomFragmentRenderer(RandomTestUtil.randomString()),
+			_randomItemExternalReference());
 	}
 
 	private void
 			_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementAndMissingOptionalReference(
-				String externalReferenceCode, FragmentEntry fragmentEntry)
+				String externalReferenceCode, FragmentEntry fragmentEntry,
+				ItemExternalReference itemExternalReference)
 		throws Exception {
 
 		_testMissingOptionalReference(
-			1,
+			2,
 			() -> _testPutSitePageSpecificationPageExperiencePageElement(
 				_getFragmentInstancePageElement(
-					externalReferenceCode,
 					PageElementsTestUtil.
-						getFragmentInstancePageElementDefinition(
+						getBasicFragmentInstancePageElementDefinition(
+							ImageValueTestUtil.getDirectBackgroundImageValue(
+								itemExternalReference, null),
 							Collections.emptyMap(),
 							new FragmentEditableElement[0], fragmentEntry,
-							testGroup.getGroupId()))));
+							testGroup.getGroupId()),
+					externalReferenceCode)));
 	}
 
 	private void
 			_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementAndMissingOptionalReference(
-				String externalReferenceCode, FragmentRenderer fragmentRenderer)
+				String externalReferenceCode, FragmentRenderer fragmentRenderer,
+				ItemExternalReference itemExternalReference)
 		throws Exception {
 
 		_testMissingOptionalReference(
-			1,
+			2,
 			() -> _testPutSitePageSpecificationPageExperiencePageElement(
 				_getFragmentInstancePageElement(
-					externalReferenceCode,
 					PageElementsTestUtil.
-						getFragmentInstancePageElementDefinition(
+						getBasicFragmentInstancePageElementDefinition(
+							ImageValueTestUtil.getDirectBackgroundImageValue(
+								itemExternalReference, null),
 							Collections.emptyMap(),
 							new FragmentEditableElement[0], fragmentRenderer,
-							testGroup.getGroupId()))));
+							testGroup.getGroupId()),
+					externalReferenceCode)));
 	}
 
 	private void _testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithConfiguration()
@@ -3069,24 +3605,42 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 					).build(),
 					Collections.emptyMap()));
 
-		_assertProblemException(
-			"BAD_REQUEST", null,
-			() ->
-				_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithConfiguration(
-					FragmentConfigurationTestUtil.getConfiguration(
-						HashMapBuilder.<String, Map<String, Object>>put(
-							selectFieldName,
-							HashMapBuilder.<String, Object>put(
-								"defaultValue", selectValue3
-							).put(
-								"type", "select"
-							).put(
-								"typeOptions", typeOptionsJSONObject
-							).build()
-						).build()),
-					HashMapBuilder.<String, Object>put(
-						selectFieldName, RandomTestUtil.randomString()
-					).build()));
+		try (LogCapture logCapture = LoggerTestUtil.configureLog4JLogger(
+				"com.liferay.headless.admin.site.internal.resource.v1_0." +
+					"layout.structure.item.importer.util." +
+						"FragmentConfigurationFieldValuesUtil",
+				LoggerTestUtil.DEBUG)) {
+
+			String invalidSelectValue = RandomTestUtil.randomString();
+
+			_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithConfiguration(
+				FragmentConfigurationTestUtil.getConfiguration(
+					HashMapBuilder.<String, Map<String, Object>>put(
+						selectFieldName,
+						HashMapBuilder.<String, Object>put(
+							"defaultValue", selectValue3
+						).put(
+							"type", "select"
+						).put(
+							"typeOptions", typeOptionsJSONObject
+						).build()
+					).build()),
+				HashMapBuilder.<String, Object>put(
+					selectFieldName, invalidSelectValue
+				).build());
+
+			List<LogEntry> logEntries = logCapture.getLogEntries();
+
+			Assert.assertEquals(logEntries.toString(), 1, logEntries.size());
+
+			LogEntry logEntry = logEntries.get(0);
+
+			Assert.assertEquals(
+				StringBundler.concat(
+					"Invalid configuration value \"", invalidSelectValue,
+					"\" for field \"", selectFieldName, "\""),
+				logEntry.getMessage());
+		}
 	}
 
 	private void
@@ -3106,12 +3660,12 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 
 			_testPutSitePageSpecificationPageExperiencePageElement(
 				_getFragmentInstancePageElement(
-					externalReferenceCode,
 					PageElementsTestUtil.
-						getFragmentInstancePageElementDefinition(
-							configurationValuesMap,
+						getBasicFragmentInstancePageElementDefinition(
+							null, configurationValuesMap,
 							new FragmentEditableElement[0], fragmentEntry,
-							testGroup.getGroupId())));
+							testGroup.getGroupId()),
+					externalReferenceCode));
 		}
 	}
 
@@ -3122,42 +3676,167 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 			testGroup.getGroupId(),
 			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
 
+		FileEntry fileEntry1 = _getFileEntry(testGroup.getGroupId());
+		FileEntry fileEntry2 = _getFileEntry(irrelevantGroup.getGroupId());
+
 		_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithFragmentEditableElements(
+			FragmentEditableElementTestUtil.getActionFragmentEditableElement(
+				FragmentEditableElementTestUtil.getNoneActionInteraction(),
+				FragmentMappedValueTestUtil.getFragmentMappedValue(
+					FileEntry.class.getName(),
+					fileEntry1.getExternalReferenceCode(), "FileEntry_fileURL",
+					null),
+				"element-action1",
+				FragmentEditableElementTestUtil.
+					getDisplayPageActionInteraction(),
+				FragmentEditableElementTestUtil.getTextFragmentMappedValue(
+					FragmentMappedValueTestUtil.getFragmentMappedValue(
+						JournalArticle.class.getName(), "JournalArticle_title",
+						journalArticle.getExternalReferenceCode(), null))),
+			FragmentEditableElementTestUtil.getActionFragmentEditableElement(
+				FragmentEditableElementTestUtil.
+					getNotificationActionInteraction(),
+				FragmentMappedValueTestUtil.getFragmentMappedValue(
+					FileEntry.class.getName(),
+					fileEntry2.getExternalReferenceCode(), "FileEntry_fileURL",
+					irrelevantGroup.getExternalReferenceCode()),
+				"element-action2",
+				FragmentEditableElementTestUtil.getNoneActionInteraction(),
+				FragmentEditableElementTestUtil.getTextFragmentInlineValue()),
 			FragmentEditableElementTestUtil.
 				getBackgroundImageFragmentEditableElement(
-					FragmentEditableElementTestUtil.getDirectFragmentImageValue(
+					ImageValueTestUtil.getDirectFragmentImageValue(
 						ReferencesTestUtil.getItemExternalReference(
-							_getFileEntry(testGroup.getGroupId()),
-							testGroup.getGroupId()),
+							fileEntry1, testGroup.getGroupId()),
 						RandomTestUtil.randomString()),
 					"element-background-image1"),
 			FragmentEditableElementTestUtil.
 				getBackgroundImageFragmentEditableElement(
-					FragmentEditableElementTestUtil.getDirectFragmentImageValue(
+					ImageValueTestUtil.getDirectFragmentImageValue(
 						ReferencesTestUtil.getItemExternalReference(
-							_getFileEntry(irrelevantGroup.getGroupId()),
-							testGroup.getGroupId()),
+							fileEntry2, testGroup.getGroupId()),
 						null),
 					"element-background-image2"),
 			FragmentEditableElementTestUtil.getHTMLFragmentEditableElement(
-				null, null, HTMLFragmentValue.Type.INLINE),
-			FragmentEditableElementTestUtil.getTextFragmentEditableElement(
-				FragmentEditableElementValueFragmentLink.Prefix.EMAIL,
+				null, FragmentEditableElementValue.Type.HTML, null,
+				HTMLFragmentValue.Type.INLINE, "element-html"),
+			FragmentEditableElementTestUtil.getImageFragmentEditableElement(
+				FragmentEditableElementTestUtil.getFragmentImage(
+					HashMapBuilder.put(
+						LocaleUtil.toBCP47LanguageId(
+							LocaleUtil.getMostRelevantLocale()),
+						RandomTestUtil.randomString()
+					).build(),
+					ImageValueTestUtil.getDirectFragmentImageValue(
+						ReferencesTestUtil.getItemExternalReference(
+							fileEntry1, testGroup.getGroupId()),
+						RandomTestUtil.randomString()),
+					Boolean.FALSE,
+					HashMapBuilder.put(
+						"desktop", "auto"
+					).build()),
+				"element-image1"),
+			FragmentEditableElementTestUtil.getImageFragmentEditableElement(
+				FragmentEditableElementTestUtil.getFragmentImage(
+					HashMapBuilder.put(
+						LocaleUtil.toBCP47LanguageId(
+							LocaleUtil.getMostRelevantLocale()),
+						RandomTestUtil.randomString()
+					).put(
+						LocaleUtil.toBCP47LanguageId(LocaleUtil.SPAIN),
+						RandomTestUtil.randomString()
+					).build(),
+					ImageValueTestUtil.getDirectFragmentImageValue(
+						ReferencesTestUtil.getItemExternalReference(
+							fileEntry2, testGroup.getGroupId()),
+						RandomTestUtil.randomString()),
+					Boolean.TRUE,
+					HashMapBuilder.put(
+						"desktop", "auto"
+					).put(
+						"landscapeMobile", "preview-1000x0"
+					).put(
+						"tablet", "auto"
+					).build()),
+				"element-image2"),
+			FragmentEditableElementTestUtil.getImageFragmentEditableElement(
+				FragmentEditableElementTestUtil.getFragmentImage(
+					HashMapBuilder.put(
+						LocaleUtil.toBCP47LanguageId(
+							LocaleUtil.getMostRelevantLocale()),
+						RandomTestUtil.randomString()
+					).put(
+						LocaleUtil.toBCP47LanguageId(LocaleUtil.SPAIN),
+						RandomTestUtil.randomString()
+					).build(),
+					ImageValueTestUtil.getDirectFragmentImageValue(
+						null, RandomTestUtil.randomString()),
+					null,
+					HashMapBuilder.put(
+						"desktop", "auto"
+					).put(
+						"landscapeMobile", "preview-1000x0"
+					).put(
+						"tablet", "auto"
+					).build()),
+				"element-image3"),
+			FragmentEditableElementTestUtil.getLinkFragmentEditableElement(
+				null,
 				_getFragmentLink(
 					JournalArticle.class.getName(),
 					journalArticle.getExternalReferenceCode(),
 					"JournalArticle_title", null),
-				null, null, TextFragmentValue.Type.INLINE));
+				null, "element-link",
+				FragmentEditableElementValueFragmentLink.Prefix.EMAIL,
+				TextFragmentValue.Type.INLINE),
+			FragmentEditableElementTestUtil.getHTMLFragmentEditableElement(
+				null, FragmentEditableElementValue.Type.RICH_TEXT, null,
+				HTMLFragmentValue.Type.INLINE, "element-rich-text"),
+			FragmentEditableElementTestUtil.getTextFragmentEditableElement(
+				null,
+				_getFragmentLink(
+					JournalArticle.class.getName(),
+					journalArticle.getExternalReferenceCode(),
+					"JournalArticle_title", null),
+				null, FragmentEditableElementValueFragmentLink.Prefix.EMAIL,
+				TextFragmentValue.Type.INLINE));
+
+		Layout layout = LayoutTestUtil.addTypeContentLayout(testGroup);
 
 		_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithFragmentEditableElements(
+			FragmentEditableElementTestUtil.getActionFragmentEditableElement(
+				FragmentEditableElementTestUtil.getPageActionInteraction(
+					ReferencesTestUtil.getItemExternalReference(
+						layout, testGroup.getGroupId())),
+				FragmentMappedValueTestUtil.getFragmentMappedValue(
+					JournalArticle.class.getName(),
+					"JournalArticle_displayPageURL",
+					journalArticle.getExternalReferenceCode(), null),
+				"element-action1",
+				FragmentEditableElementTestUtil.getNoneActionInteraction(),
+				FragmentEditableElementTestUtil.getTextFragmentMappedValue(
+					FragmentMappedValueTestUtil.getFragmentMappedValue(
+						FileEntry.class.getName(), "FileEntry_title",
+						fileEntry2.getExternalReferenceCode(),
+						irrelevantGroup.getExternalReferenceCode()))),
+			FragmentEditableElementTestUtil.getActionFragmentEditableElement(
+				FragmentEditableElementTestUtil.getURLActionInteraction(),
+				FragmentMappedValueTestUtil.getFragmentMappedValue(
+					FileEntry.class.getName(),
+					fileEntry1.getExternalReferenceCode(), "FileEntry_fileURL",
+					null),
+				"element-action2",
+				FragmentEditableElementTestUtil.
+					getNotificationActionInteraction(),
+				null),
 			FragmentEditableElementTestUtil.
 				getBackgroundImageFragmentEditableElement(
-					FragmentEditableElementTestUtil.getDirectFragmentImageValue(
+					ImageValueTestUtil.getDirectFragmentImageValue(
 						null, RandomTestUtil.randomString()),
 					"element-background-image1"),
 			FragmentEditableElementTestUtil.
 				getBackgroundImageFragmentEditableElement(
-					FragmentEditableElementTestUtil.getMappedFragmentImageValue(
+					ImageValueTestUtil.getMappedFragmentImageValue(
 						FragmentMappedValueItemContextReference.ContextSource.
 							COLLECTION_ITEM,
 						"JournalArticle_authorProfileImage",
@@ -3167,21 +3846,102 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 			FragmentEditableElementTestUtil.getHTMLFragmentEditableElement(
 				FragmentMappedValueItemContextReference.ContextSource.
 					COLLECTION_ITEM,
+				FragmentEditableElementValue.Type.HTML,
 				FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE,
-				HTMLFragmentValue.Type.MAPPED),
-			FragmentEditableElementTestUtil.getTextFragmentEditableElement(
-				null, null,
+				HTMLFragmentValue.Type.MAPPED, "element-html"),
+			FragmentEditableElementTestUtil.getImageFragmentEditableElement(
+				FragmentEditableElementTestUtil.getFragmentImage(
+					HashMapBuilder.put(
+						LocaleUtil.toBCP47LanguageId(
+							LocaleUtil.getMostRelevantLocale()),
+						RandomTestUtil.randomString()
+					).build(),
+					ImageValueTestUtil.getMappedFragmentImageValue(
+						FragmentMappedValueItemContextReference.ContextSource.
+							COLLECTION_ITEM,
+						"JournalArticle_authorProfileImage",
+						FragmentMappedValueItemReference.Type.
+							CONTEXT_REFERENCE),
+					Boolean.FALSE,
+					HashMapBuilder.put(
+						"tablet", "auto"
+					).build()),
+				"element-image1"),
+			FragmentEditableElementTestUtil.getImageFragmentEditableElement(
+				FragmentEditableElementTestUtil.getFragmentImage(
+					HashMapBuilder.put(
+						LocaleUtil.toBCP47LanguageId(
+							LocaleUtil.getMostRelevantLocale()),
+						RandomTestUtil.randomString()
+					).put(
+						LocaleUtil.toBCP47LanguageId(LocaleUtil.SPAIN),
+						RandomTestUtil.randomString()
+					).build(),
+					ImageValueTestUtil.getMappedFragmentImageValue(
+						FileEntry.class.getName(),
+						fileEntry1.getExternalReferenceCode(),
+						"FileEntry_fileURL", null),
+					Boolean.TRUE,
+					HashMapBuilder.put(
+						"desktop", "auto"
+					).put(
+						"tablet", "preview-1000x0"
+					).build()),
+				"element-image2"),
+			FragmentEditableElementTestUtil.getImageFragmentEditableElement(
+				FragmentEditableElementTestUtil.getFragmentImage(
+					HashMapBuilder.put(
+						LocaleUtil.toBCP47LanguageId(
+							LocaleUtil.getMostRelevantLocale()),
+						RandomTestUtil.randomString()
+					).build(),
+					ImageValueTestUtil.getDirectFragmentImageValue(
+						ReferencesTestUtil.getItemExternalReference(
+							fileEntry2, testGroup.getGroupId()),
+						RandomTestUtil.randomString()),
+					Boolean.TRUE,
+					HashMapBuilder.put(
+						"landscapeMobile", "preview-1000x0"
+					).put(
+						"tablet", "auto"
+					).build()),
+				"element-image3"),
+			FragmentEditableElementTestUtil.getLinkFragmentEditableElement(
 				FragmentMappedValueItemContextReference.ContextSource.
 					COLLECTION_ITEM,
+				null, FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE,
+				"element-link", null, TextFragmentValue.Type.MAPPED),
+			FragmentEditableElementTestUtil.getHTMLFragmentEditableElement(
+				FragmentMappedValueItemContextReference.ContextSource.
+					COLLECTION_ITEM,
+				FragmentEditableElementValue.Type.RICH_TEXT,
 				FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE,
-				TextFragmentValue.Type.MAPPED));
-
-		Layout layout = LayoutTestUtil.addTypeContentLayout(testGroup);
+				HTMLFragmentValue.Type.MAPPED, "element-rich-text"),
+			FragmentEditableElementTestUtil.getTextFragmentEditableElement(
+				FragmentMappedValueItemContextReference.ContextSource.
+					COLLECTION_ITEM,
+				null, FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE,
+				null, TextFragmentValue.Type.MAPPED));
 
 		_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithFragmentEditableElements(
+			FragmentEditableElementTestUtil.getActionFragmentEditableElement(
+				null,
+				FragmentMappedValueTestUtil.getFragmentMappedValue(
+					JournalArticle.class.getName(),
+					"JournalArticle_displayPageURL",
+					journalArticle.getExternalReferenceCode(), null),
+				"element-action1",
+				FragmentEditableElementTestUtil.getURLActionInteraction(),
+				null),
+			FragmentEditableElementTestUtil.getActionFragmentEditableElement(
+				null, null, "element-action2", null,
+				FragmentEditableElementTestUtil.getTextFragmentMappedValue(
+					FragmentMappedValueTestUtil.getFragmentMappedValue(
+						FileEntry.class.getName(), "FileEntry_title",
+						fileEntry1.getExternalReferenceCode(), null))),
 			FragmentEditableElementTestUtil.
 				getBackgroundImageFragmentEditableElement(
-					FragmentEditableElementTestUtil.getMappedFragmentImageValue(
+					ImageValueTestUtil.getMappedFragmentImageValue(
 						FragmentMappedValueItemContextReference.ContextSource.
 							DISPLAY_PAGE_ITEM,
 						"JournalArticle_authorProfileImage",
@@ -3191,57 +3951,159 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 			FragmentEditableElementTestUtil.getHTMLFragmentEditableElement(
 				FragmentMappedValueItemContextReference.ContextSource.
 					DISPLAY_PAGE_ITEM,
+				FragmentEditableElementValue.Type.HTML,
 				FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE,
-				HTMLFragmentValue.Type.MAPPED),
-			FragmentEditableElementTestUtil.getTextFragmentEditableElement(
-				FragmentEditableElementValueFragmentLink.Prefix.PHONE,
+				HTMLFragmentValue.Type.MAPPED, "element-html"),
+			FragmentEditableElementTestUtil.getImageFragmentEditableElement(
+				FragmentEditableElementTestUtil.getFragmentImage(
+					HashMapBuilder.put(
+						LocaleUtil.toBCP47LanguageId(
+							LocaleUtil.getMostRelevantLocale()),
+						RandomTestUtil.randomString()
+					).build(),
+					ImageValueTestUtil.getMappedFragmentImageValue(
+						FragmentMappedValueItemContextReference.ContextSource.
+							DISPLAY_PAGE_ITEM,
+						"JournalArticle_authorProfileImage",
+						FragmentMappedValueItemReference.Type.
+							CONTEXT_REFERENCE),
+					Boolean.FALSE,
+					HashMapBuilder.put(
+						"tablet", "auto"
+					).build()),
+				"element-image1"),
+			FragmentEditableElementTestUtil.getLinkFragmentEditableElement(
+				FragmentMappedValueItemContextReference.ContextSource.
+					DISPLAY_PAGE_ITEM,
 				_getFragmentLink(
 					Layout.class.getName(), layout.getExternalReferenceCode(),
 					null, null),
+				FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE,
+				"element-link",
+				FragmentEditableElementValueFragmentLink.Prefix.PHONE,
+				TextFragmentValue.Type.MAPPED),
+			FragmentEditableElementTestUtil.getHTMLFragmentEditableElement(
 				FragmentMappedValueItemContextReference.ContextSource.
 					DISPLAY_PAGE_ITEM,
+				FragmentEditableElementValue.Type.RICH_TEXT,
 				FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE,
+				HTMLFragmentValue.Type.MAPPED, "element-rich-text"),
+			FragmentEditableElementTestUtil.getTextFragmentEditableElement(
+				FragmentMappedValueItemContextReference.ContextSource.
+					DISPLAY_PAGE_ITEM,
+				_getFragmentLink(
+					Layout.class.getName(), layout.getExternalReferenceCode(),
+					null, null),
+				FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE,
+				FragmentEditableElementValueFragmentLink.Prefix.PHONE,
 				TextFragmentValue.Type.MAPPED));
 
 		_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithFragmentEditableElements(
 			new FragmentEditableElement[0]);
 
 		_testMissingOptionalReference(
-			4,
+			11,
 			() ->
 				_testPutSitePageSpecificationPageExperiencePageElementWithFragmentPageElementWithFragmentEditableElements(
 					FragmentEditableElementTestUtil.
-						getBackgroundImageFragmentEditableElement(
+						getActionFragmentEditableElement(
+							null,
+							FragmentMappedValueTestUtil.getFragmentMappedValue(
+								JournalArticle.class.getName(),
+								"JournalArticle_displayPageURL",
+								RandomTestUtil.randomString(), null),
+							"element-action1",
 							FragmentEditableElementTestUtil.
-								getDirectFragmentImageValue(
-									ReferencesTestUtil.getItemExternalReference(
-										HashMapBuilder.put(
-											"className",
-											FileEntry.class.getName()
-										).put(
-											"externalReferenceCode",
-											RandomTestUtil.randomString()
-										).put(
-											"scopeExternalReferenceCode",
-											RandomTestUtil.randomString()
-										).build(),
-										testGroup.getGroupId()),
-									null),
+								getPageActionInteraction(
+									_getItemExternalReference(
+										Layout.class.getName(),
+										RandomTestUtil.randomString())),
+							null),
+					FragmentEditableElementTestUtil.
+						getActionFragmentEditableElement(
+							null, null, "element-action2", null,
+							FragmentEditableElementTestUtil.
+								getTextFragmentMappedValue(
+									FragmentMappedValueTestUtil.
+										getFragmentMappedValue(
+											FileEntry.class.getName(),
+											"FileEntry_title",
+											fileEntry1.
+												getExternalReferenceCode(),
+											RandomTestUtil.randomString()))),
+					FragmentEditableElementTestUtil.
+						getBackgroundImageFragmentEditableElement(
+							ImageValueTestUtil.getDirectFragmentImageValue(
+								_randomItemExternalReference(), null),
 							"element-background-image1"),
 					FragmentEditableElementTestUtil.
 						getBackgroundImageFragmentEditableElement(
-							FragmentEditableElementTestUtil.
-								getMappedFragmentImageValue(
-									null, "FileEntry_authorProfileImage",
-									FragmentMappedValueItemReference.Type.
-										ITEM_EXTERNAL_REFERENCE),
+							ImageValueTestUtil.getMappedFragmentImageValue(
+								null, "FileEntry_authorProfileImage",
+								FragmentMappedValueItemReference.Type.
+									ITEM_EXTERNAL_REFERENCE),
 							"element-background-image2"),
 					FragmentEditableElementTestUtil.
 						getHTMLFragmentEditableElement(
-							null,
+							null, FragmentEditableElementValue.Type.HTML,
 							FragmentMappedValueItemReference.Type.
 								ITEM_EXTERNAL_REFERENCE,
-							HTMLFragmentValue.Type.MAPPED),
+							HTMLFragmentValue.Type.MAPPED, "element-html"),
+					FragmentEditableElementTestUtil.
+						getImageFragmentEditableElement(
+							FragmentEditableElementTestUtil.getFragmentImage(
+								HashMapBuilder.put(
+									LocaleUtil.toBCP47LanguageId(
+										LocaleUtil.getMostRelevantLocale()),
+									RandomTestUtil.randomString()
+								).build(),
+								ImageValueTestUtil.getDirectFragmentImageValue(
+									_randomItemExternalReference(), null),
+								Boolean.FALSE,
+								HashMapBuilder.put(
+									"tablet", "auto"
+								).build()),
+							"element-image1"),
+					FragmentEditableElementTestUtil.
+						getImageFragmentEditableElement(
+							FragmentEditableElementTestUtil.getFragmentImage(
+								HashMapBuilder.put(
+									LocaleUtil.toBCP47LanguageId(
+										LocaleUtil.getMostRelevantLocale()),
+									RandomTestUtil.randomString()
+								).build(),
+								ImageValueTestUtil.getMappedFragmentImageValue(
+									null, "FileEntry_authorProfileImage",
+									FragmentMappedValueItemReference.Type.
+										ITEM_EXTERNAL_REFERENCE),
+								Boolean.FALSE,
+								HashMapBuilder.put(
+									"desktop", "auto"
+								).build()),
+							"element-image2"),
+					FragmentEditableElementTestUtil.
+						getLinkFragmentEditableElement(
+							null,
+							_getFragmentLink(
+								null, null, null,
+								HashMapBuilder.put(
+									LocaleUtil.toBCP47LanguageId(
+										LocaleUtil.SPAIN),
+									RandomTestUtil.randomString()
+								).put(
+									LocaleUtil.toBCP47LanguageId(LocaleUtil.US),
+									RandomTestUtil.randomString()
+								).build()),
+							FragmentMappedValueItemReference.Type.
+								ITEM_EXTERNAL_REFERENCE,
+							"element-link", null,
+							TextFragmentValue.Type.MAPPED),
+					FragmentEditableElementTestUtil.
+						getHTMLFragmentEditableElement(
+							null, FragmentEditableElementValue.Type.RICH_TEXT,
+							FragmentMappedValueItemReference.Type.
+								ITEM_EXTERNAL_REFERENCE,
+							HTMLFragmentValue.Type.MAPPED, "element-rich-text"),
 					FragmentEditableElementTestUtil.
 						getTextFragmentEditableElement(
 							null,
@@ -3255,10 +4117,9 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 									LocaleUtil.toBCP47LanguageId(LocaleUtil.US),
 									"https://www.liferay.com"
 								).build()),
-							null,
 							FragmentMappedValueItemReference.Type.
 								ITEM_EXTERNAL_REFERENCE,
-							TextFragmentValue.Type.MAPPED)));
+							null, TextFragmentValue.Type.MAPPED)));
 	}
 
 	private void
@@ -3275,37 +4136,66 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 		PageElement pageElement =
 			_testPutSitePageSpecificationPageExperiencePageElement(
 				_getFragmentInstancePageElement(
-					externalReferenceCode,
 					PageElementsTestUtil.
-						getFragmentInstancePageElementDefinition(
-							null, fragmentEditableElements, fragmentEntry,
-							testGroup.getGroupId())));
+						getBasicFragmentInstancePageElementDefinition(
+							null, null, fragmentEditableElements, fragmentEntry,
+							testGroup.getGroupId()),
+					externalReferenceCode));
 
 		_assertDefaultValues(
-			(FragmentInstancePageElementDefinition)
+			(BasicFragmentInstancePageElementDefinition)
 				pageElement.getPageElementDefinition(),
-			"element-html", "element-text");
+			"element-html", "element-link", "element-rich-text",
+			"element-text");
 	}
 
 	private void _testPutSitePageSpecificationPageExperiencePageElementWithGridPageElement()
 		throws Exception {
 
+		BackgroundImageValue backgroundImageValue =
+			ImageValueTestUtil.getMappedBackgroundImageValue(
+				FragmentMappedValueItemContextReference.ContextSource.
+					DISPLAY_PAGE_ITEM,
+				"JournalArticle_authorProfileImage",
+				FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
 		String externalReferenceCode = RandomTestUtil.randomString();
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getGridPageElement(
+				backgroundImageValue,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				false, false, 6, externalReferenceCode,
 				_getModulePageElements(externalReferenceCode, 6)));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			FragmentMappedValueItemContextReference.ContextSource.
+				COLLECTION_ITEM,
+			"AssetEntry_userProfileImage",
+			FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getGridPageElement(
-				null, true, true, 3, externalReferenceCode,
+				backgroundImageValue, null, true, true, 3,
+				externalReferenceCode,
 				_getModulePageElements(externalReferenceCode, 3)));
-		_testPutSitePageSpecificationPageExperiencePageElement(
-			_getGridPageElement(
-				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
-				false, false, 12, externalReferenceCode,
-				_getModulePageElements(externalReferenceCode, 12)));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
+
+		_testMissingOptionalReference(
+			1,
+			() -> _testPutSitePageSpecificationPageExperiencePageElement(
+				_getGridPageElement(
+					ImageValueTestUtil.getDirectBackgroundImageValue(
+						_randomItemExternalReference(), null),
+					RandomTestUtil.randomStrings(
+						RandomTestUtil.randomInt(1, 10)),
+					false, false, 12, externalReferenceCode,
+					_getModulePageElements(externalReferenceCode, 12))));
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getGridPageElementDefaultValues(externalReferenceCode));
 	}
@@ -3313,13 +4203,23 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 	private void _testPutSitePageSpecificationPageExperiencePageElementWithWidgetPageElement()
 		throws Exception {
 
-		String externalReferenceCode = RandomTestUtil.randomString();
+		JournalArticle journalArticle = JournalTestUtil.addArticle(
+			testGroup.getGroupId(),
+			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
 
+		BackgroundImageValue backgroundImageValue =
+			ImageValueTestUtil.getMappedBackgroundImageValue(
+				JournalArticle.class.getName(),
+				journalArticle.getExternalReferenceCode(),
+				"JournalArticle_authorProfileImage", null);
+
+		String externalReferenceCode = RandomTestUtil.randomString();
 		String widgetInstanceExternalReferenceCode =
 			RandomTestUtil.randomString();
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getWidgetPageElement(
+				backgroundImageValue,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				null, false, RandomTestUtil.randomString(),
 				externalReferenceCode, _getWidgetConfig(),
@@ -3327,6 +4227,16 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 				RandomTestUtil.randomString(),
 				JournalContentPortletKeys.JOURNAL_CONTENT,
 				_getWidgetPermissions()));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, journalArticle.getResourcePrimKey(),
+			journalArticle, externalReferenceCode);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			FragmentMappedValueItemContextReference.ContextSource.
+				DISPLAY_PAGE_ITEM,
+			"JournalArticle_authorProfileImage",
+			FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
 
 		String draftWidgetInstanceExternalReferenceCode =
 			RandomTestUtil.randomString();
@@ -3337,19 +4247,33 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getWidgetPageElement(
+				backgroundImageValue,
 				RandomTestUtil.randomStrings(RandomTestUtil.randomInt(1, 10)),
 				draftWidgetInstanceExternalReferenceCode, false,
 				RandomTestUtil.randomString(), externalReferenceCode,
 				_getWidgetConfig(), widgetInstanceExternalReferenceCode,
 				namespace, AssetPublisherPortletKeys.ASSET_PUBLISHER,
 				_getWidgetPermissions()));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
+
+		backgroundImageValue = ImageValueTestUtil.getMappedBackgroundImageValue(
+			FragmentMappedValueItemContextReference.ContextSource.
+				COLLECTION_ITEM,
+			"AssetEntry_userProfileImage",
+			FragmentMappedValueItemReference.Type.CONTEXT_REFERENCE);
+
 		_testPutSitePageSpecificationPageExperiencePageElement(
 			_getWidgetPageElement(
-				null, null, false, RandomTestUtil.randomString(),
-				externalReferenceCode, new HashMap<>(),
-				widgetInstanceExternalReferenceCode, namespace,
+				backgroundImageValue, null, null, false,
+				RandomTestUtil.randomString(), externalReferenceCode,
+				new HashMap<>(), widgetInstanceExternalReferenceCode, namespace,
 				AssetPublisherPortletKeys.ASSET_PUBLISHER,
 				new WidgetPermission[0]));
+
+		_assertStyledLayoutStructureItemBackgroundImage(
+			backgroundImageValue, 0, null, externalReferenceCode);
 	}
 
 	@Inject
@@ -3363,6 +4287,9 @@ public class PageElementResourceTest extends BasePageElementResourceTestCase {
 
 	@Inject
 	private DLAppLocalService _dlAppLocalService;
+
+	@Inject
+	private DLURLHelper _dlURLHelper;
 
 	private Layout _draftLayout;
 

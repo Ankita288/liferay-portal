@@ -29,7 +29,6 @@ import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
-import com.liferay.portal.test.rule.FeatureFlag;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.style.book.model.StyleBookEntry;
@@ -128,7 +127,6 @@ public class DefaultStyleBookEntryUtilTest {
 		_testGetDefaultStyleBookEntryWhenStagingIsEnabled();
 	}
 
-	@FeatureFlag("LPD-30204")
 	@Test
 	public void testGetDefaultStyleBookEntry2() throws Exception {
 		StyleBookEntry styleBookEntry1 = _addStyleBookEntry(false);
@@ -173,7 +171,7 @@ public class DefaultStyleBookEntryUtilTest {
 			StyleBookUtil.getStyleFromThemeStyleBookEntry(_layout, null);
 
 		Assert.assertEquals(
-			"styles-from-theme",
+			"styles-from-x",
 			DefaultStyleBookEntryUtil.getStyleBookEntryName(
 				_layout, null, styleFromThemeStyleBookEntry));
 	}
@@ -208,27 +206,14 @@ public class DefaultStyleBookEntryUtilTest {
 	public void testGetStyleBookEntryNameWithMasterLayoutWithoutStyleBookEntry()
 		throws Exception {
 
+		Layout masterLayoutBasedLayout = _getMasterLayoutBasedLayout();
+
+		_addStyleBookEntry(false);
+
 		Assert.assertEquals(
-			"styles-from-theme",
+			"styles-from-x",
 			DefaultStyleBookEntryUtil.getStyleBookEntryName(
-				_getMasterLayoutBasedLayout(), null, null));
-	}
-
-	@Test
-	public void testGetStyleBookEntryNameWithMasterLayoutWithoutStyleBookEntry1()
-		throws Exception {
-
-		_testGetStyleBookEntryNameWithMasterLayoutWithoutStyleBookEntry(
-			"styles-from-theme");
-	}
-
-	@FeatureFlag("LPD-30204")
-	@Test
-	public void testGetStyleBookEntryNameWithMasterLayoutWithoutStyleBookEntry2()
-		throws Exception {
-
-		_testGetStyleBookEntryNameWithMasterLayoutWithoutStyleBookEntry(
-			"styles-from-x");
+				masterLayoutBasedLayout, null, null));
 	}
 
 	@Test
@@ -254,16 +239,7 @@ public class DefaultStyleBookEntryUtilTest {
 	}
 
 	@Test
-	public void testGetStyleBookEntryNameWithoutMasterLayout1() {
-		Assert.assertEquals(
-			"styles-from-theme",
-			DefaultStyleBookEntryUtil.getStyleBookEntryName(
-				_layout, null, null));
-	}
-
-	@FeatureFlag("LPD-30204")
-	@Test
-	public void testGetStyleBookEntryNameWithoutMasterLayout2() {
+	public void testGetStyleBookEntryNameWithoutMasterLayout() {
 		Assert.assertEquals(
 			"styles-from-x",
 			DefaultStyleBookEntryUtil.getStyleBookEntryName(
@@ -392,21 +368,6 @@ public class DefaultStyleBookEntryUtilTest {
 		Assert.assertEquals(
 			styleBookEntry.getStyleBookEntryId(),
 			defaultStyleBookEntry.getStyleBookEntryId());
-	}
-
-	private void
-			_testGetStyleBookEntryNameWithMasterLayoutWithoutStyleBookEntry(
-				String expectedStyleBookEntryName)
-		throws Exception {
-
-		Layout masterLayoutBasedLayout = _getMasterLayoutBasedLayout();
-
-		_addStyleBookEntry(false);
-
-		Assert.assertEquals(
-			expectedStyleBookEntryName,
-			DefaultStyleBookEntryUtil.getStyleBookEntryName(
-				masterLayoutBasedLayout, null, null));
 	}
 
 	private static final String _THEME_ID_CLASSIC = "classic_WAR_classictheme";

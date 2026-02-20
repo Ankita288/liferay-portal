@@ -6,10 +6,16 @@
 package com.liferay.frontend.js.web.internal.js.importmaps.extender;
 
 import com.liferay.frontend.js.importmaps.extender.DynamicJSImportMapsContributor;
+import com.liferay.frontend.js.web.internal.resource.handler.LanguageFrontendResourceRequestHandler;
+import com.liferay.frontend.js.web.internal.util.FrontendJsWebUtil;
 import com.liferay.petra.string.StringPool;
-import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.configuration.module.configuration.ConfigurationProvider;
 import com.liferay.portal.kernel.frontend.hashed.files.HashedFilesRegistry;
+import com.liferay.portal.kernel.log.Log;
+import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.module.configuration.ConfigurationException;
 import com.liferay.portal.kernel.util.Portal;
+import com.liferay.portal.url.builder.configuration.PortalURLBuilderConfiguration;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -31,14 +37,29 @@ public class FrontendJsWebDynamicJSImportMapsContributor
 			HttpServletRequest httpServletRequest, Writer writer)
 		throws IOException {
 
-		writer.write("\"@liferay/language/\": \"");
+		writer.write(StringPool.QUOTE);
+		writer.write(
+			LanguageFrontendResourceRequestHandler.LANGUAGE_MODULE_PREFIX);
+		writer.write("\": \"");
 
-		String cdnHost = _getCDNHost(httpServletRequest);
+		String baseURL = FrontendJsWebUtil.getBaseURL(
+			httpServletRequest, _portal);
 
-		writer.write(cdnHost);
+		writer.write(baseURL);
 
-		writer.write(_portal.getPathContext(httpServletRequest));
-		writer.write("/o/js/language/\"");
+		writer.write(FrontendJsWebUtil.getPortalContextPath(_portal));
+		writer.write(
+			LanguageFrontendResourceRequestHandler.LANGUAGE_URI_PREFIX);
+		writer.write(StringPool.QUOTE);
+
+		PortalURLBuilderConfiguration portalURLBuilderConfiguration =
+			_getPortalURLBuilderConfiguration(httpServletRequest);
+
+		if ((portalURLBuilderConfiguration != null) &&
+			!portalURLBuilderConfiguration.enableESModulesHashing()) {
+
+			return;
+		}
 
 		_hashedFilesRegistry.forEach(
 			(unhashedFileURI, hashedFileURI) -> {
@@ -48,10 +69,10 @@ public class FrontendJsWebDynamicJSImportMapsContributor
 
 				try {
 					writer.write(", \"");
+					writer.write(baseURL);
 					writer.write(unhashedFileURI);
 					writer.write("\": \"");
-					writer.write(cdnHost);
-					writer.write(_portal.getPathContext(httpServletRequest));
+					writer.write(baseURL);
 					writer.write(hashedFileURI);
 					writer.write(StringPool.QUOTE);
 				}
@@ -67,14 +88,33 @@ public class FrontendJsWebDynamicJSImportMapsContributor
 		throws IOException {
 	}
 
-	private String _getCDNHost(HttpServletRequest httpServletRequest) {
+	private PortalURLBuilderConfiguration _getPortalURLBuilderConfiguration(
+		HttpServletRequest httpServletRequest) {
+
+		PortalURLBuilderConfiguration portalURLBuilderConfiguration = null;
+
 		try {
-			return _portal.getCDNHost(httpServletRequest);
+			portalURLBuilderConfiguration =
+				_configurationProvider.getCompanyConfiguration(
+					PortalURLBuilderConfiguration.class,
+					_portal.getCompanyId(httpServletRequest));
 		}
-		catch (PortalException portalException) {
-			throw new RuntimeException(portalException);
+		catch (ConfigurationException configurationException) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(
+					"Unable to get portal URL builder configuration",
+					configurationException);
+			}
 		}
+
+		return portalURLBuilderConfiguration;
 	}
+
+	private static final Log _log = LogFactoryUtil.getLog(
+		FrontendJsWebDynamicJSImportMapsContributor.class);
+
+	@Reference
+	private ConfigurationProvider _configurationProvider;
 
 	@Reference
 	private HashedFilesRegistry _hashedFilesRegistry;

@@ -83,8 +83,7 @@ public class LayoutLocalServiceUtil {
 	 * @param system whether the layout is of system type
 	 * @param friendlyURLMap the layout's locales and localized friendly URLs.
 	 To see how the URL is normalized when accessed, see {@link
-	 com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 String)}.
+	 FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param masterLayoutPageTemplateEntryERC the external reference code of
 	 the master layout page template entry
 	 * @param serviceContext the service context to be applied. Must set the
@@ -155,8 +154,7 @@ public class LayoutLocalServiceUtil {
 	 * @param system whether the layout is of system type
 	 * @param friendlyURLMap the layout's locales and localized friendly URLs.
 	 To see how the URL is normalized when accessed, see {@link
-	 com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 String)}.
+	 FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param serviceContext the service context to be applied. Must set the
 	 UUID for the layout. Can set the creation date, modification
 	 date, and expando bridge attributes for the layout. For layouts
@@ -222,8 +220,7 @@ public class LayoutLocalServiceUtil {
 	 * @param hidden whether the layout is hidden
 	 * @param friendlyURLMap the layout's locales and localized friendly URLs.
 	 To see how the URL is normalized when accessed, see {@link
-	 com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 String)}.
+	 FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param serviceContext the service context to be applied. Must set the
 	 UUID for the layout. Can set the creation date, modification
 	 date, and expando bridge attributes for the layout. For layouts
@@ -298,8 +295,7 @@ public class LayoutLocalServiceUtil {
 	 <code>portal-ext.properties</code> by specifying new values for
 	 the corresponding properties defined in {@link PropsValues}. To
 	 see how the URL is normalized when accessed, see {@link
-	 com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 String)}.
+	 FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param serviceContext the service context to be applied. Must set the
 	 UUID for the layout. Can set the creation date and modification
 	 date for the layout. For layouts that belong to a layout set
@@ -359,8 +355,7 @@ public class LayoutLocalServiceUtil {
 	 <code>portal-ext.properties</code> by specifying new values for
 	 the corresponding properties defined in {@link PropsValues}. To
 	 see how the URL is normalized when accessed, see {@link
-	 com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 String)}.
+	 FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param serviceContext the service context to be applied. Must set the
 	 UUID for the layout. Can set the creation date and modification
 	 date for the layout. For layouts that belong to a layout set
@@ -381,6 +376,18 @@ public class LayoutLocalServiceUtil {
 			externalReferenceCode, userId, groupId, privateLayout,
 			parentLayoutId, name, title, description, type, hidden, friendlyURL,
 			serviceContext);
+	}
+
+	public static Layout convertEmptyLayout(
+			long userId, long plid, Map<java.util.Locale, String> nameMap,
+			String type, long classNameId, long classPK,
+			String masterLayoutPageTemplateEntryERC,
+			ServiceContext serviceContext)
+		throws Exception {
+
+		return getService().convertEmptyLayout(
+			userId, plid, nameMap, type, classNameId, classPK,
+			masterLayoutPageTemplateEntryERC, serviceContext);
 	}
 
 	public static Layout copyLayout(
@@ -1218,20 +1225,6 @@ public class LayoutLocalServiceUtil {
 			groupId, keywords, types, statuses, start, end, orderByComparator);
 	}
 
-	public static List<Layout> getLayoutsByLayoutPrototypeUuid(
-		String layoutPrototypeUuid) {
-
-		return getService().getLayoutsByLayoutPrototypeUuid(
-			layoutPrototypeUuid);
-	}
-
-	public static int getLayoutsByLayoutPrototypeUuidCount(
-		String layoutPrototypeUuid) {
-
-		return getService().getLayoutsByLayoutPrototypeUuidCount(
-			layoutPrototypeUuid);
-	}
-
 	/**
 	 * Returns all the layouts matching the UUID and company.
 	 *
@@ -1402,11 +1395,12 @@ public class LayoutLocalServiceUtil {
 
 	public static Layout getOrAddEmptyLayout(
 			String externalReferenceCode, long userId, long groupId,
-			ServiceContext serviceContext)
+			boolean privateLayout, ServiceContext serviceContext)
 		throws Exception {
 
 		return getService().getOrAddEmptyLayout(
-			externalReferenceCode, userId, groupId, serviceContext);
+			externalReferenceCode, userId, groupId, privateLayout,
+			serviceContext);
 	}
 
 	/**
@@ -1518,6 +1512,13 @@ public class LayoutLocalServiceUtil {
 		long groupId, boolean privateLayout, long parentLayoutId) {
 
 		return getService().hasLayouts(groupId, privateLayout, parentLayoutId);
+	}
+
+	public static boolean hasLayouts(
+		long groupId, String portletLayoutPageTemplateEntryERC) {
+
+		return getService().hasLayouts(
+			groupId, portletLayoutPageTemplateEntryERC);
 	}
 
 	public static boolean hasLayouts(
@@ -1730,13 +1731,15 @@ public class LayoutLocalServiceUtil {
 	 * @param hidden whether the layout is hidden
 	 * @param friendlyURLMap the layout's locales and localized friendly URLs.
 	 To see how the URL is normalized when accessed, see {@link
-	 com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil#normalize(
-	 String)}.
+	 FriendlyURLNormalizerUtil#normalize(String)}.
 	 * @param hasIconImage whether the icon image will be updated
 	 * @param iconBytes the byte array of the layout's new icon image
 	 * @param styleBookEntryERC the external reference code of the style book
 	 entry
-	 * @param faviconFileEntryId the file entry ID of the layout's new favicon
+	 * @param faviconFileEntryERC the file entry external reference code of the
+	 layout's new favicon
+	 * @param faviconFileEntryScopeERC the file entry scope external reference
+	 code of the layout's new favicon
 	 * @param masterLayoutPageTemplateEntryERC the external reference code of
 	 the master layout page template entry
 	 * @param serviceContext the service context to be applied. Can set the
@@ -1760,7 +1763,8 @@ public class LayoutLocalServiceUtil {
 			Map<java.util.Locale, String> robotsMap, String type,
 			boolean hidden, Map<java.util.Locale, String> friendlyURLMap,
 			boolean hasIconImage, byte[] iconBytes, String styleBookEntryERC,
-			long faviconFileEntryId, String masterLayoutPageTemplateEntryERC,
+			String faviconFileEntryERC, String faviconFileEntryScopeERC,
+			String masterLayoutPageTemplateEntryERC,
 			ServiceContext serviceContext)
 		throws PortalException {
 
@@ -1768,21 +1772,22 @@ public class LayoutLocalServiceUtil {
 			groupId, privateLayout, layoutId, parentLayoutId, nameMap, titleMap,
 			descriptionMap, keywordsMap, robotsMap, type, hidden,
 			friendlyURLMap, hasIconImage, iconBytes, styleBookEntryERC,
-			faviconFileEntryId, masterLayoutPageTemplateEntryERC,
-			serviceContext);
+			faviconFileEntryERC, faviconFileEntryScopeERC,
+			masterLayoutPageTemplateEntryERC, serviceContext);
 	}
 
 	public static Layout updateLayout(
 			long groupId, boolean privateLayout, long layoutId,
 			String typeSettings, byte[] iconBytes, String themeId,
 			String colorSchemeId, String styleBookEntryERC, String css,
-			long faviconFileEntryId, String masterLayoutPageTemplateEntryERC)
+			String faviconFileEntryERC, String faviconFileEntryScopeERC,
+			String masterLayoutPageTemplateEntryERC)
 		throws PortalException {
 
 		return getService().updateLayout(
 			groupId, privateLayout, layoutId, typeSettings, iconBytes, themeId,
-			colorSchemeId, styleBookEntryERC, css, faviconFileEntryId,
-			masterLayoutPageTemplateEntryERC);
+			colorSchemeId, styleBookEntryERC, css, faviconFileEntryERC,
+			faviconFileEntryScopeERC, masterLayoutPageTemplateEntryERC);
 	}
 
 	public static void updateLayoutContent(

@@ -715,6 +715,101 @@ public abstract class BaseKeywordResourceImpl
 	/**
 	 * Invoke this method with the command line:
 	 *
+	 * curl -X 'PATCH' 'http://localhost:8080/o/headless-admin-taxonomy/v1.0/sites/{siteId}/keywords' -d $'{"assetLibraries": ___, "externalReferenceCode": ___, "name": ___}' --header 'Content-Type: application/json' -u 'test@liferay.com:test'
+	 */
+	@io.swagger.v3.oas.annotations.Operation(
+		description = "Updates only the fields received in the request body. Other fields are left untouched."
+	)
+	@io.swagger.v3.oas.annotations.Parameters(
+		value = {
+			@io.swagger.v3.oas.annotations.Parameter(
+				in = io.swagger.v3.oas.annotations.enums.ParameterIn.PATH,
+				name = "siteId"
+			)
+		}
+	)
+	@io.swagger.v3.oas.annotations.tags.Tags(
+		value = {@io.swagger.v3.oas.annotations.tags.Tag(name = "Keyword")}
+	)
+	@jakarta.ws.rs.Consumes({"application/json", "application/xml"})
+	@jakarta.ws.rs.PATCH
+	@jakarta.ws.rs.Path("/sites/{siteId}/keywords")
+	@jakarta.ws.rs.Produces({"application/json", "application/xml"})
+	@Override
+	public Keyword patchSiteKeyword(
+			@io.swagger.v3.oas.annotations.Parameter(hidden = true)
+			@jakarta.validation.constraints.NotNull
+			@jakarta.ws.rs.PathParam("siteId")
+			Long siteId,
+			Keyword keyword)
+		throws Exception {
+
+		return new Keyword();
+	}
+
+	/**
+	 * Invoke this method with the command line:
+	 *
+	 * curl -X 'PATCH' 'http://localhost:8080/o/headless-admin-taxonomy/v1.0/sites/{siteId}/keywords/by-external-reference-code/{externalReferenceCode}' -d $'{"assetLibraries": ___, "externalReferenceCode": ___, "name": ___}' --header 'Content-Type: application/json' -u 'test@liferay.com:test'
+	 */
+	@io.swagger.v3.oas.annotations.Operation(
+		description = "Updates only the fields received in the request body. Other fields are left untouched."
+	)
+	@io.swagger.v3.oas.annotations.Parameters(
+		value = {
+			@io.swagger.v3.oas.annotations.Parameter(
+				in = io.swagger.v3.oas.annotations.enums.ParameterIn.PATH,
+				name = "siteId"
+			),
+			@io.swagger.v3.oas.annotations.Parameter(
+				in = io.swagger.v3.oas.annotations.enums.ParameterIn.PATH,
+				name = "externalReferenceCode"
+			)
+		}
+	)
+	@io.swagger.v3.oas.annotations.tags.Tags(
+		value = {@io.swagger.v3.oas.annotations.tags.Tag(name = "Keyword")}
+	)
+	@jakarta.ws.rs.Consumes({"application/json", "application/xml"})
+	@jakarta.ws.rs.PATCH
+	@jakarta.ws.rs.Path(
+		"/sites/{siteId}/keywords/by-external-reference-code/{externalReferenceCode}"
+	)
+	@jakarta.ws.rs.Produces({"application/json", "application/xml"})
+	@Override
+	public Keyword patchSiteKeywordByExternalReferenceCode(
+			@io.swagger.v3.oas.annotations.Parameter(hidden = true)
+			@jakarta.validation.constraints.NotNull
+			@jakarta.ws.rs.PathParam("siteId")
+			Long siteId,
+			@io.swagger.v3.oas.annotations.Parameter(hidden = true)
+			@jakarta.validation.constraints.NotNull
+			@jakarta.ws.rs.PathParam("externalReferenceCode")
+			String externalReferenceCode,
+			Keyword keyword)
+		throws Exception {
+
+		Keyword existingKeyword = getSiteKeywordByExternalReferenceCode(
+			siteId, externalReferenceCode);
+
+		if (keyword.getExternalReferenceCode() != null) {
+			existingKeyword.setExternalReferenceCode(
+				keyword.getExternalReferenceCode());
+		}
+
+		if (keyword.getName() != null) {
+			existingKeyword.setName(keyword.getName());
+		}
+
+		preparePatch(keyword, existingKeyword);
+
+		return putSiteKeywordByExternalReferenceCode(
+			siteId, externalReferenceCode, existingKeyword);
+	}
+
+	/**
+	 * Invoke this method with the command line:
+	 *
 	 * curl -X 'POST' 'http://localhost:8080/o/headless-admin-taxonomy/v1.0/asset-libraries/{assetLibraryId}/keywords' -d $'{"assetLibraries": ___, "externalReferenceCode": ___, "name": ___}' --header 'Content-Type: application/json' -u 'test@liferay.com:test'
 	 */
 	@io.swagger.v3.oas.annotations.Parameters(
@@ -1579,9 +1674,49 @@ public abstract class BaseKeywordResourceImpl
 
 		UnsafeFunction<Keyword, Keyword, Exception> keywordUnsafeFunction =
 			keyword -> {
-				deleteKeyword(keyword.getId());
+				if (keyword.getId() != null) {
+					try {
+						deleteKeyword(keyword.getId());
 
-				return keyword;
+						return keyword;
+					}
+					catch (Exception exception) {
+						if (keyword.getExternalReferenceCode() != null) {
+							if (parameters.containsKey("assetLibraryId")) {
+								deleteAssetLibraryKeywordByExternalReferenceCode(
+									(Long)parameters.get("assetLibraryId"),
+									keyword.getExternalReferenceCode());
+
+								return keyword;
+							}
+
+							if (parameters.containsKey("siteId")) {
+								deleteSiteKeywordByExternalReferenceCode(
+									(Long)parameters.get("siteId"),
+									keyword.getExternalReferenceCode());
+
+								return keyword;
+							}
+						}
+					}
+				}
+				else if (parameters.containsKey("assetLibraryId")) {
+					deleteAssetLibraryKeywordByExternalReferenceCode(
+						(Long)parameters.get("assetLibraryId"),
+						keyword.getExternalReferenceCode());
+
+					return keyword;
+				}
+				else if (parameters.containsKey("siteId")) {
+					deleteSiteKeywordByExternalReferenceCode(
+						(Long)parameters.get("siteId"),
+						keyword.getExternalReferenceCode());
+
+					return keyword;
+				}
+
+				throw new UnsupportedOperationException(
+					"Unable to delete by external reference code or ID");
 			};
 
 		if (contextBatchUnsafeBiConsumer != null) {
@@ -2092,6 +2227,9 @@ public abstract class BaseKeywordResourceImpl
 
 		return addAction(
 			actionName, siteId, methodName, null, permissionName, siteId);
+	}
+
+	protected void preparePatch(Keyword keyword, Keyword existingKeyword) {
 	}
 
 	protected <T, R, E extends Throwable> List<R> transform(

@@ -33,6 +33,7 @@ import com.liferay.portal.aop.AopService;
 import com.liferay.portal.kernel.exception.LockedLayoutException;
 import com.liferay.portal.kernel.exception.NoSuchClassNameException;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.license.util.LicenseManagerUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.ColorScheme;
@@ -67,6 +68,7 @@ import com.liferay.portal.kernel.service.UserLocalService;
 import com.liferay.portal.kernel.systemevent.SystemEvent;
 import com.liferay.portal.kernel.util.Constants;
 import com.liferay.portal.kernel.util.File;
+import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.Localization;
 import com.liferay.portal.kernel.util.OrderByComparator;
@@ -219,6 +221,7 @@ public class LayoutPageTemplateEntryLocalServiceImpl
 			}
 
 			Layout layout = _addLayout(
+				layoutPageTemplateEntry.getExternalReferenceCode() + "-layout",
 				userId, groupId, name, type, masterLayoutPageTemplateEntryERC,
 				status, serviceContext);
 
@@ -832,6 +835,8 @@ public class LayoutPageTemplateEntryLocalServiceImpl
 			layoutPageTemplateEntryPersistence.findByPrimaryKey(
 				layoutPageTemplateEntryId);
 
+		_validateCMSFreeTier(layoutPageTemplateEntry.getGroupId(), status);
+
 		if (!Objects.equals(layoutPageTemplateEntry.getName(), name)) {
 			_validate(
 				layoutPageTemplateEntry.getGroupId(),
@@ -907,7 +912,8 @@ public class LayoutPageTemplateEntryLocalServiceImpl
 			draftLayout.getType(), draftLayout.isHidden(),
 			draftLayout.getFriendlyURLMap(), draftLayout.getIconImage(), null,
 			draftLayout.getStyleBookEntryERC(),
-			draftLayout.getFaviconFileEntryId(),
+			draftLayout.getFaviconFileEntryERC(),
+			draftLayout.getFaviconFileEntryScopeERC(),
 			draftLayout.getMasterLayoutPageTemplateEntryERC(), serviceContext);
 
 		Layout layout = _layoutLocalService.getLayout(
@@ -919,7 +925,8 @@ public class LayoutPageTemplateEntryLocalServiceImpl
 			layout.getDescriptionMap(), layout.getKeywordsMap(),
 			layout.getRobotsMap(), layout.getType(), layout.isHidden(),
 			layout.getFriendlyURLMap(), layout.getIconImage(), null,
-			layout.getStyleBookEntryERC(), layout.getFaviconFileEntryId(),
+			layout.getStyleBookEntryERC(), layout.getFaviconFileEntryERC(),
+			layout.getFaviconFileEntryScopeERC(),
 			layout.getMasterLayoutPageTemplateEntryERC(), serviceContext);
 
 		return layoutPageTemplateEntry;
@@ -941,6 +948,8 @@ public class LayoutPageTemplateEntryLocalServiceImpl
 				layoutPageTemplateEntry.getType());
 		}
 
+		_validateCMSFreeTier(layoutPageTemplateEntry.getGroupId(), status);
+
 		User user = _userLocalService.getUser(userId);
 
 		layoutPageTemplateEntry.setModifiedDate(new Date());
@@ -954,9 +963,9 @@ public class LayoutPageTemplateEntryLocalServiceImpl
 	}
 
 	private Layout _addLayout(
-			long userId, long groupId, String name, int type,
-			String masterLayoutPageTemplateEntryERC, int status,
-			ServiceContext serviceContext)
+			String externalReferenceCode, long userId, long groupId,
+			String name, int type, String masterLayoutPageTemplateEntryERC,
+			int status, ServiceContext serviceContext)
 		throws PortalException {
 
 		boolean privateLayout = false;
@@ -1002,9 +1011,12 @@ public class LayoutPageTemplateEntryLocalServiceImpl
 		serviceContext.setAttribute("layout.page.template.entry.type", type);
 
 		Layout layout = _layoutLocalService.addLayout(
-			null, userId, groupId, privateLayout, 0, 0, 0, titleMap, titleMap,
-			null, null, null, layoutType, typeSettings, true, true,
-			new HashMap<>(), masterLayoutPageTemplateEntryERC, serviceContext);
+			GetterUtil.getString(
+				serviceContext.getAttribute("layoutExternalReferenceCode"),
+				externalReferenceCode),
+			userId, groupId, privateLayout, 0, 0, 0, titleMap, titleMap, null,
+			null, null, layoutType, typeSettings, true, true, new HashMap<>(),
+			masterLayoutPageTemplateEntryERC, serviceContext);
 
 		Layout draftLayout = layout.fetchDraftLayout();
 
@@ -1314,6 +1326,16 @@ public class LayoutPageTemplateEntryLocalServiceImpl
 		}
 
 		_validate(groupId, layoutPageTemplateCollectionId, name, type);
+	}
+
+	private void _validateCMSFreeTier(long groupId, int status)
+		throws PortalException {
+
+		Group group = _groupLocalService.getGroup(groupId);
+
+		if (group.isCMS() && (status == WorkflowConstants.STATUS_APPROVED)) {
+			LicenseManagerUtil.checkFreeTier();
+		}
 	}
 
 	private void _validateLayoutPageTemplateEntryKey(

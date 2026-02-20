@@ -8,19 +8,12 @@ package com.liferay.portal.search.elasticsearch7.internal.search.engine.adapter.
 import com.liferay.portal.kernel.search.BooleanClauseOccur;
 import com.liferay.portal.kernel.search.generic.BooleanQueryImpl;
 import com.liferay.portal.kernel.search.generic.MatchQuery;
-import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.search.elasticsearch7.internal.connection.IndexName;
-import com.liferay.portal.search.elasticsearch7.internal.facet.DefaultFacetTranslator;
-import com.liferay.portal.search.elasticsearch7.internal.filter.ElasticsearchFilterTranslatorFixture;
 import com.liferay.portal.search.elasticsearch7.internal.index.LiferayIndexFixture;
-import com.liferay.portal.search.elasticsearch7.internal.legacy.query.ElasticsearchQueryTranslatorFixture;
-import com.liferay.portal.search.elasticsearch7.internal.query.ElasticsearchQueryTranslator;
 import com.liferay.portal.search.elasticsearch7.internal.query.SearchAssert;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchRequest;
-import com.liferay.portal.search.filter.ComplexQueryBuilderFactory;
 import com.liferay.portal.search.filter.ComplexQueryPartBuilderFactory;
-import com.liferay.portal.search.internal.filter.ComplexQueryBuilderImpl;
 import com.liferay.portal.search.internal.filter.ComplexQueryPartBuilderFactoryImpl;
 import com.liferay.portal.search.internal.query.QueriesImpl;
 import com.liferay.portal.search.query.Queries;
@@ -59,11 +52,7 @@ public class CommonSearchSourceBuilderAssemblerImplTest {
 
 		_liferayIndexFixture.setUp();
 
-		Queries queries = new QueriesImpl();
-
-		_commonSearchSourceBuilderAssembler =
-			createCommonSearchSourceBuilderAssembler(queries);
-		_queries = queries;
+		_queries = new QueriesImpl();
 	}
 
 	@After
@@ -562,54 +551,6 @@ public class CommonSearchSourceBuilderAssemblerImplTest {
 	@Rule
 	public TestName testName = new TestName();
 
-	protected static CommonSearchSourceBuilderAssembler
-		createCommonSearchSourceBuilderAssembler(Queries queries) {
-
-		CommonSearchSourceBuilderAssembler commonSearchSourceBuilderAssembler =
-			new CommonSearchSourceBuilderAssemblerImpl();
-
-		ReflectionTestUtil.setFieldValue(
-			commonSearchSourceBuilderAssembler, "_complexQueryBuilderFactory",
-			createComplexQueryBuilderFactory(queries));
-		ReflectionTestUtil.setFieldValue(
-			commonSearchSourceBuilderAssembler, "_facetTranslator",
-			new DefaultFacetTranslator());
-
-		ElasticsearchQueryTranslatorFixture
-			legacyElasticsearchQueryTranslatorFixture =
-				new ElasticsearchQueryTranslatorFixture();
-
-		com.liferay.portal.search.elasticsearch7.internal.legacy.query.
-			ElasticsearchQueryTranslator legacyElasticsearchQueryTranslator =
-				legacyElasticsearchQueryTranslatorFixture.
-					getElasticsearchQueryTranslator();
-
-		ElasticsearchFilterTranslatorFixture
-			elasticsearchFilterTranslatorFixture =
-				new ElasticsearchFilterTranslatorFixture(
-					legacyElasticsearchQueryTranslator);
-
-		ReflectionTestUtil.setFieldValue(
-			commonSearchSourceBuilderAssembler, "_filterTranslator",
-			elasticsearchFilterTranslatorFixture.
-				getElasticsearchFilterTranslator());
-
-		ReflectionTestUtil.setFieldValue(
-			commonSearchSourceBuilderAssembler, "_legacyQueryTranslator",
-			legacyElasticsearchQueryTranslator);
-		ReflectionTestUtil.setFieldValue(
-			commonSearchSourceBuilderAssembler, "_queryTranslator",
-			new ElasticsearchQueryTranslator());
-
-		return commonSearchSourceBuilderAssembler;
-	}
-
-	protected static ComplexQueryBuilderFactory
-		createComplexQueryBuilderFactory(Queries queries) {
-
-		return () -> new ComplexQueryBuilderImpl(queries, null);
-	}
-
 	private void _addPart(
 		String occur, Query query, SearchSearchRequest searchSearchRequest) {
 
@@ -678,7 +619,7 @@ public class CommonSearchSourceBuilderAssemblerImplTest {
 
 		SearchRequest searchRequest = new SearchRequest();
 
-		_commonSearchSourceBuilderAssembler.assemble(
+		CommonSearchSourceBuilderAssembler.INSTANCE.assemble(
 			searchSourceBuilder, searchSearchRequest, searchRequest);
 
 		SearchAssert.assertSearch(
@@ -703,8 +644,6 @@ public class CommonSearchSourceBuilderAssemblerImplTest {
 			).build());
 	}
 
-	private CommonSearchSourceBuilderAssembler
-		_commonSearchSourceBuilderAssembler;
 	private final ComplexQueryPartBuilderFactory
 		_complexQueryPartBuilderFactory =
 			new ComplexQueryPartBuilderFactoryImpl();

@@ -16,7 +16,6 @@ import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.search.elasticsearch7.internal.connection.ElasticsearchClientResolver;
 import com.liferay.portal.search.elasticsearch7.internal.connection.ElasticsearchFixture;
 import com.liferay.portal.search.elasticsearch7.internal.index.constants.IndexMappingsConstants;
-import com.liferay.portal.search.elasticsearch7.internal.search.engine.adapter.document.DocumentRequestExecutorFixture;
 import com.liferay.portal.search.engine.adapter.SearchEngineAdapter;
 import com.liferay.portal.search.engine.adapter.document.BulkDocumentItemResponse;
 import com.liferay.portal.search.engine.adapter.document.BulkDocumentRequest;
@@ -25,14 +24,12 @@ import com.liferay.portal.search.engine.adapter.document.DeleteByQueryDocumentRe
 import com.liferay.portal.search.engine.adapter.document.DeleteByQueryDocumentResponse;
 import com.liferay.portal.search.engine.adapter.document.DeleteDocumentRequest;
 import com.liferay.portal.search.engine.adapter.document.DeleteDocumentResponse;
-import com.liferay.portal.search.engine.adapter.document.DocumentRequestExecutor;
 import com.liferay.portal.search.engine.adapter.document.IndexDocumentRequest;
 import com.liferay.portal.search.engine.adapter.document.IndexDocumentResponse;
 import com.liferay.portal.search.engine.adapter.document.UpdateByQueryDocumentRequest;
 import com.liferay.portal.search.engine.adapter.document.UpdateByQueryDocumentResponse;
 import com.liferay.portal.search.engine.adapter.document.UpdateDocumentRequest;
 import com.liferay.portal.search.engine.adapter.document.UpdateDocumentResponse;
-import com.liferay.portal.search.internal.script.ScriptsImpl;
 import com.liferay.portal.search.script.Script;
 import com.liferay.portal.search.script.Scripts;
 import com.liferay.portal.search.test.util.indexing.DocumentFixture;
@@ -40,6 +37,7 @@ import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.io.IOException;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -564,7 +562,7 @@ public class ElasticsearchSearchEngineAdapterDocumentRequestTest {
 		UpdateDocumentResponse updateDocumentResponse =
 			_updateDocumentWithAdapter(
 				id,
-				_scripts.script(
+				Scripts.INSTANCE.script(
 					StringBundler.concat(
 						"ctx._source.", _FIELD_NAME, "=\"false\" ")),
 				false);
@@ -585,7 +583,7 @@ public class ElasticsearchSearchEngineAdapterDocumentRequestTest {
 
 		_updateDocumentWithAdapter(
 			id,
-			_scripts.script(
+			Scripts.INSTANCE.script(
 				StringBundler.concat(
 					"ctx._source.", _FIELD_NAME, "=\"true\" ")),
 			true);
@@ -600,29 +598,17 @@ public class ElasticsearchSearchEngineAdapterDocumentRequestTest {
 	protected static SearchEngineAdapter createSearchEngineAdapter(
 		ElasticsearchClientResolver elasticsearchClientResolver) {
 
-		SearchEngineAdapter searchEngineAdapter =
-			new ElasticsearchSearchEngineAdapterImpl();
+		ElasticsearchSearchEngineAdapterImpl
+			elasticsearchSearchEngineAdapterImpl =
+				new ElasticsearchSearchEngineAdapterImpl();
 
 		ReflectionTestUtil.setFieldValue(
-			searchEngineAdapter, "_documentRequestExecutor",
-			_createDocumentRequestExecutor(elasticsearchClientResolver));
+			elasticsearchSearchEngineAdapterImpl,
+			"_elasticsearchClientResolver", elasticsearchClientResolver);
 
-		return searchEngineAdapter;
-	}
+		elasticsearchSearchEngineAdapterImpl.activate(Collections.emptyMap());
 
-	private static DocumentRequestExecutor _createDocumentRequestExecutor(
-		ElasticsearchClientResolver elasticsearchClientResolver) {
-
-		DocumentRequestExecutorFixture documentRequestExecutorFixture =
-			new DocumentRequestExecutorFixture() {
-				{
-					setElasticsearchClientResolver(elasticsearchClientResolver);
-				}
-			};
-
-		documentRequestExecutorFixture.setUp();
-
-		return documentRequestExecutorFixture.getDocumentRequestExecutor();
+		return elasticsearchSearchEngineAdapterImpl;
 	}
 
 	private void _createIndex() {
@@ -726,7 +712,6 @@ public class ElasticsearchSearchEngineAdapterDocumentRequestTest {
 		"{\"properties\":{\"matchDocument\":{\"type\":\"boolean\"}}}";
 
 	private static ElasticsearchFixture _elasticsearchFixture;
-	private static final Scripts _scripts = new ScriptsImpl();
 
 	private final DocumentFixture _documentFixture = new DocumentFixture();
 	private IndicesClient _indicesClient;

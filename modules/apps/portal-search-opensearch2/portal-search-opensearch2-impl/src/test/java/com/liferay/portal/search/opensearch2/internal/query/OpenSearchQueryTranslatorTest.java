@@ -7,23 +7,20 @@ package com.liferay.portal.search.opensearch2.internal.query;
 
 import com.liferay.portal.kernel.search.filter.TermsFilter;
 import com.liferay.portal.kernel.util.StringUtil;
-import com.liferay.portal.search.internal.query.BooleanQueryImpl;
-import com.liferay.portal.search.internal.query.CommonTermsQueryImpl;
-import com.liferay.portal.search.internal.query.FuzzyQueryImpl;
-import com.liferay.portal.search.internal.query.MatchAllQueryImpl;
-import com.liferay.portal.search.internal.query.MoreLikeThisQueryImpl;
-import com.liferay.portal.search.internal.query.MultiMatchQueryImpl;
-import com.liferay.portal.search.internal.query.TermQueryImpl;
-import com.liferay.portal.search.internal.query.TermsQueryImpl;
-import com.liferay.portal.search.internal.query.WildcardQueryImpl;
 import com.liferay.portal.search.opensearch2.internal.OpenSearchTestRule;
-import com.liferay.portal.search.opensearch2.internal.filter.OpenSearchFilterTranslator;
-import com.liferay.portal.search.opensearch2.internal.filter.OpenSearchFilterTranslatorFixture;
+import com.liferay.portal.search.opensearch2.internal.filter.OpenSearchFilterVisitor;
 import com.liferay.portal.search.opensearch2.internal.util.JsonpUtil;
 import com.liferay.portal.search.opensearch2.internal.util.QueryUtil;
 import com.liferay.portal.search.query.BooleanQuery;
+import com.liferay.portal.search.query.CommonTermsQuery;
+import com.liferay.portal.search.query.FuzzyQuery;
+import com.liferay.portal.search.query.MatchAllQuery;
+import com.liferay.portal.search.query.MoreLikeThisQuery;
+import com.liferay.portal.search.query.MultiMatchQuery;
 import com.liferay.portal.search.query.Query;
+import com.liferay.portal.search.query.TermQuery;
 import com.liferay.portal.search.query.TermsQuery;
+import com.liferay.portal.search.query.WildcardQuery;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.util.Collections;
@@ -31,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -50,64 +46,46 @@ public class OpenSearchQueryTranslatorTest {
 	public static final OpenSearchTestRule openSearchTestRule =
 		OpenSearchTestRule.INSTANCE;
 
-	@Before
-	public void setUp() throws Exception {
-		OpenSearchFilterTranslatorFixture openSearchFilterTranslatorFixture =
-			new OpenSearchFilterTranslatorFixture(
-				new com.liferay.portal.search.opensearch2.internal.legacy.query.
-					OpenSearchQueryTranslator(null));
-
-		_openSearchFilterTranslator =
-			openSearchFilterTranslatorFixture.getOpenSearchFilterTranslator();
-
-		OpenSearchQueryTranslatorFixture openSearchQueryTranslatorFixture =
-			new OpenSearchQueryTranslatorFixture();
-
-		_openSearchQueryTranslator =
-			openSearchQueryTranslatorFixture.getOpenSearchQueryTranslator();
-	}
-
 	@Test
 	public void testTranslateBoostCommonTermsQuery() {
-		_assertBoost(new CommonTermsQueryImpl("test", "test"));
+		_assertBoost(new CommonTermsQuery("test", "test"));
 	}
 
 	@Test
 	public void testTranslateBoostFuzzyQuery() {
-		_assertBoost(new FuzzyQueryImpl("test", "test"));
+		_assertBoost(new FuzzyQuery("test", "test"));
 	}
 
 	@Test
 	public void testTranslateBoostMatchAllQuery() {
-		_assertBoost(new MatchAllQueryImpl());
+		_assertBoost(new MatchAllQuery());
 	}
 
 	@Test
 	public void testTranslateBoostMoreLikeThisQueryStringQuery() {
-		_assertBoost(
-			new MoreLikeThisQueryImpl(Collections.emptyList(), "test"));
+		_assertBoost(new MoreLikeThisQuery(Collections.emptyList(), "test"));
 	}
 
 	@Test
 	public void testTranslateBoostMultiMatchQuery() {
-		_assertBoost(new MultiMatchQueryImpl("test", new HashMap<>()));
+		_assertBoost(new MultiMatchQuery("test", new HashMap<>()));
 	}
 
 	@Test
 	public void testTranslateBoostTermQuery() {
-		_assertBoost(new TermQueryImpl("test", "test"));
+		_assertBoost(new TermQuery("test", "test"));
 	}
 
 	@Test
 	public void testTranslateBoostWildcardQuery() {
-		_assertBoost(new WildcardQueryImpl("test", "test"));
+		_assertBoost(new WildcardQuery("test", "test"));
 	}
 
 	@Test
 	public void testTranslateInnerBoostBooleanQuery() {
-		BooleanQuery booleanQuery = new BooleanQueryImpl();
+		BooleanQuery booleanQuery = new BooleanQuery();
 
-		Query query = new MatchAllQueryImpl();
+		Query query = new MatchAllQuery();
 
 		query.setBoost(_BOOST);
 
@@ -116,7 +94,7 @@ public class OpenSearchQueryTranslatorTest {
 		org.opensearch.client.opensearch._types.query_dsl.Query
 			openSearchQuery =
 				new org.opensearch.client.opensearch._types.query_dsl.Query(
-					_openSearchQueryTranslator.translate(booleanQuery));
+					OpenSearchQueryVisitor.INSTANCE.translate(booleanQuery));
 
 		BoolQuery boolQuery = openSearchQuery.bool();
 
@@ -157,7 +135,7 @@ public class OpenSearchQueryTranslatorTest {
 
 	@Test
 	public void testTranslateTermsQueryExceedingMaxAllowedTerms() {
-		TermsQuery termsQuery = new TermsQueryImpl("groupId");
+		TermsQuery termsQuery = new TermsQuery("groupId");
 
 		termsQuery.addValues("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
 
@@ -184,7 +162,7 @@ public class OpenSearchQueryTranslatorTest {
 		org.opensearch.client.opensearch._types.query_dsl.Query
 			openSearchQuery =
 				new org.opensearch.client.opensearch._types.query_dsl.Query(
-					_openSearchQueryTranslator.translate(query));
+					OpenSearchQueryVisitor.INSTANCE.translate(query));
 
 		String jsonp = JsonpUtil.toString(openSearchQuery);
 
@@ -195,7 +173,7 @@ public class OpenSearchQueryTranslatorTest {
 	private void _assertTermsCount(int expected, TermsFilter termsFilter) {
 		String jsonp = JsonpUtil.toString(
 			new org.opensearch.client.opensearch._types.query_dsl.Query(
-				_openSearchFilterTranslator.visit(termsFilter)));
+				termsFilter.accept(OpenSearchFilterVisitor.INSTANCE)));
 
 		Assert.assertEquals(jsonp, expected, StringUtil.count(jsonp, "terms"));
 	}
@@ -203,14 +181,11 @@ public class OpenSearchQueryTranslatorTest {
 	private void _assertTermsCount(int expected, TermsQuery termsQuery) {
 		String jsonp = JsonpUtil.toString(
 			new org.opensearch.client.opensearch._types.query_dsl.Query(
-				_openSearchQueryTranslator.translate(termsQuery)));
+				OpenSearchQueryVisitor.INSTANCE.translate(termsQuery)));
 
 		Assert.assertEquals(jsonp, expected, StringUtil.count(jsonp, "terms"));
 	}
 
 	private static final Float _BOOST = 1.5F;
-
-	private OpenSearchFilterTranslator _openSearchFilterTranslator;
-	private OpenSearchQueryTranslator _openSearchQueryTranslator;
 
 }

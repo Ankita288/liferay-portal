@@ -5,6 +5,8 @@
 
 package com.liferay.digital.sales.room.web.internal.constants;
 
+import com.liferay.digital.sales.room.constants.DigitalSalesRoomPortletKeys;
+
 /**
  * @author Stefano Motta
  */
@@ -12,5 +14,9 @@ public class DigitalSalesRoomFDSNames {
 
 	public static final String ROOMS =
 		DigitalSalesRoomPortletKeys.DIGITAL_SALES_ROOM_MANAGEMENT + "-rooms";
+
+	public static final String TEMPLATES =
+		DigitalSalesRoomPortletKeys.DIGITAL_SALES_ROOM_MANAGEMENT +
+			"-templates";
 
 }

@@ -25,24 +25,53 @@ function ExperienceToolbarSection() {
 			Object.values(availableSegmentsExperiences)
 				.sort((a, b) => b.priority - a.priority)
 				.map((experience, _, experiences) => {
-					const segmentsEntryName =
+					const segmentsEntry =
 						config.availableSegmentsEntries[
 							experience.segmentsEntryId
-						].name;
+						];
 
-					const firstExperience = experiences.find(
-						(exp) =>
-							exp.segmentsEntryId ===
-								experience.segmentsEntryId ||
-							exp.segmentsEntryId ===
-								config.defaultSegmentsEntryId
+					const segmentsEntryName = segmentsEntry
+						? segmentsEntry.name
+						: experience.segmentsEntryName;
+
+					const currentSegmentsEntryId = String(
+						experience.segmentsEntryId
 					);
+					const defaultSegmentsEntryId = String(
+						config.defaultSegmentsEntryId
+					);
+
+					const isSegmentValid =
+						!!segmentsEntry ||
+						currentSegmentsEntryId === defaultSegmentsEntryId;
+
+					let active = false;
+
+					if (isSegmentValid) {
+						const firstExperience = experiences.find(
+							(findExperience) => {
+								const findSegmentsEntryId = String(
+									findExperience.segmentsEntryId
+								);
+
+								return (
+									findSegmentsEntryId ===
+										currentSegmentsEntryId ||
+									findSegmentsEntryId ===
+										defaultSegmentsEntryId
+								);
+							}
+						);
+
+						active =
+							firstExperience &&
+							firstExperience.segmentsExperienceId ===
+								experience.segmentsExperienceId;
+					}
 
 					return {
 						...experience,
-						active:
-							firstExperience.segmentsExperienceId ===
-							experience.segmentsExperienceId,
+						active,
 						segmentsEntryName,
 					};
 				}),

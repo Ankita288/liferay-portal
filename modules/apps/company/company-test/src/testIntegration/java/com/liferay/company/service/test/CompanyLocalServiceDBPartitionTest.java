@@ -12,9 +12,11 @@ import com.liferay.counter.kernel.service.CounterLocalService;
 import com.liferay.counter.kernel.service.persistence.CounterFinder;
 import com.liferay.counter.model.CounterRegister;
 import com.liferay.document.library.kernel.model.DLFolderConstants;
+import com.liferay.document.library.kernel.store.Store;
 import com.liferay.object.model.ObjectDefinition;
 import com.liferay.object.service.ObjectDefinitionLocalService;
 import com.liferay.object.test.util.ObjectDefinitionTestUtil;
+import com.liferay.petra.io.unsync.UnsyncByteArrayInputStream;
 import com.liferay.petra.lang.SafeCloseable;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
@@ -737,6 +739,13 @@ public class CompanyLocalServiceDBPartitionTest
 
 		_assertCache(_company1.getCompanyId(), true);
 
+		long repositoryId = RandomTestUtil.nextLong();
+		String fileName1 = "/" + RandomTestUtil.randomString();
+
+		_store.addFile(
+			_company1.getCompanyId(), repositoryId, fileName1,
+			Store.VERSION_DEFAULT, new UnsyncByteArrayInputStream(new byte[0]));
+
 		int dbPartitionsCount = _getDBPartitionsCount();
 
 		companyLocalService.deleteCompany(_company1);
@@ -745,6 +754,10 @@ public class CompanyLocalServiceDBPartitionTest
 			ArrayUtil.contains(
 				CompanyLocalServiceTestUtil.getCompanyIdsBySQL(),
 				_company1.getCompanyId()));
+		Assert.assertFalse(
+			_store.hasFile(
+				_company1.getCompanyId(), repositoryId, fileName1,
+				Store.VERSION_DEFAULT));
 
 		Assert.assertEquals(dbPartitionsCount - 1, _getDBPartitionsCount());
 
@@ -1128,15 +1141,18 @@ public class CompanyLocalServiceDBPartitionTest
 					"select count(pg_catalog.pg_rewrite.rulename) from ",
 					"pg_catalog.pg_rewrite join pg_catalog.pg_class on ",
 					"pg_catalog.pg_rewrite.ev_class = pg_catalog.pg_class.oid ",
-					"where pg_catalog.pg_class.relnamespace = '", partitionName,
-					"'::regnamespace and (pg_catalog.pg_rewrite.rulename like ",
+					"where pg_catalog.pg_class.relnamespace = ?::",
+					"regnamespace and (pg_catalog.pg_rewrite.rulename like ",
 					"'update_%' or pg_catalog.pg_rewrite.rulename like ",
-					"'delete_%')"));
-			ResultSet resultSet = preparedStatement.executeQuery()) {
+					"'delete_%')"))) {
 
-			resultSet.next();
+			preparedStatement.setString(1, partitionName);
 
-			return resultSet.getInt(1);
+			try (ResultSet resultSet = preparedStatement.executeQuery()) {
+				resultSet.next();
+
+				return resultSet.getInt(1);
+			}
 		}
 	}
 
@@ -1224,5 +1240,10 @@ public class CompanyLocalServiceDBPartitionTest
 	private ResourcePermissionLocalService _resourcePermissionLocalService;
 
 	private ServiceRegistration<RepositoryDefiner> _serviceRegistration;
+
+	@Inject(
+		filter = "(&(objectClass=com.liferay.document.library.kernel.store.Store)(default=true))"
+	)
+	private Store _store;
 
 }

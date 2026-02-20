@@ -47,6 +47,7 @@ import com.liferay.commerce.product.service.CPOptionLocalService;
 import com.liferay.commerce.product.service.CPSpecificationOptionLocalService;
 import com.liferay.commerce.product.service.CommerceCatalogLocalService;
 import com.liferay.commerce.product.service.CommerceChannelLocalService;
+import com.liferay.configuration.admin.util.ConfigurationFilterStringUtil;
 import com.liferay.data.engine.rest.dto.v2_0.DataDefinition;
 import com.liferay.data.engine.rest.resource.v2_0.DataDefinitionResource;
 import com.liferay.depot.constants.DepotConstants;
@@ -3722,11 +3723,10 @@ public class BundleSiteInitializerTest {
 			"Test Segments Entry 1",
 			segmentsEntry1.getName(LocaleUtil.getSiteDefault()));
 		Assert.assertTrue(segmentsEntry1.isActive());
-		Assert.assertFalse(
-			segmentsEntry1.getCriteria(
-			).contains(
-				"[$ROLE_ID:Test Role 1$]"
-			));
+
+		String criteria = segmentsEntry1.getCriteria();
+
+		Assert.assertFalse(criteria.contains("[$ROLE_ID:Test Role 1$]"));
 
 		SegmentsEntry segmentsEntry2 =
 			_segmentsEntryLocalService.fetchSegmentsEntry(
@@ -3737,11 +3737,10 @@ public class BundleSiteInitializerTest {
 			"Test Segments Entry 2",
 			segmentsEntry2.getName(LocaleUtil.getSiteDefault()));
 		Assert.assertFalse(segmentsEntry2.isActive());
-		Assert.assertFalse(
-			segmentsEntry2.getCriteria(
-			).contains(
-				"[$ROLE_ID:Test Role 2$]"
-			));
+
+		criteria = segmentsEntry2.getCriteria();
+
+		Assert.assertFalse(criteria.contains("[$ROLE_ID:Test Role 2$]"));
 
 		Layout layout = _layoutLocalService.fetchLayoutByFriendlyURL(
 			_group.getGroupId(), false, "/test-public-layout");
@@ -3754,11 +3753,11 @@ public class BundleSiteInitializerTest {
 		List<SegmentsExperience> publishLayoutSegmentsExperiences =
 			_segmentsExperienceLocalService.getSegmentsExperiences(
 				_group.getGroupId(),
-				new long[] {
-					segmentsEntry1.getSegmentsEntryId(),
-					segmentsEntry2.getSegmentsEntryId()
+				new String[] {
+					segmentsEntry1.getExternalReferenceCode(),
+					segmentsEntry2.getExternalReferenceCode()
 				},
-				layout.getPlid(), true);
+				null, layout.getPlid(), true);
 
 		Assert.assertEquals(
 			publishLayoutSegmentsExperiences.toString(), 2,
@@ -3788,11 +3787,11 @@ public class BundleSiteInitializerTest {
 		List<SegmentsExperience> draftLayoutSegmentsExperiences =
 			_segmentsExperienceLocalService.getSegmentsExperiences(
 				_group.getGroupId(),
-				new long[] {
-					segmentsEntry1.getSegmentsEntryId(),
-					segmentsEntry2.getSegmentsEntryId()
+				new String[] {
+					segmentsEntry1.getExternalReferenceCode(),
+					segmentsEntry2.getExternalReferenceCode()
 				},
-				draftLayout.getPlid(), true);
+				null, draftLayout.getPlid(), true);
 
 		Assert.assertEquals(
 			draftLayoutSegmentsExperiences.toString(), 2,
@@ -3820,10 +3819,14 @@ public class BundleSiteInitializerTest {
 		Assert.assertEquals(GroupConstants.TYPE_SITE_OPEN, _group.getType());
 		Assert.assertTrue(_group.isManualMembership());
 
-		Assert.assertEquals(
-			2,
+		String[] accessToControlMenuRoleIds =
 			_menuAccessConfigurationManager.getAccessToControlMenuRoleIds(
-				_group.getGroupId()).length);
+				_group.getGroupId());
+
+		Assert.assertEquals(
+			Arrays.toString(accessToControlMenuRoleIds), 2,
+			accessToControlMenuRoleIds.length);
+
 		Assert.assertTrue(
 			_menuAccessConfigurationManager.isShowControlMenuByRole(
 				_group.getGroupId()));
@@ -3836,10 +3839,14 @@ public class BundleSiteInitializerTest {
 		Assert.assertEquals(GroupConstants.TYPE_SITE_OPEN, _group.getType());
 		Assert.assertTrue(_group.isManualMembership());
 
-		Assert.assertEquals(
-			0,
+		String[] accessToControlMenuRoleIds =
 			_menuAccessConfigurationManager.getAccessToControlMenuRoleIds(
-				_group.getGroupId()).length);
+				_group.getGroupId());
+
+		Assert.assertEquals(
+			Arrays.toString(accessToControlMenuRoleIds), 0,
+			accessToControlMenuRoleIds.length);
+
 		Assert.assertTrue(
 			_menuAccessConfigurationManager.isShowControlMenuByRole(
 				_group.getGroupId()));
@@ -4488,12 +4495,10 @@ public class BundleSiteInitializerTest {
 		throws Exception {
 
 		try {
-			String filterString = StringBundler.concat(
-				"(&(service.factoryPid=", factoryPid, ")(",
-				scope.getPropertyKey(), "=", scopePK, "))");
-
 			Configuration[] configurations =
-				_configurationAdmin.listConfigurations(filterString);
+				_configurationAdmin.listConfigurations(
+					ConfigurationFilterStringUtil.getScopedFilterString(
+						_group.getCompanyId(), factoryPid, scope, scopePK));
 
 			if (configurations != null) {
 				return configurations[0];

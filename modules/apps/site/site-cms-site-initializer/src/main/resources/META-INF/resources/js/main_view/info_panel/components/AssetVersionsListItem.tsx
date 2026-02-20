@@ -17,12 +17,14 @@ import {L_CONTENTS, L_FILES} from '../util/constants';
 
 const AssetVersionsListItem = ({
 	file,
-	getObjectEntriesVersions,
+	getAssetVersions,
 	items,
+	objectEntryTitle,
 }: {
 	file?: IAssetFile;
-	getObjectEntriesVersions: () => Promise<null | undefined>;
+	getAssetVersions: () => Promise<void>;
 	items: IAssetObjectEntry[];
+	objectEntryTitle?: string;
 }) => {
 	return (
 		<>
@@ -74,7 +76,8 @@ const AssetVersionsListItem = ({
 										await VERSION_ACTIONS[key]?.action(
 											event,
 											item,
-											getObjectEntriesVersions
+											getAssetVersions,
+											objectEntryTitle
 										);
 									}}
 								>

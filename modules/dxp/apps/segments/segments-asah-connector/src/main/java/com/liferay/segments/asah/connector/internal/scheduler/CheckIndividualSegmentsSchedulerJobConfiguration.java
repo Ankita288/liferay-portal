@@ -28,7 +28,7 @@ import com.liferay.portal.kernel.util.Http;
 import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.StringUtil;
-import com.liferay.segments.asah.connector.internal.cache.AsahSegmentsEntryCache;
+import com.liferay.segments.asah.connector.cache.AsahSegmentsEntryCache;
 import com.liferay.segments.asah.connector.internal.client.AsahFaroBackendClient;
 import com.liferay.segments.asah.connector.internal.client.AsahFaroBackendClientImpl;
 import com.liferay.segments.asah.connector.internal.client.model.Individual;
@@ -258,8 +258,13 @@ public class CheckIndividualSegmentsSchedulerJobConfiguration
 	}
 
 	private void _checkIndividualSegments() throws Exception {
-		_initialCheckIndividualSegments();
-		_checkIndividualSegmentsMemberships();
+		_companyLocalService.forEachCompanyId(
+			companyId -> {
+				if (_analyticsSettingsManager.isAnalyticsEnabled(companyId)) {
+					_checkIndividualSegments(companyId);
+					_checkIndividualSegmentsMemberships();
+				}
+			});
 	}
 
 	private void _checkIndividualSegments(long companyId) {
@@ -412,15 +417,6 @@ public class CheckIndividualSegmentsSchedulerJobConfiguration
 		}
 
 		return null;
-	}
-
-	private void _initialCheckIndividualSegments() throws Exception {
-		_companyLocalService.forEachCompanyId(
-			companyId -> {
-				if (_analyticsSettingsManager.isAnalyticsEnabled(companyId)) {
-					_checkIndividualSegments(companyId);
-				}
-			});
 	}
 
 	private void _putSegmentsEntryIdsCache(

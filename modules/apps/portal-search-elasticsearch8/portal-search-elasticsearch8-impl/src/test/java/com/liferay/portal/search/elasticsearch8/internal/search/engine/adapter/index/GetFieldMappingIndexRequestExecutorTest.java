@@ -5,12 +5,12 @@
 
 package com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.index;
 
-import com.liferay.portal.json.JSONFactoryImpl;
+import co.elastic.clients.elasticsearch.indices.GetFieldMappingRequest;
+
+import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.search.elasticsearch8.internal.connection.ElasticsearchFixture;
 import com.liferay.portal.search.engine.adapter.index.GetFieldMappingIndexRequest;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
-
-import org.elasticsearch.client.indices.GetFieldMappingsRequest;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -48,17 +48,18 @@ public class GetFieldMappingIndexRequestExecutorTest {
 
 		GetFieldMappingIndexRequestExecutor
 			getFieldMappingIndexRequestExecutor =
-				new GetFieldMappingIndexRequestExecutor(
-					_elasticsearchFixture, new JSONFactoryImpl());
+				new GetFieldMappingIndexRequestExecutor(_elasticsearchFixture);
 
-		GetFieldMappingsRequest getFieldMappingsRequest =
-			getFieldMappingIndexRequestExecutor.createGetFieldMappingsRequest(
+		GetFieldMappingRequest getFieldMappingRequest =
+			getFieldMappingIndexRequestExecutor.createGetFieldMappingRequest(
 				getFieldMappingIndexRequest);
 
 		Assert.assertArrayEquals(
-			new String[] {_INDEX_NAME}, getFieldMappingsRequest.indices());
+			new String[] {_INDEX_NAME},
+			ArrayUtil.toStringArray(getFieldMappingRequest.index()));
 		Assert.assertArrayEquals(
-			new String[] {_FIELD_NAME}, getFieldMappingsRequest.fields());
+			new String[] {_FIELD_NAME},
+			ArrayUtil.toStringArray(getFieldMappingRequest.fields()));
 	}
 
 	private static final String _FIELD_NAME = "testField";

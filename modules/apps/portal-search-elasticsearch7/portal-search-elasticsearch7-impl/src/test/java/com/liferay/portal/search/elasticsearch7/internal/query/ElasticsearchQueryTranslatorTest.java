@@ -7,21 +7,17 @@ package com.liferay.portal.search.elasticsearch7.internal.query;
 
 import com.liferay.portal.kernel.search.filter.TermsFilter;
 import com.liferay.portal.kernel.util.StringUtil;
-import com.liferay.portal.search.elasticsearch7.internal.filter.ElasticsearchFilterTranslator;
-import com.liferay.portal.search.elasticsearch7.internal.filter.ElasticsearchFilterTranslatorFixture;
-import com.liferay.portal.search.elasticsearch7.internal.legacy.query.ElasticsearchQueryTranslatorFixture;
+import com.liferay.portal.search.elasticsearch7.internal.filter.ElasticsearchFilterVisitor;
 import com.liferay.portal.search.elasticsearch7.internal.util.QueryUtil;
-import com.liferay.portal.search.internal.query.BooleanQueryImpl;
-import com.liferay.portal.search.internal.query.CommonTermsQueryImpl;
-import com.liferay.portal.search.internal.query.FuzzyQueryImpl;
-import com.liferay.portal.search.internal.query.MatchAllQueryImpl;
-import com.liferay.portal.search.internal.query.MoreLikeThisQueryImpl;
-import com.liferay.portal.search.internal.query.TermQueryImpl;
-import com.liferay.portal.search.internal.query.TermsQueryImpl;
-import com.liferay.portal.search.internal.query.WildcardQueryImpl;
 import com.liferay.portal.search.query.BooleanQuery;
+import com.liferay.portal.search.query.CommonTermsQuery;
+import com.liferay.portal.search.query.FuzzyQuery;
+import com.liferay.portal.search.query.MatchAllQuery;
+import com.liferay.portal.search.query.MoreLikeThisQuery;
 import com.liferay.portal.search.query.Query;
+import com.liferay.portal.search.query.TermQuery;
 import com.liferay.portal.search.query.TermsQuery;
+import com.liferay.portal.search.query.WildcardQuery;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import java.util.Collections;
@@ -31,7 +27,6 @@ import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,64 +41,48 @@ public class ElasticsearchQueryTranslatorTest {
 	public static final LiferayUnitTestRule liferayUnitTestRule =
 		LiferayUnitTestRule.INSTANCE;
 
-	@Before
-	public void setUp() throws Exception {
-		ElasticsearchFilterTranslatorFixture
-			elasticsearchFilterTranslatorFixture =
-				new ElasticsearchFilterTranslatorFixture(
-					new ElasticsearchQueryTranslatorFixture(
-					).getElasticsearchQueryTranslator());
-
-		_elasticsearchFilterTranslator =
-			elasticsearchFilterTranslatorFixture.
-				getElasticsearchFilterTranslator();
-
-		_elasticsearchQueryTranslator = new ElasticsearchQueryTranslator();
-	}
-
 	@Test
 	public void testTranslateBoostCommonTermsQuery() {
-		_assertBoost(new CommonTermsQueryImpl("test", "test"));
+		_assertBoost(new CommonTermsQuery("test", "test"));
 	}
 
 	@Test
 	public void testTranslateBoostFuzzyQuery() {
-		_assertBoost(new FuzzyQueryImpl("test", "test"));
+		_assertBoost(new FuzzyQuery("test", "test"));
 	}
 
 	@Test
 	public void testTranslateBoostMatchAllQuery() {
-		_assertBoost(new MatchAllQueryImpl());
+		_assertBoost(new MatchAllQuery());
 	}
 
 	@Test
 	public void testTranslateBoostMoreLikeThisQueryStringQuery() {
-		_assertBoost(
-			new MoreLikeThisQueryImpl(Collections.emptyList(), "test"));
+		_assertBoost(new MoreLikeThisQuery(Collections.emptyList(), "test"));
 	}
 
 	@Test
 	public void testTranslateBoostTermQuery() {
-		_assertBoost(new TermQueryImpl("test", "test"));
+		_assertBoost(new TermQuery("test", "test"));
 	}
 
 	@Test
 	public void testTranslateBoostWildcardQuery() {
-		_assertBoost(new WildcardQueryImpl("test", "test"));
+		_assertBoost(new WildcardQuery("test", "test"));
 	}
 
 	@Test
 	public void testTranslateInnerBoostBooleanQuery() {
-		BooleanQuery booleanQuery = new BooleanQueryImpl();
+		BooleanQuery booleanQuery = new BooleanQuery();
 
-		Query query = new MatchAllQueryImpl();
+		Query query = new MatchAllQuery();
 
 		query.setBoost(_BOOST);
 
 		booleanQuery.addMustQueryClauses(query);
 
-		QueryBuilder queryBuilder = _elasticsearchQueryTranslator.translate(
-			booleanQuery);
+		QueryBuilder queryBuilder =
+			ElasticsearchQueryVisitor.INSTANCE.translate(booleanQuery);
 
 		BoolQueryBuilder boolQueryBuilder = (BoolQueryBuilder)queryBuilder;
 
@@ -141,7 +120,7 @@ public class ElasticsearchQueryTranslatorTest {
 
 	@Test
 	public void testTranslateTermsQueryExceedingMaxAllowedTerms() {
-		TermsQuery termsQuery = new TermsQueryImpl("groupId");
+		TermsQuery termsQuery = new TermsQuery("groupId");
 
 		termsQuery.addValues("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
 
@@ -165,8 +144,8 @@ public class ElasticsearchQueryTranslatorTest {
 	private void _assertBoost(Query query) {
 		query.setBoost(_BOOST);
 
-		QueryBuilder queryBuilder = _elasticsearchQueryTranslator.translate(
-			query);
+		QueryBuilder queryBuilder =
+			ElasticsearchQueryVisitor.INSTANCE.translate(query);
 
 		Assert.assertEquals(
 			queryBuilder.toString(), String.valueOf(_BOOST),
@@ -174,7 +153,7 @@ public class ElasticsearchQueryTranslatorTest {
 	}
 
 	private void _assertTermsCount(int expected, TermsFilter termsFilter) {
-		String queryString = _elasticsearchFilterTranslator.visit(
+		String queryString = ElasticsearchFilterVisitor.INSTANCE.visit(
 			termsFilter
 		).toString();
 
@@ -183,7 +162,7 @@ public class ElasticsearchQueryTranslatorTest {
 	}
 
 	private void _assertTermsCount(int expected, TermsQuery termsQuery) {
-		String queryString = _elasticsearchQueryTranslator.visit(
+		String queryString = ElasticsearchQueryVisitor.INSTANCE.visit(
 			termsQuery
 		).toString();
 
@@ -192,8 +171,5 @@ public class ElasticsearchQueryTranslatorTest {
 	}
 
 	private static final Float _BOOST = 1.5F;
-
-	private ElasticsearchFilterTranslator _elasticsearchFilterTranslator;
-	private ElasticsearchQueryTranslator _elasticsearchQueryTranslator;
 
 }

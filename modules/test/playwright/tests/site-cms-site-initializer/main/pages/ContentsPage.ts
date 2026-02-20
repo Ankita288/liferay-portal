@@ -158,6 +158,30 @@ export class ContentsPage {
 		}
 	}
 
+	async deleteFolder(folderName: string, recycleBinEnabled: boolean = true) {
+		await this.page
+			.locator('tr', {hasText: folderName})
+			.locator('td.cell-item-actions')
+			.getByRole('button')
+			.click();
+
+		await this.page.getByRole('menuitem', {name: 'Delete'}).click();
+
+		await this.page.getByRole('button', {name: 'Delete Folder'}).click();
+
+		if (recycleBinEnabled) {
+			await waitForAlert(this.page, `Success:${folderName} was moved`, {
+				autoClose: false,
+			});
+		}
+		else {
+			await waitForAlert(
+				this.page,
+				`Success:${folderName} has been permanently deleted.`
+			);
+		}
+	}
+
 	async editContent(title: string) {
 		const card = this.page
 			.locator('tr', {hasText: title})
@@ -245,6 +269,25 @@ export class ContentsPage {
 				name: 'Save as Draft',
 			}),
 		});
+	}
+
+	async shareContent(title: string) {
+		const card = this.page
+			.locator('tr', {hasText: title})
+			.or(this.page.locator('.card-row', {hasText: title}));
+
+		await clickAndExpectToBeVisible({
+			autoClick: true,
+			target: this.page.getByRole('menuitem', {
+				exact: true,
+				name: 'Share',
+			}),
+			trigger: card.locator('button'),
+		});
+
+		await expect(
+			this.page.getByRole('dialog', {name: title})
+		).toBeVisible();
 	}
 
 	async translateContent(title: string) {

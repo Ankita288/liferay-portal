@@ -9,15 +9,26 @@ import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageExperience;
 import com.liferay.headless.admin.site.client.problem.Problem;
 import com.liferay.headless.admin.site.resource.v1_0.test.util.PageElementsTestUtil;
+import com.liferay.headless.admin.site.resource.v1_0.test.util.PageExperiencesTestUtil;
+import com.liferay.headless.admin.site.resource.v1_0.test.util.ReferencesTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
+import com.liferay.petra.function.UnsafeRunnable;
+import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
+import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
+import com.liferay.portal.test.log.LogCapture;
+import com.liferay.portal.test.log.LogEntry;
+import com.liferay.portal.test.log.LoggerTestUtil;
 import com.liferay.portal.test.rule.FeatureFlag;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.segments.service.SegmentsExperienceLocalService;
 import com.liferay.segments.test.util.SegmentsTestUtil;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -153,43 +164,170 @@ public class PageExperienceResourceTest
 	@Test
 	public void testPostSitePageSpecificationPageExperience() throws Exception {
 		super.testPostSitePageSpecificationPageExperience();
+
+		_testPostSitePageSpecificationPageExperience(
+			PageExperiencesTestUtil.getPageExperience(
+				_draftLayout.getExternalReferenceCode(), 1,
+				testGroup.getGroupId(), null));
+		_testPostSitePageSpecificationPageExperience(
+			PageExperiencesTestUtil.getPageExperience(
+				_draftLayout.getExternalReferenceCode(), 2,
+				testGroup.getGroupId(),
+				SegmentsTestUtil.addSegmentsEntry(testGroup.getGroupId())));
+		_testPostSitePageSpecificationPageExperience(
+			PageExperiencesTestUtil.getPageExperience(
+				_draftLayout.getExternalReferenceCode(), 3,
+				testGroup.getGroupId(),
+				SegmentsTestUtil.addSegmentsEntry(testCompany.getGroupId())));
+
+		Group companyGroup = _groupLocalService.getGroup(
+			testCompany.getGroupId());
+
+		_testPostSitePageSpecificationPageExperienceWithMissingOptionalReference(
+			1,
+			() -> _testPostSitePageSpecificationPageExperience(
+				PageExperiencesTestUtil.getPageExperience(
+					_draftLayout.getExternalReferenceCode(), 4,
+					testGroup.getGroupId(), RandomTestUtil.randomString(),
+					companyGroup.getExternalReferenceCode())));
+
+		_testPostSitePageSpecificationPageExperienceWithMissingOptionalReference(
+			1,
+			() -> _testPostSitePageSpecificationPageExperience(
+				PageExperiencesTestUtil.getPageExperience(
+					_draftLayout.getExternalReferenceCode(), 5,
+					testGroup.getGroupId(), RandomTestUtil.randomString(),
+					null)));
 	}
 
 	@Override
 	@Test
 	public void testPutSitePageExperience() throws Exception {
-		PageExperience pageExperience = randomPageExperience();
+		PageExperience pageExperience =
+			PageExperiencesTestUtil.getPageExperience(
+				_draftLayout.getExternalReferenceCode(), 1,
+				testGroup.getGroupId(), null);
 
-		PageExperience putPageExperience =
-			pageExperienceResource.putSitePageExperience(
-				testGroup.getExternalReferenceCode(),
-				pageExperience.getExternalReferenceCode(), pageExperience);
+		pageExperience = _testPutSitePageExperience(pageExperience);
 
-		assertEquals(pageExperience, putPageExperience);
-		assertValid(putPageExperience);
+		pageExperience.setSegmentItemExternalReference(
+			() -> ReferencesTestUtil.getItemExternalReference(
+				SegmentsTestUtil.addSegmentsEntry(testGroup.getGroupId()),
+				testGroup.getGroupId()));
+
+		pageExperience = _testPutSitePageExperience(pageExperience);
+
+		pageExperience.setSegmentItemExternalReference(
+			() -> ReferencesTestUtil.getItemExternalReference(
+				SegmentsTestUtil.addSegmentsEntry(testCompany.getGroupId()),
+				testGroup.getGroupId()));
+
+		_testPutSitePageExperience(pageExperience);
+	}
+
+	@Override
+	protected void assertValid(PageExperience pageExperience) throws Exception {
+		boolean valid = true;
+
+		for (String additionalAssertFieldName :
+				getAdditionalAssertFieldNames()) {
+
+			if (Objects.equals(
+					additionalAssertFieldName, "externalReferenceCode")) {
+
+				if (pageExperience.getExternalReferenceCode() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(additionalAssertFieldName, "key")) {
+				if (pageExperience.getKey() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(additionalAssertFieldName, "name_i18n")) {
+				if (pageExperience.getName_i18n() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(additionalAssertFieldName, "pageElements")) {
+				if (pageExperience.getPageElements() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					additionalAssertFieldName,
+					"pageSpecificationExternalReferenceCode")) {
+
+				String pageSpecificationExternalReferenceCode =
+					pageExperience.getPageSpecificationExternalReferenceCode();
+
+				if (pageSpecificationExternalReferenceCode == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(additionalAssertFieldName, "priority")) {
+				if (pageExperience.getPriority() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals(
+					additionalAssertFieldName,
+					"segmentItemExternalReference")) {
+
+				continue;
+			}
+
+			if (Objects.equals(additionalAssertFieldName, "uuid")) {
+				if (pageExperience.getUuid() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
+			throw new IllegalArgumentException(
+				"Invalid additional assert field name " +
+					additionalAssertFieldName);
+		}
+
+		Assert.assertTrue(valid);
 	}
 
 	@Override
 	protected String[] getAdditionalAssertFieldNames() {
-		return new String[] {"externalReferenceCode", "name_i18n"};
+		return new String[] {
+			"externalReferenceCode", "key", "name_i18n", "pageElements",
+			"pageSpecificationExternalReferenceCode", "priority",
+			"segmentItemExternalReference", "uuid"
+		};
 	}
 
 	@Override
 	protected PageExperience randomPageExperience() throws Exception {
-		PageExperience pageExperience = super.randomPageExperience();
+		PageExperience pageExperience = _getPageExperience();
 
-		pageExperience.setName_i18n(
-			Collections.singletonMap("en-US", RandomTestUtil.randomString()));
-
-		pageExperience.setPageElements(
-			PageElementsTestUtil.getPageElements(
-				2, null, testGroup.getGroupId()));
-		pageExperience.setPageSpecificationExternalReferenceCode(
-			_draftLayout.getExternalReferenceCode());
-		pageExperience.setSegmentExternalReferenceCode(
-			SegmentsTestUtil.addSegmentsEntry(
-				testGroup.getGroupId()
-			).getSegmentsEntryKey());
+		pageExperience.setSegmentItemExternalReference(
+			() -> ReferencesTestUtil.getItemExternalReference(
+				SegmentsTestUtil.addSegmentsEntry(testGroup.getGroupId()),
+				testGroup.getGroupId()));
 
 		return pageExperience;
 	}
@@ -227,7 +365,82 @@ public class PageExperienceResourceTest
 			pageExperience);
 	}
 
+	private PageExperience _getPageExperience() throws Exception {
+		PageExperience pageExperience = super.randomPageExperience();
+
+		pageExperience.setName_i18n(
+			Collections.singletonMap("en-US", RandomTestUtil.randomString()));
+
+		pageExperience.setPageElements(
+			PageElementsTestUtil.getPageElements(
+				2, StringPool.BLANK, testGroup.getGroupId()));
+		pageExperience.setPageSpecificationExternalReferenceCode(
+			_draftLayout.getExternalReferenceCode());
+
+		return pageExperience;
+	}
+
+	private void _testPostSitePageSpecificationPageExperience(
+			PageExperience pageExperience)
+		throws Exception {
+
+		PageExperience postPageExperience =
+			pageExperienceResource.postSitePageSpecificationPageExperience(
+				testGroup.getExternalReferenceCode(),
+				pageExperience.getPageSpecificationExternalReferenceCode(),
+				pageExperience);
+
+		assertEquals(pageExperience, postPageExperience);
+		assertValid(postPageExperience);
+	}
+
+	private void
+			_testPostSitePageSpecificationPageExperienceWithMissingOptionalReference(
+				int count, UnsafeRunnable<Exception> unsafeRunnable)
+		throws Exception {
+
+		try (LogCapture logCapture = LoggerTestUtil.configureLog4JLogger(
+				"com.liferay.headless.admin.site.internal.util.LogUtil",
+				LoggerTestUtil.WARN)) {
+
+			unsafeRunnable.run();
+
+			List<LogEntry> logEntries = logCapture.getLogEntries();
+
+			Assert.assertEquals(
+				logEntries.toString(), count, logEntries.size());
+
+			for (LogEntry logEntry : logEntries) {
+				String message = logEntry.getMessage();
+
+				Assert.assertTrue(
+					message,
+					message.startsWith(
+						"Optional reference generated for missing"));
+			}
+		}
+	}
+
+	private PageExperience _testPutSitePageExperience(
+			PageExperience pageExperience)
+		throws Exception {
+
+		PageExperience putSitePageExperience =
+			pageExperienceResource.putSitePageExperience(
+				testGroup.getExternalReferenceCode(),
+				pageExperience.getExternalReferenceCode(), pageExperience);
+
+		assertEquals(pageExperience, putSitePageExperience);
+		assertValid(putSitePageExperience);
+
+		return putSitePageExperience;
+	}
+
 	private Layout _draftLayout;
+
+	@Inject
+	private GroupLocalService _groupLocalService;
+
 	private Layout _layout;
 
 	@Inject

@@ -6,6 +6,10 @@
 package com.liferay.headless.admin.site.client.serdes.v1_0;
 
 import com.liferay.headless.admin.site.client.dto.v1_0.ContentPageSpecification;
+import com.liferay.headless.admin.site.client.dto.v1_0.EmbeddedPageSpecification;
+import com.liferay.headless.admin.site.client.dto.v1_0.LinkToPagePageSpecification;
+import com.liferay.headless.admin.site.client.dto.v1_0.LinkToURLPageSpecification;
+import com.liferay.headless.admin.site.client.dto.v1_0.PageSetPageSpecification;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageSpecification;
 import com.liferay.headless.admin.site.client.dto.v1_0.WidgetPageSpecification;
 import com.liferay.headless.admin.site.client.json.BaseJSONParser;
@@ -54,6 +58,26 @@ public class PageSpecificationSerDes {
 					(ContentPageSpecification)pageSpecification);
 			}
 
+			if (typeString.equals("EmbeddedPageSpecification")) {
+				return EmbeddedPageSpecificationSerDes.toJSON(
+					(EmbeddedPageSpecification)pageSpecification);
+			}
+
+			if (typeString.equals("LinkToPagePageSpecification")) {
+				return LinkToPagePageSpecificationSerDes.toJSON(
+					(LinkToPagePageSpecification)pageSpecification);
+			}
+
+			if (typeString.equals("LinkToURLPageSpecification")) {
+				return LinkToURLPageSpecificationSerDes.toJSON(
+					(LinkToURLPageSpecification)pageSpecification);
+			}
+
+			if (typeString.equals("PageSetPageSpecification")) {
+				return PageSetPageSpecificationSerDes.toJSON(
+					(PageSetPageSpecification)pageSpecification);
+			}
+
 			if (typeString.equals("WidgetPageSpecification")) {
 				return WidgetPageSpecificationSerDes.toJSON(
 					(WidgetPageSpecification)pageSpecification);
@@ -100,28 +124,6 @@ public class PageSpecificationSerDes {
 				String.valueOf(pageSpecification.getExternalReferenceCode()));
 		}
 
-		if (pageSpecification.getSettings() == null) {
-			map.put("settings", null);
-		}
-		else {
-			map.put(
-				"settings", String.valueOf(pageSpecification.getSettings()));
-		}
-
-		if (pageSpecification.
-				getSiteTemplatePageSpecificationExternalReferenceCode() ==
-					null) {
-
-			map.put("siteTemplatePageSpecificationExternalReferenceCode", null);
-		}
-		else {
-			map.put(
-				"siteTemplatePageSpecificationExternalReferenceCode",
-				String.valueOf(
-					pageSpecification.
-						getSiteTemplatePageSpecificationExternalReferenceCode()));
-		}
-
 		if (pageSpecification.getStatus() == null) {
 			map.put("status", null);
 		}
@@ -162,15 +164,6 @@ public class PageSpecificationSerDes {
 
 				return false;
 			}
-			else if (Objects.equals(jsonParserFieldName, "settings")) {
-				return false;
-			}
-			else if (Objects.equals(
-						jsonParserFieldName,
-						"siteTemplatePageSpecificationExternalReferenceCode")) {
-
-				return false;
-			}
 			else if (Objects.equals(jsonParserFieldName, "status")) {
 				return false;
 			}
@@ -192,6 +185,22 @@ public class PageSpecificationSerDes {
 
 				if (typeString.equals("ContentPageSpecification")) {
 					return ContentPageSpecification.toDTO(json);
+				}
+
+				if (typeString.equals("EmbeddedPageSpecification")) {
+					return EmbeddedPageSpecification.toDTO(json);
+				}
+
+				if (typeString.equals("LinkToPagePageSpecification")) {
+					return LinkToPagePageSpecification.toDTO(json);
+				}
+
+				if (typeString.equals("LinkToURLPageSpecification")) {
+					return LinkToURLPageSpecification.toDTO(json);
+				}
+
+				if (typeString.equals("PageSetPageSpecification")) {
+					return PageSetPageSpecification.toDTO(json);
 				}
 
 				if (typeString.equals("WidgetPageSpecification")) {
@@ -237,22 +246,6 @@ public class PageSpecificationSerDes {
 				if (jsonParserFieldValue != null) {
 					pageSpecification.setExternalReferenceCode(
 						(String)jsonParserFieldValue);
-				}
-			}
-			else if (Objects.equals(jsonParserFieldName, "settings")) {
-				if (jsonParserFieldValue != null) {
-					pageSpecification.setSettings(
-						SettingsSerDes.toDTO((String)jsonParserFieldValue));
-				}
-			}
-			else if (Objects.equals(
-						jsonParserFieldName,
-						"siteTemplatePageSpecificationExternalReferenceCode")) {
-
-				if (jsonParserFieldValue != null) {
-					pageSpecification.
-						setSiteTemplatePageSpecificationExternalReferenceCode(
-							(String)jsonParserFieldValue);
 				}
 			}
 			else if (Objects.equals(jsonParserFieldName, "status")) {

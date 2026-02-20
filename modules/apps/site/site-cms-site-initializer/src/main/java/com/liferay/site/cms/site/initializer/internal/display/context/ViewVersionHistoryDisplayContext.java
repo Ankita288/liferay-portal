@@ -6,10 +6,12 @@
 package com.liferay.site.cms.site.initializer.internal.display.context;
 
 import com.liferay.frontend.data.set.model.FDSActionDropdownItem;
+import com.liferay.frontend.data.set.model.FDSActionDropdownItemBuilder;
 import com.liferay.frontend.data.set.model.FDSSortItem;
 import com.liferay.frontend.data.set.model.FDSSortItemBuilder;
 import com.liferay.frontend.data.set.model.FDSSortItemList;
 import com.liferay.frontend.data.set.model.FDSSortItemListBuilder;
+import com.liferay.frontend.taglib.clay.servlet.taglib.util.DropdownItem;
 import com.liferay.object.model.ObjectDefinition;
 import com.liferay.object.model.ObjectEntry;
 import com.liferay.petra.string.StringBundler;
@@ -50,9 +52,36 @@ public class ViewVersionHistoryDisplayContext {
 
 	public String getAPIURL() throws PortalException {
 		return StringBundler.concat(
-			"/o", _objectDefinition.getRESTContextPath(), StringPool.SLASH,
-			_objectEntry.getObjectEntryId(),
+			"/o", _objectDefinition.getRESTContextPath(), "/scopes/",
+			_objectEntry.getGroupId(), "/by-external-reference-code/",
+			_objectEntry.getExternalReferenceCode(),
 			"/versions?nestedFields=file.thumbnailURL");
+	}
+
+	public List<DropdownItem> getBulkActionDropdownItems() {
+		return ListUtil.fromArray(
+			FDSActionDropdownItemBuilder.setHighlighted(
+				true
+			).setHref(
+				"#"
+			).setIcon(
+				"time"
+			).setLabel(
+				LanguageUtil.get(_httpServletRequest, "expire")
+			).build(
+				"expire"
+			),
+			FDSActionDropdownItemBuilder.setHighlighted(
+				true
+			).setHref(
+				"#"
+			).setIcon(
+				"trash"
+			).setLabel(
+				LanguageUtil.get(_httpServletRequest, "delete")
+			).build(
+				"delete"
+			));
 	}
 
 	public List<FDSActionDropdownItem> getFDSActionDropdownItems() {
@@ -106,6 +135,10 @@ public class ViewVersionHistoryDisplayContext {
 	public Map<String, Object> getProps() throws PortalException {
 		return HashMapBuilder.<String, Object>put(
 			"backURL", ParamUtil.getString(_httpServletRequest, "backURL")
+		).put(
+			"entryClassName", _objectDefinition.getClassName()
+		).put(
+			"objectEntryCurrentVersion", _objectEntry.getVersion()
 		).put(
 			"objectEntryTitle",
 			_objectEntry.getTitleValue(_themeDisplay.getLanguageId())

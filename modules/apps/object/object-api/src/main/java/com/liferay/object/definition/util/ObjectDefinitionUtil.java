@@ -108,16 +108,18 @@ public class ObjectDefinitionUtil {
 
 	private static final String[] _ALLOWED_INVOKER_BUNDLE_SYMBOLIC_NAMES = {
 		"com.liferay.ai.hub.site.initializer", "com.liferay.commerce.service",
-		"com.liferay.cookies.impl", "com.liferay.digital.sales.room.impl",
-		"com.liferay.frontend.data.set.admin.web",
+		"com.liferay.cookies.impl", "com.liferay.frontend.data.set.admin.web",
 		"com.liferay.frontend.data.set.impl",
 		"com.liferay.headless.builder.impl", "com.liferay.list.type.service",
 		"com.liferay.mcp.server", "com.liferay.notification.service",
-		"com.liferay.object.service", "com.liferay.site.initializer.cms"
+		"com.liferay.object.service", "com.liferay.site.initializer.cmp",
+		"com.liferay.site.initializer.cms", "com.liferay.site.initializer.dsr"
 	};
 
 	private static final Map<String, String>
 		_allowedModifiableSystemObjectDefinitionNames = HashMapBuilder.put(
+			"AIHubAgentDefinition", "/ai-hub/agent-definitions"
+		).put(
 			"APIApplication", "/headless-builder/applications"
 		).put(
 			"APIEndpoint", "/headless-builder/endpoints"
@@ -131,6 +133,10 @@ public class ObjectDefinitionUtil {
 			"APISort", "/headless-builder/sorts"
 		).put(
 			"Bookmark", "/bookmarks"
+		).put(
+			"CMPProject", "/cmp/projects"
+		).put(
+			"CMPTask", "/cmp/tasks"
 		).put(
 			"CMSBasicDocument", "/cms/basic-documents"
 		).put(
@@ -165,11 +171,15 @@ public class ObjectDefinitionUtil {
 		).put(
 			"DataSetSelectionFilter", "/data-set-admin/selection-filters"
 		).put(
+			"DataSetSnapshot", "/data-set-admin/snapshots"
+		).put(
 			"DataSetSort", "/data-set-admin/sorts"
 		).put(
 			"DataSetTableSection", "/data-set-admin/table-sections"
 		).put(
 			"DSRRoom", "/digital-sales-room/rooms"
+		).put(
+			"DSRTemplate", "/digital-sales-room/templates"
 		).put(
 			"FDSAction", "/data-set-manager/actions"
 		).put(

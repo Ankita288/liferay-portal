@@ -4,9 +4,9 @@
  */
 
 import {IInternalRenderer} from '@liferay/frontend-data-set-web';
-import {openModal} from 'frontend-js-components-web';
 
 import {OBJECT_ENTRY_FOLDER_CLASS_NAME} from '../../common/utils/constants';
+import {openCMSModal} from '../../common/utils/openCMSModal';
 import AssetNavigationModalContent from '../modal/asset_navigation_view/AssetNavigationModalContent';
 import {AdditionalProps} from './AssetsFDSPropsTransformer';
 import shareAction from './actions/shareAction';
@@ -132,6 +132,7 @@ export default function SharedWithMeFDSPropsTransformer({
 					autocompleteURL,
 					collaboratorURL: collaboratorURLs[itemData.className],
 					creator: itemData.creator,
+					entryClassName: itemData.className,
 					itemId: itemData.classPK,
 					title: itemData?.title,
 				});
@@ -158,12 +159,10 @@ export default function SharedWithMeFDSPropsTransformer({
 						id: item.classPK,
 						title: item.title,
 					},
+					entryClassName: item.className,
 				}));
 
-				openModal({
-					containerProps: {
-						className: '',
-					},
+				openCMSModal({
 					contentComponent: () =>
 						AssetNavigationModalContent({
 							additionalProps,

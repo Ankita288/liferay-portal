@@ -12,8 +12,9 @@ import {systemSettingsPageTest} from '../../../fixtures/systemSettingsPageTest';
 import {waitForAlert} from '../../../utils/waitForAlert';
 import {
 	clearConsentCookies,
-	resetAllCookieManagerConfigurations,
-} from './utils/cookieManagerAfterEach';
+	resetAllConsentManagerConfigurations,
+	updateConsentManagerConfiguration,
+} from './utils/consentManagerConfigurationHelper';
 
 const cookieHeadingNames = [
 	'Functional Cookies',
@@ -30,15 +31,15 @@ const cookieKeys = [
 export const test = mergeTests(
 	accountSettingsPagesTest,
 	featureFlagsTest({
-		'LPD-51356': {enabled: true},
+		'LPD-75032': {enabled: true},
 	}),
 	loginTest(),
 	systemSettingsPageTest
 );
 
 test.afterEach(async ({systemSettingsPage}) => {
-	await test.step('Reset All Cookie Manager Configurations', async () => {
-		await resetAllCookieManagerConfigurations(systemSettingsPage);
+	await test.step('Reset All Consent Manager Configurations', async () => {
+		await resetAllConsentManagerConfigurations(systemSettingsPage);
 	});
 
 	await test.step('Clear Consent Cookies if present', async () => {
@@ -46,29 +47,12 @@ test.afterEach(async ({systemSettingsPage}) => {
 	});
 });
 
-test.beforeEach(async ({systemSettingsPage}) => {
+test.beforeEach(async ({page}) => {
 	await test.step('Enable Preference Handling Cookies', async () => {
-		await systemSettingsPage.goToSystemSetting('Privacy', 'Cookie Manager');
-
-		const enabledButton = systemSettingsPage.page.getByLabel('Enabled');
-
-		await enabledButton.waitFor({state: 'visible'});
-
-		await systemSettingsPage.page.waitForTimeout(3000);
-
-		const isChecked = await enabledButton.isChecked();
-
-		if (!isChecked) {
-			await enabledButton.click();
-
-			await systemSettingsPage.page
-				.getByRole('button', {name: 'Save'})
-				.click();
-
-			await waitForAlert(systemSettingsPage.page);
-		}
-
-		await expect(enabledButton).toBeChecked();
+		await updateConsentManagerConfiguration(page, {
+			enabled: true,
+			forceReload: true,
+		});
 	});
 });
 
@@ -101,19 +85,19 @@ test(
 );
 
 test(
-	'Verify Cookie Manager buttons',
+	'Verify Consent Manager buttons',
 	{tag: '@LPD-67119'},
 	async ({accountSettingsPage}) => {
-		await test.step('Go to Cookie Manager Account Settings page', async () => {
+		await test.step('Go to Consent Manager Account Settings page', async () => {
 			await accountSettingsPage.goToDataAndPrivacy();
 
 			await accountSettingsPage.page
-				.getByText('Cookie Manager')
+				.getByText('Consent Manager')
 				.first()
 				.waitFor();
 
-			if (await accountSettingsPage.cookieManagerMenuItem.isVisible()) {
-				await accountSettingsPage.cookieManagerMenuItem.click();
+			if (await accountSettingsPage.consentManagerMenuItem.isVisible()) {
+				await accountSettingsPage.consentManagerMenuItem.click();
 			}
 		});
 
@@ -131,7 +115,7 @@ test(
 );
 
 test(
-	'Verify Cookie Manager can be accessed from the Data And Privacy Account Settings tab',
+	'Verify Consent Manager can be accessed from the Data And Privacy Account Settings tab',
 	{tag: '@LPD-60007'},
 	async ({accountSettingsPage, page}) => {
 		await test.step('AC1: Verify Data And Privacy tab exists within Account Settings', async () => {
@@ -147,16 +131,16 @@ test(
 			await expect(await dataAndPrivacyTab).toBeVisible();
 		});
 
-		await test.step('AC2: Verify Cookie Manager panel is visible from Data and Privacy tab', async () => {
+		await test.step('AC2: Verify Consent Manager panel is visible from Data and Privacy tab', async () => {
 			await accountSettingsPage.goToDataAndPrivacy();
 
 			await accountSettingsPage.page
-				.getByText('Cookie Manager')
+				.getByText('Consent Manager')
 				.first()
 				.waitFor();
 
-			if (await accountSettingsPage.cookieManagerMenuItem.isVisible()) {
-				await accountSettingsPage.cookieManagerMenuItem.click();
+			if (await accountSettingsPage.consentManagerMenuItem.isVisible()) {
+				await accountSettingsPage.consentManagerMenuItem.click();
 			}
 
 			for (const cookieHeadingName of cookieHeadingNames) {
@@ -171,19 +155,19 @@ test(
 );
 
 test(
-	'Verify Cookie Preferences can be saved from the new Cookie Manager page',
+	'Verify Cookie Preferences can be saved from the new Consent Manager page',
 	{tag: '@LPD-60007'},
 	async ({accountSettingsPage, page}) => {
 		await test.step('Enable all cookie types', async () => {
 			await accountSettingsPage.goToDataAndPrivacy();
 
 			await accountSettingsPage.page
-				.getByText('Cookie Manager')
+				.getByText('Consent Manager')
 				.first()
 				.waitFor();
 
-			if (await accountSettingsPage.cookieManagerMenuItem.isVisible()) {
-				await accountSettingsPage.cookieManagerMenuItem.click();
+			if (await accountSettingsPage.consentManagerMenuItem.isVisible()) {
+				await accountSettingsPage.consentManagerMenuItem.click();
 			}
 
 			await accountSettingsPage.page
@@ -252,6 +236,8 @@ test(
 		});
 
 		await systemSettingsPage.goToSystemSetting('Privacy', 'Cookie Panel');
+
+		await page.getByLabel('Title', {exact: true}).waitFor();
 
 		await page.getByLabel('Title', {exact: true}).fill(script);
 		await page.getByLabel('Description', {exact: true}).fill(script);

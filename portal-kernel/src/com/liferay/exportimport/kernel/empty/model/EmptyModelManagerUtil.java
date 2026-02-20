@@ -11,6 +11,7 @@ import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.module.service.Snapshot;
 
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 /**
  * @author Carlos Correa
@@ -22,7 +23,8 @@ public class EmptyModelManagerUtil {
 			BiFunction<String, Long, T> fetchByExternalReferenceCodeBiFunction,
 			UnsafeBiFunction<String, Long, T, E>
 				getByExternalReferenceCodeUnsafeBiFunction,
-			UnsafeSupplier<T, E> emptyModelUnsafeSupplier)
+			UnsafeSupplier<T, E> emptyModelUnsafeSupplier,
+			String modelNameLanguageKey)
 		throws E {
 
 		EmptyModelManager emptyModelManager = _emptyModelManagerSnapshot.get();
@@ -30,7 +32,7 @@ public class EmptyModelManagerUtil {
 		return emptyModelManager.getOrAddEmptyModel(
 			clazz, companyId, emptyModelUnsafeSupplier, externalReferenceCode,
 			fetchByExternalReferenceCodeBiFunction,
-			getByExternalReferenceCodeUnsafeBiFunction);
+			getByExternalReferenceCodeUnsafeBiFunction, modelNameLanguageKey);
 	}
 
 	public static <T, E extends PortalException> T getOrAddEmptyModel(
@@ -39,15 +41,16 @@ public class EmptyModelManagerUtil {
 			BiFunction<String, Long, T> fetchByExternalReferenceCodeBiFunction,
 			UnsafeBiFunction<String, Long, T, E>
 				getByExternalReferenceCodeUnsafeBiFunction,
-			long groupId)
+			long groupId, String modelNameLanguageKey)
 		throws E {
 
 		EmptyModelManager emptyModelManager = _emptyModelManagerSnapshot.get();
 
 		return emptyModelManager.getOrAddEmptyModel(
-			clazz, emptyModelUnsafeSupplier, externalReferenceCode,
-			fetchByExternalReferenceCodeBiFunction,
-			getByExternalReferenceCodeUnsafeBiFunction, groupId);
+			clazz.getName(), null, emptyModelUnsafeSupplier,
+			externalReferenceCode, fetchByExternalReferenceCodeBiFunction,
+			getByExternalReferenceCodeUnsafeBiFunction, groupId,
+			modelNameLanguageKey);
 	}
 
 	public static boolean isEmptyModel() {
@@ -58,6 +61,18 @@ public class EmptyModelManagerUtil {
 		}
 
 		return emptyModelManager.isEmptyModel();
+	}
+
+	public static int solveEmptyModel(
+		String classExternalReferenceCode, String className, long companyId,
+		long groupId, int status,
+		Supplier<Integer> updatedModelStatusSupplier) {
+
+		EmptyModelManager emptyModelManager = _emptyModelManagerSnapshot.get();
+
+		return emptyModelManager.solveEmptyModel(
+			classExternalReferenceCode, className, companyId, groupId, status,
+			updatedModelStatusSupplier);
 	}
 
 	private static final Snapshot<EmptyModelManager>

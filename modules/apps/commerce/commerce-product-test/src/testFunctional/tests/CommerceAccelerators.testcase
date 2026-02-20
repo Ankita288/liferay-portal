@@ -1,6 +1,7 @@
 @component-name = "portal-commerce"
 definition {
 
+	property browser.chrome.version = "139.0";
 	property custom.properties = "company.security.strangers.verify=false${line.separator}jsonws.web.service.paths.excludes=";
 	property portal.release = "true";
 	property portal.upstream = "true";
@@ -914,7 +915,7 @@ definition {
 
 		CommerceProducts.openProductsAdmin();
 
-		CommerceEntry.viewPaginationResults(results = "Showing 1 to 10 of 50 entries.");
+		CommerceEntry.viewPaginationResults(results = "Showing 1 to 20 of 50 entries.");
 
 		CommerceNavigator.gotoPortlet(
 			category = "Product Management",
@@ -967,7 +968,7 @@ definition {
 
 		CommerceProducts.openProductsAdmin();
 
-		CommerceEntry.viewPaginationResults(results = "Showing 1 to 10 of 50 entries.");
+		CommerceEntry.viewPaginationResults(results = "Showing 1 to 20 of 50 entries.");
 
 		CommerceNavigator.gotoPortlet(
 			category = "Product Management",

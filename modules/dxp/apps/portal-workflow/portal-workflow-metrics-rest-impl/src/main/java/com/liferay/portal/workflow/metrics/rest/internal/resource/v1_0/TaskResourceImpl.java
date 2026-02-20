@@ -26,7 +26,7 @@ import com.liferay.portal.search.aggregation.metrics.ScriptedMetricAggregationRe
 import com.liferay.portal.search.aggregation.metrics.TopHitsAggregationResult;
 import com.liferay.portal.search.aggregation.pipeline.BucketSelectorPipelineAggregation;
 import com.liferay.portal.search.aggregation.pipeline.BucketSortPipelineAggregation;
-import com.liferay.portal.search.engine.adapter.search.SearchRequestExecutor;
+import com.liferay.portal.search.engine.adapter.SearchEngineAdapter;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchRequest;
 import com.liferay.portal.search.engine.adapter.search.SearchSearchResponse;
 import com.liferay.portal.search.hits.SearchHit;
@@ -109,7 +109,7 @@ public class TaskResourceImpl extends BaseTaskResourceImpl {
 		searchSearchRequest.setSize(1);
 
 		SearchSearchResponse searchSearchResponse =
-			_searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+			_searchEngineAdapter.execute(searchSearchRequest);
 
 		SearchHits searchHits = searchSearchResponse.getSearchHits();
 
@@ -370,7 +370,8 @@ public class TaskResourceImpl extends BaseTaskResourceImpl {
 
 		BucketSelectorPipelineAggregation bucketSelectorPipelineAggregation =
 			_aggregations.bucketSelector(
-				"bucketSelector", _scripts.script("params.taskCount > 0"));
+				"bucketSelector",
+				Scripts.INSTANCE.script("params.taskCount > 0"));
 
 		bucketSelectorPipelineAggregation.addBucketPath(
 			"taskCount", "taskCount.value");
@@ -531,7 +532,7 @@ public class TaskResourceImpl extends BaseTaskResourceImpl {
 		searchSearchRequest.setQuery(
 			_createBooleanQuery(assigneeIds, instanceIds, processId));
 
-		return _searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+		return _searchEngineAdapter.execute(searchSearchRequest);
 	}
 
 	private int _getTaskCount(SearchSearchResponse searchSearchResponse) {
@@ -565,7 +566,7 @@ public class TaskResourceImpl extends BaseTaskResourceImpl {
 					contextCompany.getCompanyId(), processId)));
 
 		SearchSearchResponse searchSearchResponse =
-			_searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+			_searchEngineAdapter.execute(searchSearchRequest);
 
 		Map<String, AggregationResult> aggregationResultsMap =
 			searchSearchResponse.getAggregationResultsMap();
@@ -595,7 +596,8 @@ public class TaskResourceImpl extends BaseTaskResourceImpl {
 			"instanceIdTaskId", null);
 
 		termsAggregation.setScript(
-			_scripts.script("doc['instanceId'].value + doc['taskId'].value"));
+			Scripts.INSTANCE.script(
+				"doc['instanceId'].value + doc['taskId'].value"));
 
 		FilterAggregation indexFilterAggregation = _aggregations.filter(
 			"index",
@@ -633,7 +635,7 @@ public class TaskResourceImpl extends BaseTaskResourceImpl {
 			_createBooleanQuery(assigneeIds, instanceIds, processId));
 
 		SearchSearchResponse searchSearchResponse =
-			_searchRequestExecutor.executeSearchRequest(searchSearchRequest);
+			_searchEngineAdapter.execute(searchSearchRequest);
 
 		Map<String, AggregationResult> aggregationResultsMap =
 			searchSearchResponse.getAggregationResultsMap();
@@ -744,10 +746,7 @@ public class TaskResourceImpl extends BaseTaskResourceImpl {
 	private ResourceHelper _resourceHelper;
 
 	@Reference
-	private Scripts _scripts;
-
-	@Reference
-	private SearchRequestExecutor _searchRequestExecutor;
+	private SearchEngineAdapter _searchEngineAdapter;
 
 	@Reference
 	private Sorts _sorts;

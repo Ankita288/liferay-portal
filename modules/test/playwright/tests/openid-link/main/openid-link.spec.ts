@@ -6,8 +6,7 @@
 import {expect, mergeTests} from '@playwright/test';
 
 import {customFieldsPagesTest} from '../../../fixtures/customFieldsPagesTest';
-import {dataApiHelpersTest} from '../../../fixtures/dataApiHelpersTest';
-import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
+import {isolatedSiteTest} from '../../../fixtures/isolatedSiteTest';
 import {loginTest} from '../../../fixtures/loginTest';
 import {TCustomField} from '../../../helpers/CustomFieldTypesHelper';
 import {liferayConfig} from '../../../liferay.config';
@@ -21,15 +20,11 @@ import {openIdSettingsPagesTest} from './fixtures/openIdSettingsPagesTest';
 import {CustomClaim} from './helpers/CustomClaimHelper';
 
 let providerName: string;
-let site: Site;
+let resetLoginPrompt: boolean;
 
 const test = mergeTests(
-	dataApiHelpersTest,
 	openIdSettingsPagesTest,
-	featureFlagsTest({
-		'LPD-20879': {enabled: true},
-		'LPD-57332': {enabled: true},
-	}),
+	isolatedSiteTest,
 	loginTest(),
 	utilityPagesPage,
 	customFieldsPagesTest,
@@ -57,7 +52,6 @@ async function setupOpenIdConnection(
 
 test.afterEach(
 	async ({
-		apiHelpers,
 		loginInstanceSettingsPage,
 		openIDInstanceSettingsPage,
 		page,
@@ -85,18 +79,12 @@ test.afterEach(
 			providerName = null;
 		}
 
-		if (site) {
+		if (resetLoginPrompt) {
 			await loginInstanceSettingsPage.goto();
 
 			await loginInstanceSettingsPage.resetLoginPrompt();
 
-			expect(async () => {
-				expect(
-					await apiHelpers.headlessSite.deleteSite(site.id)
-				).toBeOK();
-			}).toPass();
-
-			site = null;
+			resetLoginPrompt = false;
 		}
 	}
 );
@@ -125,21 +113,17 @@ test.describe('OpenID connect link', () => {
 		await expect(page.getByText(openIdConfig.openIdLink)).toBeVisible();
 	});
 
-	test('when openId connection is enabled on an utility page, then openId connect link is hidden on sign in page', async ({
-		apiHelpers,
+	test('when openId connection is enabled on an utility page, then openId connect link is shown on sign in page', async ({
 		loginInstanceSettingsPage,
 		openIDInstanceSettingsPage,
 		page,
+		site,
 	}) => {
-		site = await apiHelpers.headlessSite.createSite({
-			name: getRandomString(),
-			templateKey: 'com.liferay.site.initializer.welcome',
-			templateType: 'site-initializer',
-		});
-
 		await loginInstanceSettingsPage.goto();
 
 		await loginInstanceSettingsPage.enableLoginPrompt();
+
+		resetLoginPrompt = true;
 
 		await setupOpenIdConnection(openIDInstanceSettingsPage);
 
@@ -149,7 +133,7 @@ test.describe('OpenID connect link', () => {
 
 		await page.getByRole('button', {name: 'Sign In'}).last().click();
 
-		await expect(page.getByText(openIdConfig.openIdLink)).toBeHidden();
+		await expect(page.getByText(openIdConfig.openIdLink)).toBeVisible();
 	});
 });
 

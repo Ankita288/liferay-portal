@@ -2,6 +2,7 @@
 definition {
 
 	property app.server.types = "tomcat";
+	property browser.chrome.version = "139.0";
 	property ci.retries.disabled = "true";
 	property database.partition.enabled = "true";
 	property database.types = "mysql";
@@ -68,7 +69,7 @@ definition {
 
 	@priority = 5
 	test CanAutoUpgradePartitionedDatabase7413U33WithExhaustedPool {
-		property custom.properties = "jdbc.default.maximumPoolSize=10${line.separator}jdbc.default.minimumIdle=5${line.separator}virtual.hosts.valid.hosts=localhost,127.0.0.1,www.able.com,www.baker.com";
+		property custom.properties = "jdbc.default.maximumPoolSize=20${line.separator}jdbc.default.minimumIdle=5${line.separator}virtual.hosts.valid.hosts=localhost,127.0.0.1,www.able.com,www.baker.com";
 		property data.archive.type = "data-archive-portal-partition";
 		property database.auto.upgrade.enabled = "true";
 		property portal.version = "7.4.13.u33";

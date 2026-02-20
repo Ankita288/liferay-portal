@@ -5,6 +5,8 @@
 
 package com.liferay.list.type.service.impl;
 
+import com.liferay.exportimport.kernel.empty.model.EmptyModelManager;
+import com.liferay.exportimport.kernel.empty.model.EmptyModelManagerUtil;
 import com.liferay.list.type.exception.ListTypeDefinitionNameException;
 import com.liferay.list.type.exception.RequiredListTypeDefinitionException;
 import com.liferay.list.type.internal.definition.util.ListTypeDefinitionUtil;
@@ -37,6 +39,7 @@ import com.liferay.portal.kernel.systemevent.SystemEvent;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
+import com.liferay.portal.kernel.workflow.WorkflowConstants;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,23 +64,6 @@ public class ListTypeDefinitionLocalServiceImpl
 	@Indexable(type = IndexableType.REINDEX)
 	@Override
 	public ListTypeDefinition addListTypeDefinition(
-			String externalReferenceCode, long userId, boolean system)
-		throws PortalException {
-
-		ListTypeDefinition listTypeDefinition =
-			listTypeDefinitionPersistence.create(
-				counterLocalService.increment());
-
-		return _addListTypeDefinition(
-			listTypeDefinition, externalReferenceCode, userId,
-			Collections.singletonMap(
-				LocaleUtil.getDefault(), externalReferenceCode),
-			system);
-	}
-
-	@Indexable(type = IndexableType.REINDEX)
-	@Override
-	public ListTypeDefinition addListTypeDefinition(
 			String externalReferenceCode, long userId,
 			Map<Locale, String> nameMap, boolean system,
 			List<ListTypeEntry> listTypeEntries, ServiceContext serviceContext)
@@ -89,12 +75,9 @@ public class ListTypeDefinitionLocalServiceImpl
 
 		_validateName(nameMap, LocaleUtil.getSiteDefault());
 
-		ListTypeDefinition listTypeDefinition =
-			listTypeDefinitionPersistence.create(
-				counterLocalService.increment());
-
-		listTypeDefinition = _addListTypeDefinition(
-			listTypeDefinition, externalReferenceCode, userId, nameMap, system);
+		ListTypeDefinition listTypeDefinition = _addListTypeDefinition(
+			externalReferenceCode, userId, nameMap, system,
+			WorkflowConstants.STATUS_APPROVED);
 
 		_addOrUpdateListTypeEntries(
 			userId, listTypeDefinition.getListTypeDefinitionId(),
@@ -150,6 +133,25 @@ public class ListTypeDefinitionLocalServiceImpl
 	}
 
 	@Indexable(type = IndexableType.REINDEX)
+	public ListTypeDefinition getOrAddEmptyListTypeDefinition(
+			String externalReferenceCode, long companyId, long userId,
+			boolean system)
+		throws PortalException {
+
+		return _emptyModelManager.getOrAddEmptyModel(
+			ListTypeDefinition.class, companyId,
+			() -> _addListTypeDefinition(
+				externalReferenceCode, userId,
+				Collections.singletonMap(
+					LocaleUtil.getDefault(), externalReferenceCode),
+				system, WorkflowConstants.STATUS_EMPTY),
+			externalReferenceCode,
+			this::fetchListTypeDefinitionByExternalReferenceCode,
+			this::getListTypeDefinitionByExternalReferenceCode,
+			ListTypeDefinition.class.getName());
+	}
+
+	@Indexable(type = IndexableType.REINDEX)
 	@Override
 	public ListTypeDefinition updateListTypeDefinition(
 			String externalReferenceCode, long listTypeDefinitionId,
@@ -170,6 +172,12 @@ public class ListTypeDefinitionLocalServiceImpl
 		}
 
 		listTypeDefinition.setNameMap(nameMap);
+		listTypeDefinition.setStatus(
+			EmptyModelManagerUtil.solveEmptyModel(
+				externalReferenceCode, listTypeDefinition.getModelClassName(),
+				listTypeDefinition.getCompanyId(), 0,
+				listTypeDefinition.getStatus(),
+				() -> WorkflowConstants.STATUS_APPROVED));
 
 		listTypeDefinition = listTypeDefinitionPersistence.update(
 			listTypeDefinition);
@@ -196,9 +204,13 @@ public class ListTypeDefinitionLocalServiceImpl
 	}
 
 	private ListTypeDefinition _addListTypeDefinition(
-			ListTypeDefinition listTypeDefinition, String externalReferenceCode,
-			long userId, Map<Locale, String> nameMap, boolean system)
+			String externalReferenceCode, long userId,
+			Map<Locale, String> nameMap, boolean system, int status)
 		throws PortalException {
+
+		ListTypeDefinition listTypeDefinition =
+			listTypeDefinitionPersistence.create(
+				counterLocalService.increment());
 
 		listTypeDefinition.setExternalReferenceCode(externalReferenceCode);
 
@@ -210,6 +222,7 @@ public class ListTypeDefinitionLocalServiceImpl
 
 		listTypeDefinition.setNameMap(nameMap);
 		listTypeDefinition.setSystem(system);
+		listTypeDefinition.setStatus(status);
 
 		listTypeDefinition = listTypeDefinitionPersistence.update(
 			listTypeDefinition);
@@ -350,6 +363,9 @@ public class ListTypeDefinitionLocalServiceImpl
 				"Name is null for locale " + defaultLocale.getDisplayName());
 		}
 	}
+
+	@Reference
+	private EmptyModelManager _emptyModelManager;
 
 	@Reference
 	private ListTypeEntryLocalService _listTypeEntryLocalService;

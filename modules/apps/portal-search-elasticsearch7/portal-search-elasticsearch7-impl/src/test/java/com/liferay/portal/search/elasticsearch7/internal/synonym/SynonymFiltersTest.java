@@ -14,15 +14,16 @@ import com.liferay.portal.search.elasticsearch7.internal.query.QueryBuilderFacto
 import com.liferay.portal.search.elasticsearch7.internal.query.SearchAssert;
 import com.liferay.portal.search.elasticsearch7.internal.search.engine.adapter.ElasticsearchSearchEngineAdapterImpl;
 import com.liferay.portal.search.elasticsearch7.internal.search.engine.adapter.ElasticsearchSearchEngineAdapterIndexRequestTest;
-import com.liferay.portal.search.elasticsearch7.internal.search.engine.adapter.index.IndexRequestExecutorFixture;
 import com.liferay.portal.search.elasticsearch7.internal.util.ResourceUtil;
 import com.liferay.portal.search.engine.adapter.SearchEngineAdapter;
 import com.liferay.portal.search.engine.adapter.index.CreateIndexRequest;
 import com.liferay.portal.search.engine.adapter.index.CreateIndexResponse;
 import com.liferay.portal.search.engine.adapter.index.DeleteIndexRequest;
 import com.liferay.portal.search.engine.adapter.index.DeleteIndexResponse;
-import com.liferay.portal.search.engine.adapter.index.IndexRequestExecutor;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
+
+import java.util.Collections;
+import java.util.Map;
 
 import org.elasticsearch.index.query.MatchPhraseQueryBuilder;
 
@@ -185,32 +186,22 @@ public class SynonymFiltersTest {
 		_assertMatchPhraseQuerySearch("stable", "git hash", "stable");
 	}
 
-	private static IndexRequestExecutor _createIndexRequestExecutor(
-		ElasticsearchClientResolver elasticsearchClientResolver) {
-
-		IndexRequestExecutorFixture indexRequestExecutorFixture =
-			new IndexRequestExecutorFixture() {
-				{
-					setElasticsearchClientResolver(elasticsearchClientResolver);
-				}
-			};
-
-		indexRequestExecutorFixture.setUp();
-
-		return indexRequestExecutorFixture.getIndexRequestExecutor();
-	}
-
 	private static SearchEngineAdapter _createSearchEngineAdapter(
 		ElasticsearchClientResolver elasticsearchClientResolver) {
 
-		SearchEngineAdapter searchEngineAdapter =
-			new ElasticsearchSearchEngineAdapterImpl();
+		ElasticsearchSearchEngineAdapterImpl
+			elasticsearchSearchEngineAdapterImpl =
+				new ElasticsearchSearchEngineAdapterImpl();
 
 		ReflectionTestUtil.setFieldValue(
-			searchEngineAdapter, "_indexRequestExecutor",
-			_createIndexRequestExecutor(elasticsearchClientResolver));
+			elasticsearchSearchEngineAdapterImpl,
+			"_elasticsearchClientResolver", elasticsearchClientResolver);
 
-		return searchEngineAdapter;
+		ReflectionTestUtil.invoke(
+			elasticsearchSearchEngineAdapterImpl, "activate",
+			new Class<?>[] {Map.class}, Collections.emptyMap());
+
+		return elasticsearchSearchEngineAdapterImpl;
 	}
 
 	private void _assertMatchPhraseQuerySearch(

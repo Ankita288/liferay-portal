@@ -11,8 +11,9 @@ import {systemSettingsPageTest} from '../../../fixtures/systemSettingsPageTest';
 import {waitForAlert} from '../../../utils/waitForAlert';
 import {
 	clearConsentCookies,
-	resetAllCookieManagerConfigurations,
-} from './utils/cookieManagerAfterEach';
+	resetAllConsentManagerConfigurations,
+	updateConsentManagerConfiguration,
+} from './utils/consentManagerConfigurationHelper';
 
 const hideableCookieTypes = [
 	'Functional Cookies',
@@ -22,15 +23,15 @@ const hideableCookieTypes = [
 
 export const test = mergeTests(
 	featureFlagsTest({
-		'LPD-51356': {enabled: true},
+		'LPD-75032': {enabled: true},
 	}),
 	loginTest(),
 	systemSettingsPageTest
 );
 
 test.afterEach(async ({systemSettingsPage}) => {
-	await test.step('Reset All Cookie Manager Configurations', async () => {
-		await resetAllCookieManagerConfigurations(systemSettingsPage);
+	await test.step('Reset All Consent Manager Configurations', async () => {
+		await resetAllConsentManagerConfigurations(systemSettingsPage);
 	});
 
 	await test.step('Clear Consent Cookies if present', async () => {
@@ -38,61 +39,17 @@ test.afterEach(async ({systemSettingsPage}) => {
 	});
 });
 
-test('LPD-30561 Cookie Banner Cookie Policy Page', async ({
-	page,
-	systemSettingsPage,
-}) => {
-	await test.step('Enable Preference Handling Cookies', async () => {
-		await systemSettingsPage.goToSystemSetting('Privacy', 'Cookie Manager');
-
-		const enabledButton = page.getByLabel('Enabled');
-
-		await enabledButton.waitFor({state: 'visible'});
-
-		await page.waitForTimeout(3000);
-
-		const isChecked = await enabledButton.isChecked();
-
-		if (!isChecked) {
-			await enabledButton.click();
-		}
-
-		await expect(enabledButton).toBeChecked();
-	});
-
-	await test.step('Enable Explicit Cookie Consent Mode', async () => {
-		const explicitCookieConsentModeButton = page.getByLabel(
-			'Explicit Cookie Consent Mode'
-		);
-
-		await explicitCookieConsentModeButton.waitFor({state: 'visible'});
-
-		const isChecked = await explicitCookieConsentModeButton.isChecked();
-
-		if (!isChecked) {
-			await explicitCookieConsentModeButton.click();
-		}
-
-		await expect(explicitCookieConsentModeButton).toBeChecked();
-	});
-
-	await test.step('Update Preference Handling', async () => {
-		const updateButton = page.getByRole('button', {
-			name: 'Update',
+test('LPD-30561 Cookie Banner Cookie Policy Page', async ({page}) => {
+	await test.step('Enable Consent Manager with Explicit Cookie Consent Mode', async () => {
+		await updateConsentManagerConfiguration(page, {
+			enabled: true,
+			explicitCookieConsentMode: true,
+			forceReload: true,
 		});
 
-		const saveButton = page.getByRole('button', {
-			name: 'Save',
-		});
-
-		if (await saveButton.isVisible()) {
-			await saveButton.click();
-		}
-		else if (await updateButton.isVisible()) {
-			await updateButton.click();
-		}
-
-		await waitForAlert(page);
+		await expect(
+			page.getByLabel('Explicit Cookie Consent Mode')
+		).toBeChecked();
 	});
 
 	await test.step('Go to Cookie Policy page', async () => {
@@ -150,24 +107,18 @@ test('LPD-30561 Cookie Banner Cookie Policy Page', async ({
 });
 
 test(
-	'Cookie Manager Adjustments',
+	'Consent Manager Adjustments',
 	{tag: '@LPD-60002'},
 	async ({browser, page, systemSettingsPage}) => {
-		await test.step('Enable Preference Handling Cookies if needed', async () => {
-			await systemSettingsPage.goToSystemSetting(
-				'Privacy',
-				'Cookie Manager'
-			);
+		const saveButton = page.getByRole('button', {name: 'Save'});
+		const updateButton = page.getByRole('button', {name: 'Update'});
 
-			const enabledButton = await page.getByLabel('Enabled');
-
-			await enabledButton.waitFor();
-
-			await enabledButton.check();
-
-			await page.getByRole('button', {name: 'Save'}).click();
-
-			await waitForAlert(page);
+		await test.step('Enable Preference Handling Cookies', async () => {
+			await updateConsentManagerConfiguration(page, {
+				enabled: true,
+				explicitCookieConsentMode: true,
+				forceReload: true,
+			});
 		});
 
 		const cookiesBanner = await page.locator(
@@ -206,7 +157,12 @@ test(
 
 			await cookiePolicyLink.fill('http://www.liferay.com');
 
-			await page.getByRole('button', {name: 'Save'}).click();
+			if (await saveButton.isVisible()) {
+				await saveButton.dispatchEvent('click');
+			}
+			else if (await updateButton.isVisible()) {
+				await updateButton.dispatchEvent('click');
+			}
 
 			await waitForAlert(page);
 

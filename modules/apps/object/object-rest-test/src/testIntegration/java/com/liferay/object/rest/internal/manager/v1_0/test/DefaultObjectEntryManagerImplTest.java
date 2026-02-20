@@ -18,9 +18,13 @@ import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.asset.entry.rel.service.AssetEntryAssetCategoryRelLocalService;
 import com.liferay.asset.kernel.exception.NoSuchCategoryException;
 import com.liferay.asset.kernel.model.AssetCategory;
+import com.liferay.asset.kernel.model.AssetCategoryConstants;
 import com.liferay.asset.kernel.model.AssetEntry;
+import com.liferay.asset.kernel.model.AssetVocabulary;
+import com.liferay.asset.kernel.model.AssetVocabularyConstants;
 import com.liferay.asset.kernel.service.AssetCategoryLocalService;
 import com.liferay.asset.kernel.service.AssetEntryLocalService;
+import com.liferay.asset.kernel.service.AssetVocabularyLocalService;
 import com.liferay.depot.constants.DepotConstants;
 import com.liferay.depot.model.DepotEntry;
 import com.liferay.depot.service.DepotEntryGroupRelLocalService;
@@ -92,6 +96,8 @@ import com.liferay.object.rest.dto.v1_0.FileEntry;
 import com.liferay.object.rest.dto.v1_0.Link;
 import com.liferay.object.rest.dto.v1_0.ListEntry;
 import com.liferay.object.rest.dto.v1_0.ObjectEntry;
+import com.liferay.object.rest.dto.v1_0.ParentTaxonomyCategory;
+import com.liferay.object.rest.dto.v1_0.ParentTaxonomyVocabulary;
 import com.liferay.object.rest.dto.v1_0.Status;
 import com.liferay.object.rest.dto.v1_0.SystemProperties;
 import com.liferay.object.rest.dto.v1_0.TaxonomyCategoryBrief;
@@ -881,7 +887,7 @@ public class DefaultObjectEntryManagerImplTest
 					).name(
 						"textObjectFieldName2"
 					).build()),
-				Collections.emptyList());
+				Collections.emptyList(), new ServiceContext());
 
 		ObjectDefinition accountEntryObjectDefinition =
 			objectDefinitionLocalService.fetchObjectDefinition(
@@ -2393,15 +2399,15 @@ public class DefaultObjectEntryManagerImplTest
 			}
 		};
 
-		_assertPicklistOjectField(listEntry, listEntry);
+		_assertPicklistObjectField(listEntry, listEntry);
 
 		// Picklist by list type entry key
 
-		_assertPicklistOjectField(listEntry, listTypeEntry.getKey());
+		_assertPicklistObjectField(listEntry, listTypeEntry.getKey());
 
 		// Picklist by map
 
-		_assertPicklistOjectField(
+		_assertPicklistObjectField(
 			listEntry,
 			HashMapBuilder.put(
 				"key", listTypeEntry.getKey()
@@ -2746,9 +2752,13 @@ public class DefaultObjectEntryManagerImplTest
 
 		// Lazy referencing disabled
 
+		String parentTaxonomyCategoryExternalReferenceCode =
+			RandomTestUtil.randomString();
 		String taxonomyCategoryExternalReferenceCode1 =
 			RandomTestUtil.randomString();
 		String taxonomyCategoryExternalReferenceCode2 =
+			RandomTestUtil.randomString();
+		String taxonomyVocabularyExternalReferenceCode =
 			RandomTestUtil.randomString();
 
 		ObjectEntry objectEntry = new ObjectEntry() {
@@ -2761,6 +2771,14 @@ public class DefaultObjectEntryManagerImplTest
 									_group, LocaleUtil.getDefault());
 								taxonomyCategoryExternalReferenceCode =
 									taxonomyCategoryExternalReferenceCode1;
+
+								setParentTaxonomyCategory(
+									new ParentTaxonomyCategory() {
+										{
+											setExternalReferenceCode(
+												parentTaxonomyCategoryExternalReferenceCode);
+										}
+									});
 							}
 						},
 						new TaxonomyCategoryBrief() {
@@ -2769,6 +2787,14 @@ public class DefaultObjectEntryManagerImplTest
 									_group, LocaleUtil.getDefault());
 								taxonomyCategoryExternalReferenceCode =
 									taxonomyCategoryExternalReferenceCode2;
+
+								setParentTaxonomyVocabulary(
+									new ParentTaxonomyVocabulary() {
+										{
+											setExternalReferenceCode(
+												taxonomyVocabularyExternalReferenceCode);
+										}
+									});
 							}
 						}
 					});
@@ -2806,7 +2832,23 @@ public class DefaultObjectEntryManagerImplTest
 						_group.getGroupId());
 
 			Assert.assertEquals(
+				AssetVocabularyConstants.EMPTY_VOCABULARY_ID,
+				assetCategory1.getVocabularyId());
+			Assert.assertEquals(
 				WorkflowConstants.STATUS_EMPTY, assetCategory1.getStatus());
+
+			AssetCategory parentAssetCategory =
+				_assetCategoryLocalService.
+					getAssetCategoryByExternalReferenceCode(
+						parentTaxonomyCategoryExternalReferenceCode,
+						_group.getGroupId());
+
+			Assert.assertEquals(
+				assetCategory1.getParentCategoryId(),
+				parentAssetCategory.getCategoryId());
+			Assert.assertEquals(
+				WorkflowConstants.STATUS_EMPTY,
+				parentAssetCategory.getStatus());
 
 			AssetCategory assetCategory2 =
 				_assetCategoryLocalService.
@@ -2815,7 +2857,22 @@ public class DefaultObjectEntryManagerImplTest
 						_group.getGroupId());
 
 			Assert.assertEquals(
+				AssetCategoryConstants.DEFAULT_PARENT_CATEGORY_ID,
+				assetCategory2.getParentCategoryId());
+			Assert.assertEquals(
 				WorkflowConstants.STATUS_EMPTY, assetCategory2.getStatus());
+
+			AssetVocabulary assetVocabulary =
+				_assetVocabularyLocalService.
+					fetchAssetVocabularyByExternalReferenceCode(
+						taxonomyVocabularyExternalReferenceCode,
+						_group.getGroupId());
+
+			Assert.assertEquals(
+				assetCategory2.getVocabularyId(),
+				assetVocabulary.getVocabularyId());
+			Assert.assertEquals(
+				WorkflowConstants.STATUS_EMPTY, assetVocabulary.getStatus());
 
 			AssetEntry assetEntry = _assetEntryLocalService.getEntry(
 				_objectDefinition1.getClassName(), objectEntry.getId());
@@ -3487,8 +3544,9 @@ public class DefaultObjectEntryManagerImplTest
 
 		ObjectEntry copyObjectEntry1 =
 			_defaultObjectEntryManager.copyObjectEntryByVersion(
-				_createDTOConverterContext(adminUser), _objectDefinition1,
-				objectEntry.getId(), 2);
+				_createDTOConverterContext(adminUser),
+				objectEntry.getExternalReferenceCode(), _objectDefinition1,
+				null, 2);
 
 		assertEquals(
 			_defaultObjectEntryManager.getObjectEntryByVersion(
@@ -3537,8 +3595,9 @@ public class DefaultObjectEntryManagerImplTest
 
 		ObjectEntry copyObjectEntry3 =
 			_defaultObjectEntryManager.copyObjectEntryByVersion(
-				_createDTOConverterContext(adminUser), _objectDefinition4,
-				objectEntry.getId(), 1);
+				_createDTOConverterContext(adminUser),
+				objectEntry.getExternalReferenceCode(), _objectDefinition4,
+				_group.getGroupKey(), 1);
 
 		Status status = copyObjectEntry3.getStatus();
 
@@ -3574,9 +3633,10 @@ public class DefaultObjectEntryManagerImplTest
 		// Status in trash
 
 		_assertFailureWithStatusInTrash(
-			objectEntryId ->
+			objectEntryExternalReferenceCode ->
 				_defaultObjectEntryManager.copyObjectEntryByVersion(
-					dtoConverterContext, _objectDefinition4, objectEntryId, 1));
+					dtoConverterContext, objectEntryExternalReferenceCode,
+					_objectDefinition4, _group.getGroupKey(), 1));
 	}
 
 	@Test
@@ -3626,15 +3686,15 @@ public class DefaultObjectEntryManagerImplTest
 		_assertLocalizedTextObjectFieldValueCopy(
 			"en_US localizedTextObjectFieldValue1 (Copy)",
 			_defaultObjectEntryManager.copyObjectEntryByVersion(
-				dtoConverterContext, _objectDefinition5, objectEntry.getId(),
-				1),
+				dtoConverterContext, objectEntry.getExternalReferenceCode(),
+				_objectDefinition5, ObjectDefinitionConstants.SCOPE_COMPANY, 1),
 			objectField);
 
 		_assertLocalizedTextObjectFieldValueCopy(
 			"en_US localizedTextObjectFieldValue1 (Copy 1)",
 			_defaultObjectEntryManager.copyObjectEntryByVersion(
-				dtoConverterContext, _objectDefinition5, objectEntry.getId(),
-				1),
+				dtoConverterContext, objectEntry.getExternalReferenceCode(),
+				_objectDefinition5, ObjectDefinitionConstants.SCOPE_COMPANY, 1),
 			objectField);
 
 		objectField = objectFieldLocalService.fetchObjectField(
@@ -3650,13 +3710,15 @@ public class DefaultObjectEntryManagerImplTest
 		_assertTextObjectFieldValueCopy(
 			"textObjectFieldValue (Copy)",
 			_defaultObjectEntryManager.copyObjectEntryByVersion(
-				dtoConverterContext, _objectDefinition5, objectEntry.getId(),
+				dtoConverterContext, objectEntry.getExternalReferenceCode(),
+				_objectDefinition5, ObjectDefinitionConstants.SCOPE_COMPANY,
 				1));
 
 		_assertTextObjectFieldValueCopy(
 			"textObjectFieldValue (Copy 1)",
 			_defaultObjectEntryManager.copyObjectEntryByVersion(
-				dtoConverterContext, _objectDefinition5, objectEntry.getId(),
+				dtoConverterContext, objectEntry.getExternalReferenceCode(),
+				_objectDefinition5, ObjectDefinitionConstants.SCOPE_COMPANY,
 				1));
 	}
 
@@ -3766,7 +3828,7 @@ public class DefaultObjectEntryManagerImplTest
 		PermissionThreadLocal.setPermissionChecker(
 			PermissionCheckerFactoryUtil.create(_user));
 
-		// Relationshp type prevent
+		// Relationship type prevent
 
 		objectRelationship =
 			_objectRelationshipLocalService.updateObjectRelationship(
@@ -3821,35 +3883,39 @@ public class DefaultObjectEntryManagerImplTest
 			RequiredObjectEntryVersionException.MustHaveOneVersion.class,
 			"At least one version must remain",
 			() -> _defaultObjectEntryManager.deleteObjectEntryByVersion(
-				_objectDefinition1, objectEntry1.getId(), 1));
+				objectEntry1.getExternalReferenceCode(), _objectDefinition1,
+				null, 1));
 
 		_updateObjectEntryVersion(_objectDefinition1, objectEntry1, 2);
 
-		Assert.assertEquals(
-			2,
+		Page<ObjectEntry> page =
 			_defaultObjectEntryManager.getVersionedObjectEntries(
 				dtoConverterContext, objectEntry1.getExternalReferenceCode(),
-				_objectDefinition1, null, null, null
-			).getItems(
-			).size());
+				_objectDefinition1, null, null, null);
+
+		Collection<ObjectEntry> items = page.getItems();
+
+		Assert.assertEquals(items.toString(), 2, items.size());
 
 		AssertUtils.assertFailure(
 			RequiredObjectEntryVersionException.MustNotDeleteLatestVersion.
 				class,
 			"The latest version cannot be deleted",
 			() -> _defaultObjectEntryManager.deleteObjectEntryByVersion(
-				_objectDefinition1, objectEntry1.getId(), 2));
+				objectEntry1.getExternalReferenceCode(), _objectDefinition1,
+				null, 2));
 
 		_defaultObjectEntryManager.deleteObjectEntryByVersion(
-			_objectDefinition1, objectEntry1.getId(), 1);
+			objectEntry1.getExternalReferenceCode(), _objectDefinition1, null,
+			1);
 
-		Assert.assertEquals(
-			1,
-			_defaultObjectEntryManager.getVersionedObjectEntries(
-				dtoConverterContext, objectEntry1.getExternalReferenceCode(),
-				_objectDefinition1, null, null, null
-			).getItems(
-			).size());
+		page = _defaultObjectEntryManager.getVersionedObjectEntries(
+			dtoConverterContext, objectEntry1.getExternalReferenceCode(),
+			_objectDefinition1, null, null, null);
+
+		items = page.getItems();
+
+		Assert.assertEquals(items.toString(), 1, items.size());
 
 		// Site scope
 
@@ -3867,13 +3933,13 @@ public class DefaultObjectEntryManagerImplTest
 
 		_updateObjectEntryVersion(_objectDefinition4, objectEntry2, 2);
 
-		Assert.assertEquals(
-			2,
-			_defaultObjectEntryManager.getVersionedObjectEntries(
-				dtoConverterContext, objectEntry2.getExternalReferenceCode(),
-				_objectDefinition4, _group.getGroupKey(), null, null
-			).getItems(
-			).size());
+		page = _defaultObjectEntryManager.getVersionedObjectEntries(
+			dtoConverterContext, objectEntry2.getExternalReferenceCode(),
+			_objectDefinition4, _group.getGroupKey(), null, null);
+
+		items = page.getItems();
+
+		Assert.assertEquals(items.toString(), 2, items.size());
 
 		AssertUtils.assertFailure(
 			RequiredObjectEntryVersionException.MustNotDeleteLatestVersion.
@@ -3887,20 +3953,21 @@ public class DefaultObjectEntryManagerImplTest
 			objectEntry2.getExternalReferenceCode(), _objectDefinition4,
 			_group.getGroupKey(), 1);
 
-		Assert.assertEquals(
-			1,
-			_defaultObjectEntryManager.getVersionedObjectEntries(
-				dtoConverterContext, objectEntry2.getExternalReferenceCode(),
-				_objectDefinition4, _group.getGroupKey(), null, null
-			).getItems(
-			).size());
+		page = _defaultObjectEntryManager.getVersionedObjectEntries(
+			dtoConverterContext, objectEntry2.getExternalReferenceCode(),
+			_objectDefinition4, _group.getGroupKey(), null, null);
+
+		items = page.getItems();
+
+		Assert.assertEquals(items.toString(), 1, items.size());
 
 		// Status in trash
 
 		_assertFailureWithStatusInTrash(
-			objectEntryId ->
+			objectEntryExternalReferenceCode ->
 				_defaultObjectEntryManager.deleteObjectEntryByVersion(
-					_objectDefinition4, objectEntryId, 2));
+					objectEntryExternalReferenceCode, _objectDefinition4,
+					_group.getGroupKey(), 2));
 	}
 
 	@Test
@@ -4389,7 +4456,8 @@ public class DefaultObjectEntryManagerImplTest
 			2);
 
 		objectEntry = _defaultObjectEntryManager.expireObjectEntry(
-			dtoConverterContext, objectEntry.getId());
+			dtoConverterContext, objectEntry.getExternalReferenceCode(),
+			_objectDefinition1, StringPool.BLANK);
 
 		Status status = objectEntry.getStatus();
 
@@ -4431,8 +4499,8 @@ public class DefaultObjectEntryManagerImplTest
 		_assertObjectEntryStatus(
 			WorkflowConstants.STATUS_EXPIRED,
 			_defaultObjectEntryManager.expireObjectEntryByVersion(
-				dtoConverterContext, _objectDefinition1, objectEntry.getId(),
-				1));
+				dtoConverterContext, objectEntry.getExternalReferenceCode(),
+				_objectDefinition1, null, 1));
 
 		ObjectEntryVersion objectEntryVersion =
 			_objectEntryVersionLocalService.getObjectEntryVersion(
@@ -4462,8 +4530,8 @@ public class DefaultObjectEntryManagerImplTest
 		_assertObjectEntryStatus(
 			WorkflowConstants.STATUS_EXPIRED,
 			_defaultObjectEntryManager.expireObjectEntryByVersion(
-				dtoConverterContext, _objectDefinition1, objectEntry.getId(),
-				2));
+				dtoConverterContext, objectEntry.getExternalReferenceCode(),
+				_objectDefinition1, null, 2));
 
 		objectEntryVersion =
 			_objectEntryVersionLocalService.getObjectEntryVersion(
@@ -4550,9 +4618,10 @@ public class DefaultObjectEntryManagerImplTest
 		// Status in trash
 
 		_assertFailureWithStatusInTrash(
-			objectEntryId ->
+			objectEntryExternalReferenceCode ->
 				_defaultObjectEntryManager.expireObjectEntryByVersion(
-					dtoConverterContext, _objectDefinition4, objectEntryId, 1));
+					dtoConverterContext, objectEntryExternalReferenceCode,
+					_objectDefinition4, _group.getGroupKey(), 1));
 	}
 
 	@FeatureFlag("LPD-17564")
@@ -4571,12 +4640,16 @@ public class DefaultObjectEntryManagerImplTest
 		_assertApprovedObjectEntries(objectEntry1, objectEntry2);
 
 		_defaultObjectEntryManager.expireObjectEntry(
-			_createDTOConverterContext(), objectEntry1.getId());
+			_createDTOConverterContext(),
+			objectEntry1.getExternalReferenceCode(), _objectDefinition1,
+			StringPool.BLANK);
 
 		_assertApprovedObjectEntries(objectEntry2);
 
 		_defaultObjectEntryManager.expireObjectEntry(
-			_createDTOConverterContext(), objectEntry2.getId());
+			_createDTOConverterContext(),
+			objectEntry2.getExternalReferenceCode(), _objectDefinition1,
+			StringPool.BLANK);
 
 		_assertApprovedObjectEntries();
 
@@ -4594,16 +4667,18 @@ public class DefaultObjectEntryManagerImplTest
 		_assertApprovedObjectEntries(objectEntry3);
 
 		_defaultObjectEntryManager.expireObjectEntryByVersion(
-			_createDTOConverterContext(), _objectDefinition1,
-			objectEntry3.getId(), 2);
+			_createDTOConverterContext(),
+			objectEntry3.getExternalReferenceCode(), _objectDefinition1, null,
+			2);
 
 		_assertApprovedObjectEntries(
 			_getLatestApprovedObjectEntry(
 				objectEntry3.getId(), _objectDefinition1));
 
 		_defaultObjectEntryManager.expireObjectEntryByVersion(
-			_createDTOConverterContext(), _objectDefinition1,
-			objectEntry3.getId(), 1);
+			_createDTOConverterContext(),
+			objectEntry3.getExternalReferenceCode(), _objectDefinition1, null,
+			1);
 
 		_assertApprovedObjectEntries();
 
@@ -4617,8 +4692,9 @@ public class DefaultObjectEntryManagerImplTest
 			2);
 
 		_defaultObjectEntryManager.expireObjectEntryByVersion(
-			_createDTOConverterContext(), _objectDefinition1,
-			objectEntry4.getId(), 2);
+			_createDTOConverterContext(),
+			objectEntry4.getExternalReferenceCode(), _objectDefinition1, null,
+			2);
 
 		_user = _addUser();
 
@@ -4689,8 +4765,9 @@ public class DefaultObjectEntryManagerImplTest
 			objectField1.getName(), objectEntry1.getId(), 2);
 
 		_defaultObjectEntryManager.expireObjectEntryByVersion(
-			_createDTOConverterContext(), objectDefinition2,
-			objectEntry2.getId(), 2);
+			_createDTOConverterContext(),
+			objectEntry2.getExternalReferenceCode(), objectDefinition2, null,
+			2);
 
 		ObjectDefinition objectDefinition3 =
 			ObjectDefinitionTestUtil.publishObjectDefinition(
@@ -4798,7 +4875,9 @@ public class DefaultObjectEntryManagerImplTest
 				null));
 
 		_defaultObjectEntryManager.expireObjectEntry(
-			_createDTOConverterContext(), objectEntry1.getId());
+			_createDTOConverterContext(),
+			objectEntry1.getExternalReferenceCode(), _objectDefinition1,
+			StringPool.BLANK);
 
 		AssertUtils.assertFailure(
 			NoSuchObjectEntryException.class, null,
@@ -4826,8 +4905,9 @@ public class DefaultObjectEntryManagerImplTest
 				null));
 
 		_defaultObjectEntryManager.expireObjectEntryByVersion(
-			_createDTOConverterContext(), _objectDefinition1,
-			objectEntry2.getId(), 2);
+			_createDTOConverterContext(),
+			objectEntry2.getExternalReferenceCode(), _objectDefinition1, null,
+			2);
 
 		AssertUtils.assertFailure(
 			NoSuchObjectEntryException.class, null,
@@ -6401,7 +6481,8 @@ public class DefaultObjectEntryManagerImplTest
 		_assertObjectEntry(
 			objectEntry,
 			_defaultObjectEntryManager.getObjectEntryByVersion(
-				dtoConverterContext, objectEntry.getId(), 1));
+				dtoConverterContext, objectEntry.getExternalReferenceCode(),
+				_objectDefinition1, null, 1));
 
 		objectEntry = _updateObjectEntryVersion(
 			_objectDefinition1, objectEntry, 2);
@@ -6409,7 +6490,8 @@ public class DefaultObjectEntryManagerImplTest
 		_assertObjectEntry(
 			objectEntry,
 			_defaultObjectEntryManager.getObjectEntryByVersion(
-				dtoConverterContext, objectEntry.getId(), 2));
+				dtoConverterContext, objectEntry.getExternalReferenceCode(),
+				_objectDefinition1, null, 2));
 
 		// Site scope
 
@@ -6473,7 +6555,8 @@ public class DefaultObjectEntryManagerImplTest
 			null);
 
 		objectEntry = _defaultObjectEntryManager.getObjectEntryByVersion(
-			dtoConverterContext, objectEntry.getId(), 1);
+			dtoConverterContext, objectEntry.getExternalReferenceCode(),
+			_objectDefinition1, null, 1);
 
 		Map<String, Object> properties = objectEntry.getProperties();
 
@@ -6931,46 +7014,57 @@ public class DefaultObjectEntryManagerImplTest
 
 		Page<ObjectEntry> page =
 			_defaultObjectEntryManager.getVersionedObjectEntries(
-				dtoConverterContext, _objectDefinition1, objectEntry1.getId(),
-				null, null);
+				dtoConverterContext, objectEntry1.getExternalReferenceCode(),
+				_objectDefinition1, null, null, null);
 
 		assertEquals(
 			(List<ObjectEntry>)page.getItems(),
 			ListUtil.fromArray(
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry1.getId(), 1)));
+					dtoConverterContext,
+					objectEntry1.getExternalReferenceCode(), _objectDefinition1,
+					null, 1)));
 
 		ObjectEntry objectEntry2 = _updateObjectEntryVersion(
 			_objectDefinition1, objectEntry1, 2);
 
 		page = _defaultObjectEntryManager.getVersionedObjectEntries(
-			dtoConverterContext, _objectDefinition1, objectEntry2.getId(), null,
-			null);
+			dtoConverterContext, objectEntry2.getExternalReferenceCode(),
+			_objectDefinition1, null, null, null);
 
 		objectEntry1 = _defaultObjectEntryManager.getObjectEntryByVersion(
-			dtoConverterContext, objectEntry1.getId(), 1);
+			dtoConverterContext, objectEntry1.getExternalReferenceCode(),
+			_objectDefinition1, null, 1);
 
 		assertEquals(
 			(List<ObjectEntry>)page.getItems(),
 			ListUtil.fromArray(
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry1.getId(), 1),
+					dtoConverterContext,
+					objectEntry1.getExternalReferenceCode(), _objectDefinition1,
+					null, 1),
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry2.getId(), 2)));
+					dtoConverterContext,
+					objectEntry2.getExternalReferenceCode(), _objectDefinition1,
+					null, 2)));
 
 		Sort[] sorts = {new Sort("version", Sort.INT_TYPE, true)};
 
 		page = _defaultObjectEntryManager.getVersionedObjectEntries(
-			dtoConverterContext, _objectDefinition1, objectEntry2.getId(), null,
-			sorts);
+			dtoConverterContext, objectEntry2.getExternalReferenceCode(),
+			_objectDefinition1, null, null, sorts);
 
 		assertEquals(
 			(List<ObjectEntry>)page.getItems(),
 			ListUtil.fromArray(
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry2.getId(), 2),
+					dtoConverterContext,
+					objectEntry2.getExternalReferenceCode(), _objectDefinition1,
+					null, 2),
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry1.getId(), 1)));
+					dtoConverterContext,
+					objectEntry1.getExternalReferenceCode(), _objectDefinition1,
+					null, 1)));
 
 		// Site scope
 
@@ -6987,7 +7081,9 @@ public class DefaultObjectEntryManagerImplTest
 			(List<ObjectEntry>)page.getItems(),
 			ListUtil.fromArray(
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry1.getId(), 1)));
+					dtoConverterContext,
+					objectEntry1.getExternalReferenceCode(), _objectDefinition4,
+					_group.getGroupKey(), 1)));
 
 		objectEntry2 = _updateObjectEntryVersion(
 			_objectDefinition4, objectEntry1, 2);
@@ -6997,15 +7093,20 @@ public class DefaultObjectEntryManagerImplTest
 			_objectDefinition4, _group.getGroupKey(), null, null);
 
 		objectEntry1 = _defaultObjectEntryManager.getObjectEntryByVersion(
-			dtoConverterContext, objectEntry1.getId(), 1);
+			dtoConverterContext, objectEntry1.getExternalReferenceCode(),
+			_objectDefinition4, _group.getGroupKey(), 1);
 
 		assertEquals(
 			(List<ObjectEntry>)page.getItems(),
 			ListUtil.fromArray(
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry1.getId(), 1),
+					dtoConverterContext,
+					objectEntry1.getExternalReferenceCode(), _objectDefinition4,
+					_group.getGroupKey(), 1),
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry2.getId(), 2)));
+					dtoConverterContext,
+					objectEntry2.getExternalReferenceCode(), _objectDefinition4,
+					_group.getGroupKey(), 2)));
 
 		page = _defaultObjectEntryManager.getVersionedObjectEntries(
 			dtoConverterContext, objectEntry2.getExternalReferenceCode(),
@@ -7015,9 +7116,13 @@ public class DefaultObjectEntryManagerImplTest
 			(List<ObjectEntry>)page.getItems(),
 			ListUtil.fromArray(
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry2.getId(), 2),
+					dtoConverterContext,
+					objectEntry2.getExternalReferenceCode(), _objectDefinition4,
+					_group.getGroupKey(), 2),
 				_defaultObjectEntryManager.getObjectEntryByVersion(
-					dtoConverterContext, objectEntry1.getId(), 1)));
+					dtoConverterContext,
+					objectEntry1.getExternalReferenceCode(), _objectDefinition4,
+					_group.getGroupKey(), 1)));
 	}
 
 	@FeatureFlag("LPD-17564")
@@ -7641,8 +7746,8 @@ public class DefaultObjectEntryManagerImplTest
 
 		assertEquals(
 			_defaultObjectEntryManager.restoreObjectEntryByVersion(
-				dtoConverterContext, _objectDefinition1, objectEntry1.getId(),
-				1),
+				dtoConverterContext, objectEntry1.getExternalReferenceCode(),
+				_objectDefinition1, null, 1),
 			new ObjectEntry() {
 				{
 					setExternalReferenceCode(
@@ -7700,9 +7805,10 @@ public class DefaultObjectEntryManagerImplTest
 		// Status in trash
 
 		_assertFailureWithStatusInTrash(
-			objectEntryId ->
+			objectEntryExternalReferenceCode ->
 				_defaultObjectEntryManager.restoreObjectEntryByVersion(
-					dtoConverterContext, _objectDefinition4, objectEntryId, 1));
+					dtoConverterContext, objectEntryExternalReferenceCode,
+					_objectDefinition4, _group.getGroupKey(), 1));
 	}
 
 	@FeatureFlag("LPD-17564")
@@ -8127,7 +8233,9 @@ public class DefaultObjectEntryManagerImplTest
 
 		assertEquals(
 			_defaultObjectEntryManager.expireObjectEntry(
-				_simpleDTOConverterContext, objectEntry.getId()),
+				_simpleDTOConverterContext,
+				objectEntry.getExternalReferenceCode(), objectDefinition,
+				StringPool.BLANK),
 			new ObjectEntry() {
 				{
 					actions = objectEntryActionsWithoutExpire;
@@ -9416,7 +9524,8 @@ public class DefaultObjectEntryManagerImplTest
 				ObjectDefinitionTestUtil.getRandomName(), null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				true, scope, ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT,
-				Collections.emptyList(), objectFields, Collections.emptyList());
+				Collections.emptyList(), objectFields, Collections.emptyList(),
+				new ServiceContext());
 
 		return objectDefinitionLocalService.publishCustomObjectDefinition(
 			adminUser.getUserId(), objectDefinition.getObjectDefinitionId());
@@ -9900,14 +10009,14 @@ public class DefaultObjectEntryManagerImplTest
 	}
 
 	private void _assertFailureWithStatusInTrash(
-			UnsafeConsumer<Long, Exception> unsafeConsumer)
+			UnsafeConsumer<String, Exception> unsafeConsumer)
 		throws Exception {
 
 		com.liferay.object.model.ObjectEntry serviceBuilderObjectEntry =
 			_objectEntryLocalService.moveObjectEntryToTrash(
 				TestPropsValues.getUserId(),
 				ObjectEntryTestUtil.addObjectEntry(
-					TestPropsValues.getGroupId(), _objectDefinition4,
+					_group.getGroupId(), _objectDefinition4,
 					Collections.emptyMap()),
 				ServiceContextTestUtil.getServiceContext());
 
@@ -9922,7 +10031,7 @@ public class DefaultObjectEntryManagerImplTest
 				serviceBuilderObjectEntry.getObjectEntryId(), ", status=",
 				WorkflowConstants.STATUS_IN_TRASH, "}"),
 			() -> unsafeConsumer.accept(
-				serviceBuilderObjectEntry.getObjectEntryId()));
+				serviceBuilderObjectEntry.getExternalReferenceCode()));
 	}
 
 	private void _assertFilteredObjectEntriesSize(
@@ -10142,7 +10251,7 @@ public class DefaultObjectEntryManagerImplTest
 		}
 	}
 
-	private void _assertPicklistOjectField(
+	private void _assertPicklistObjectField(
 			ListEntry expectedListEntry, Object picklistObjectFieldValue)
 		throws Exception {
 
@@ -11855,6 +11964,9 @@ public class DefaultObjectEntryManagerImplTest
 
 	@Inject
 	private AssetEntryLocalService _assetEntryLocalService;
+
+	@Inject
+	private AssetVocabularyLocalService _assetVocabularyLocalService;
 
 	private Role _buyerRole;
 

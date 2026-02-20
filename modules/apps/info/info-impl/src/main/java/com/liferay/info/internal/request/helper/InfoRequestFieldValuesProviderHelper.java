@@ -19,6 +19,7 @@ import com.liferay.info.field.type.HTMLInfoFieldType;
 import com.liferay.info.field.type.LongTextInfoFieldType;
 import com.liferay.info.field.type.MultiselectInfoFieldType;
 import com.liferay.info.field.type.NumberInfoFieldType;
+import com.liferay.info.field.type.PicklistSelectInfoFieldType;
 import com.liferay.info.field.type.RelationshipInfoFieldType;
 import com.liferay.info.field.type.SelectInfoFieldType;
 import com.liferay.info.field.type.TextInfoFieldType;
@@ -271,7 +272,7 @@ public class InfoRequestFieldValuesProviderHelper {
 
 			relatedInfoFieldValues.put(
 				new RelatedInfoFieldValue.RelatedInfoFieldValueIdentifier(
-					(String)tuple.getObject(1), (String)tuple.getObject(0)),
+					(String)tuple.getObject(0), (String)tuple.getObject(1)),
 				initialInfoFieldValue);
 
 			infoFieldValues.put(
@@ -353,6 +354,15 @@ public class InfoRequestFieldValuesProviderHelper {
 
 		for (String parameterName : allParameterNames) {
 			if (parameterName.startsWith(infoField.getUniqueId())) {
+				if (((infoField.getInfoFieldType() ==
+						PicklistSelectInfoFieldType.INSTANCE) ||
+					 (infoField.getInfoFieldType() ==
+						 RelationshipInfoFieldType.INSTANCE)) &&
+					parameterName.endsWith("-label")) {
+
+					continue;
+				}
+
 				if (!infoField.isLocalizable()) {
 					inputNames.add(parameterName);
 
@@ -445,6 +455,18 @@ public class InfoRequestFieldValuesProviderHelper {
 
 		if (infoField.getInfoFieldType() instanceof MultiselectInfoFieldType) {
 			return ListUtil.filter(values, Validator::isNotNull);
+		}
+
+		if (infoField.getInfoFieldType() instanceof RelationshipInfoFieldType) {
+			InfoField<RelationshipInfoFieldType>
+				relationshipInfoFieldTypeInfoField =
+					(InfoField<RelationshipInfoFieldType>)infoField;
+
+			if (relationshipInfoFieldTypeInfoField.getAttribute(
+					RelationshipInfoFieldType.MULTIPLE)) {
+
+				return ListUtil.filter(values, Validator::isNotNull);
+			}
 		}
 
 		if (ListUtil.isEmpty(values)) {

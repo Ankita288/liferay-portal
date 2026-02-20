@@ -1,0 +1,15 @@
+{
+	"pageElement": {
+		"pageElements": [
+			{
+			}
+		],
+		"type": "Root"
+	},
+	"settings": {
+		"masterPage": {
+			"key": "ai-hub-master"
+		}
+	},
+	"version": 1.0
+}

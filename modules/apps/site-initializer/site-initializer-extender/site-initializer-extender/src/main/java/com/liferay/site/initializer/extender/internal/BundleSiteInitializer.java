@@ -28,6 +28,7 @@ import com.liferay.asset.list.model.AssetListEntry;
 import com.liferay.asset.list.service.AssetListEntryLocalService;
 import com.liferay.asset.list.util.comparator.ClassNameModelResourceComparator;
 import com.liferay.asset.util.AssetRendererFactoryWrapper;
+import com.liferay.batch.engine.unit.BatchEngineUnitThreadLocal;
 import com.liferay.blogs.model.BlogsEntry;
 import com.liferay.client.extension.constants.ClientExtensionEntryConstants;
 import com.liferay.client.extension.service.ClientExtensionEntryLocalService;
@@ -193,6 +194,7 @@ import com.liferay.portal.kernel.util.NaturalOrderStringComparator;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.PortletKeys;
 import com.liferay.portal.kernel.util.ReleaseInfo;
+import com.liferay.portal.kernel.util.ScopeUtil;
 import com.liferay.portal.kernel.util.SetUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.TextFormatter;
@@ -260,6 +262,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.wiring.BundleWiring;
 
 /**
@@ -1017,21 +1020,23 @@ public class BundleSiteInitializer implements SiteInitializer {
 				Keyword existingKeyword = null;
 
 				if (groupId != 0) {
-					existingKeyword =
+					Page<Keyword> page =
 						keywordResource.getAssetLibraryKeywordsPage(
 							groupId, null, null,
 							keywordResource.toFilter(
 								"name eq '" + keyword.getName() + "'"),
-							null, null
-						).fetchFirstItem();
+							null, null);
+
+					existingKeyword = page.fetchFirstItem();
 				}
 				else {
-					existingKeyword = keywordResource.getSiteKeywordsPage(
+					Page<Keyword> page = keywordResource.getSiteKeywordsPage(
 						groupId, null, null,
 						keywordResource.toFilter(
 							"name eq '" + keyword.getName() + "'"),
-						null, null
-					).fetchFirstItem();
+						null, null);
+
+					existingKeyword = page.fetchFirstItem();
 
 					groupId = serviceContext.getScopeGroupId();
 				}
@@ -1264,29 +1269,39 @@ public class BundleSiteInitializer implements SiteInitializer {
 			ObjectDefinition existingObjectDefinition =
 				objectDefinitionsPage.fetchFirstItem();
 
-			if (existingObjectDefinition == null) {
-				if (GetterUtil.getBoolean(
-						objectDefinition.getAccountEntryRestricted())) {
+			try {
+				BundleContext bundleContext = _siteBundle.getBundleContext();
 
-					accountEntryRestrictedObjectDefinitions.put(
-						objectDefinition.getName(), objectDefinition);
+				BatchEngineUnitThreadLocal.setFileName(
+					String.valueOf(bundleContext.getBundle()));
+
+				if (existingObjectDefinition == null) {
+					if (GetterUtil.getBoolean(
+							objectDefinition.getAccountEntryRestricted())) {
+
+						accountEntryRestrictedObjectDefinitions.put(
+							objectDefinition.getName(), objectDefinition);
+					}
+
+					objectDefinition =
+						objectDefinitionResource.postObjectDefinition(
+							objectDefinition);
+
+					objectDefinitionIds.add(objectDefinition.getId());
+				}
+				else {
+					objectDefinition =
+						objectDefinitionResource.patchObjectDefinition(
+							existingObjectDefinition.getId(), objectDefinition);
 				}
 
-				objectDefinition =
-					objectDefinitionResource.postObjectDefinition(
-						objectDefinition);
-
-				objectDefinitionIds.add(objectDefinition.getId());
+				_replaceObjectDefinitionValues(
+					objectDefinition.getClassName(), objectDefinition.getName(),
+					objectDefinition.getId(), stringUtilReplaceValues);
 			}
-			else {
-				objectDefinition =
-					objectDefinitionResource.patchObjectDefinition(
-						existingObjectDefinition.getId(), objectDefinition);
+			finally {
+				BatchEngineUnitThreadLocal.setFileName(StringPool.BLANK);
 			}
-
-			_replaceObjectDefinitionValues(
-				objectDefinition.getClassName(), objectDefinition.getName(),
-				objectDefinition.getId(), stringUtilReplaceValues);
 		}
 	}
 
@@ -1369,11 +1384,13 @@ public class BundleSiteInitializer implements SiteInitializer {
 					_objectDefinitionLocalService.fetchObjectDefinition(
 						serviceContext.getCompanyId(), "C_" + entry.getKey());
 
+			ObjectDefinition objectDefinition = entry.getValue();
+
 			com.liferay.object.model.ObjectField serviceBuilderObjectField =
 				_objectFieldLocalService.fetchObjectField(
 					serviceBuilderObjectDefinition.getObjectDefinitionId(),
-					entry.getValue(
-					).getAccountEntryRestrictedObjectFieldName());
+					objectDefinition.
+						getAccountEntryRestrictedObjectFieldName());
 
 			if (serviceBuilderObjectDefinition.isDefaultStorageType()) {
 				_objectDefinitionLocalService.enableAccountEntryRestricted(
@@ -2679,7 +2696,8 @@ public class BundleSiteInitializer implements SiteInitializer {
 				type, pageJSONObject.getBoolean("hidden"),
 				layout.getFriendlyURLMap(), layout.getIconImage(), null,
 				layout.getStyleBookEntryERC(),
-				pageJSONObject.getLong("faviconFileEntryId"),
+				pageJSONObject.getString("faviconFileEntryERC"),
+				pageJSONObject.getString("faviconFileEntryScopeERC"),
 				layout.getMasterLayoutPageTemplateEntryERC(), serviceContext);
 
 			_layoutLocalService.updateTypeSettings(
@@ -3255,6 +3273,13 @@ public class BundleSiteInitializer implements SiteInitializer {
 					"C_" + jsonObject.getString("objectDefinitionName"));
 
 			if (objectDefinition == null) {
+				objectDefinition =
+					_objectDefinitionLocalService.fetchObjectDefinition(
+						serviceContext.getCompanyId(),
+						jsonObject.getString("objectDefinitionName"));
+			}
+
+			if (objectDefinition == null) {
 				continue;
 			}
 
@@ -3299,6 +3324,7 @@ public class BundleSiteInitializer implements SiteInitializer {
 					continue;
 				}
 
+				String objectDefinitionName = objectDefinition.getName();
 				com.liferay.object.model.ObjectEntry serviceBuilderObjectEntry =
 					_objectEntryLocalService.getObjectEntry(
 						objectEntry.getId());
@@ -3313,7 +3339,7 @@ public class BundleSiteInitializer implements SiteInitializer {
 								serviceBuilderObjectEntry.
 									getExternalReferenceCode();
 							title = StringBundler.concat(
-								objectDefinition.getName(), StringPool.SPACE,
+								objectDefinitionName, StringPool.SPACE,
 								serviceBuilderObjectEntry.getObjectEntryId());
 						}
 					});
@@ -3836,6 +3862,16 @@ public class BundleSiteInitializer implements SiteInitializer {
 			stringUtilReplaceValues.put(
 				"SEGMENTS_ENTRY_ID:" + segmentsEntry.getSegmentsEntryKey(),
 				String.valueOf(segmentsEntry.getSegmentsEntryId()));
+			stringUtilReplaceValues.put(
+				"SEGMENTS_ENTRY_ERC:" + segmentsEntry.getSegmentsEntryKey(),
+				segmentsEntry.getExternalReferenceCode());
+			stringUtilReplaceValues.put(
+				"SEGMENTS_ENTRY_SCOPE_ERC:" +
+					segmentsEntry.getSegmentsEntryKey(),
+				GetterUtil.getString(
+					ScopeUtil.getItemScopeExternalReferenceCode(
+						segmentsEntry.getGroupId(),
+						serviceContext.getScopeGroupId())));
 		}
 	}
 
@@ -4490,7 +4526,8 @@ public class BundleSiteInitializer implements SiteInitializer {
 				_segmentsExperienceLocalService.appendSegmentsExperience(
 					serviceContext.getUserId(),
 					serviceContext.getScopeGroupId(),
-					jsonObject.getLong("segmentsEntryId"),
+					jsonObject.getString("segmentsEntryERC"),
+					jsonObject.getString("segmentsEntryScopeERC"),
 					draftLayout.getPlid(),
 					SiteInitializerUtil.toMap(
 						jsonObject.getString("name_i18n")),
@@ -4600,8 +4637,8 @@ public class BundleSiteInitializer implements SiteInitializer {
 			}
 
 			_configurationProvider.saveGroupConfiguration(
-				serviceContext.getScopeGroupId(), jsonObject.getString("pid"),
-				properties);
+				serviceContext.getCompanyId(), serviceContext.getScopeGroupId(),
+				jsonObject.getString("pid"), properties);
 		}
 	}
 

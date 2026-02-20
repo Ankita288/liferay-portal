@@ -20,6 +20,7 @@ import com.liferay.info.type.WebImage;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
@@ -111,9 +112,7 @@ public class BackgroundImageDocumentFragmentEntryProcessor
 					if (fileEntryId == 0) {
 						fileEntryId =
 							_fragmentEntryProcessorHelper.getFileEntryId(
-								_getGroupId(
-									fragmentEntryProcessorContext.
-										getHttpServletRequest()),
+								_getGroupId(fragmentEntryProcessorContext),
 								valueJSONObject);
 					}
 
@@ -130,9 +129,7 @@ public class BackgroundImageDocumentFragmentEntryProcessor
 				if (fileEntryId == 0) {
 					fileEntryId = _fragmentEntryProcessorHelper.getFileEntryId(
 						editableValueJSONObject.getString("fieldId"),
-						_getGroupId(
-							fragmentEntryProcessorContext.
-								getHttpServletRequest()),
+						_getGroupId(fragmentEntryProcessorContext),
 						editableValueJSONObject,
 						fragmentEntryProcessorContext.getLocale());
 				}
@@ -171,7 +168,10 @@ public class BackgroundImageDocumentFragmentEntryProcessor
 				element.removeAttr("data-lfr-background-image-id");
 			}
 
-			if (fragmentEntryProcessorContext.isViewMode()) {
+			if (FeatureFlagManagerUtil.isEnabled(
+					fragmentEntryLink.getCompanyId(), "LPD-39437") &&
+				fragmentEntryProcessorContext.isViewMode()) {
+
 				AnalyticsAttributesUtil.addAnalyticsAttributes(
 					editableValueJSONObject, element,
 					fragmentEntryProcessorContext,
@@ -181,7 +181,16 @@ public class BackgroundImageDocumentFragmentEntryProcessor
 		}
 	}
 
-	private long _getGroupId(HttpServletRequest httpServletRequest) {
+	private long _getGroupId(
+		FragmentEntryProcessorContext fragmentEntryProcessorContext) {
+
+		if (fragmentEntryProcessorContext.getScopeGroupId() > 0) {
+			return fragmentEntryProcessorContext.getScopeGroupId();
+		}
+
+		HttpServletRequest httpServletRequest =
+			fragmentEntryProcessorContext.getHttpServletRequest();
+
 		if (httpServletRequest == null) {
 			return 0;
 		}

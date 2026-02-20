@@ -14,8 +14,10 @@ import com.liferay.object.definition.util.ObjectDefinitionUtil;
 import com.liferay.object.model.ObjectDefinition;
 import com.liferay.object.model.ObjectDefinitionSetting;
 import com.liferay.object.model.ObjectFolder;
+import com.liferay.object.model.bag.ObjectFieldBag;
 import com.liferay.object.service.ObjectDefinitionLocalServiceUtil;
 import com.liferay.object.service.ObjectDefinitionSettingLocalServiceUtil;
+import com.liferay.object.service.ObjectFieldLocalServiceUtil;
 import com.liferay.object.service.ObjectFolderLocalServiceUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
@@ -99,6 +101,28 @@ public class ObjectDefinitionImpl extends ObjectDefinitionBaseImpl {
 	}
 
 	@Override
+	public ObjectFieldBag getObjectFieldBag() {
+		if (_objectFieldBag == null) {
+			setObjectFieldBag(
+				new ObjectFieldBag(
+					ObjectFieldLocalServiceUtil.getObjectFields(
+						getObjectDefinitionId())));
+		}
+
+		return _objectFieldBag;
+	}
+
+	@Override
+	public ObjectFolder getObjectFolder() {
+		if (_objectFolder == null) {
+			_objectFolder = ObjectFolderLocalServiceUtil.fetchObjectFolder(
+				getObjectFolderId());
+		}
+
+		return _objectFolder;
+	}
+
+	@Override
 	public String getObjectFolderExternalReferenceCode() {
 		ObjectFolder objectFolder =
 			ObjectFolderLocalServiceUtil.fetchObjectFolder(getObjectFolderId());
@@ -122,10 +146,6 @@ public class ObjectDefinitionImpl extends ObjectDefinitionBaseImpl {
 
 	@Override
 	public String getPortletId() {
-		if (isUnmodifiableSystemObject()) {
-			throw new UnsupportedOperationException();
-		}
-
 		return ObjectDefinitionUtil.getPortletId(getClassName());
 	}
 
@@ -155,9 +175,15 @@ public class ObjectDefinitionImpl extends ObjectDefinitionBaseImpl {
 
 	@Override
 	public String getRootObjectDefinitionExternalReferenceCode() {
+		long rootObjectDefinitionId = getRootObjectDefinitionId();
+
+		if (rootObjectDefinitionId == 0) {
+			return null;
+		}
+
 		ObjectDefinition rootObjectDefinition =
 			ObjectDefinitionLocalServiceUtil.fetchObjectDefinition(
-				getRootObjectDefinitionId());
+				rootObjectDefinitionId);
 
 		if (rootObjectDefinition == null) {
 			return null;
@@ -200,6 +226,20 @@ public class ObjectDefinitionImpl extends ObjectDefinitionBaseImpl {
 	@Override
 	public boolean isApproved() {
 		if (getStatus() == WorkflowConstants.STATUS_APPROVED) {
+			return true;
+		}
+
+		return false;
+	}
+
+	public boolean isCMP() {
+		if (!FeatureFlagManagerUtil.isEnabled(getCompanyId(), "LPD-58677")) {
+			return false;
+		}
+
+		if (Objects.equals(getExternalReferenceCode(), "L_CMP_PROJECT") ||
+			Objects.equals(getExternalReferenceCode(), "L_CMP_TASK")) {
+
 			return true;
 		}
 
@@ -313,6 +353,18 @@ public class ObjectDefinitionImpl extends ObjectDefinitionBaseImpl {
 		_objectDefinitionSettings = objectDefinitionSettings;
 	}
 
+	@Override
+	public void setObjectFieldBag(ObjectFieldBag objectFieldBag) {
+		_objectFieldBag = objectFieldBag;
+	}
+
+	@Override
+	public void setObjectFolder(ObjectFolder objectFolder) {
+		_objectFolder = objectFolder;
+	}
+
 	private List<ObjectDefinitionSetting> _objectDefinitionSettings;
+	private transient ObjectFieldBag _objectFieldBag;
+	private ObjectFolder _objectFolder;
 
 }

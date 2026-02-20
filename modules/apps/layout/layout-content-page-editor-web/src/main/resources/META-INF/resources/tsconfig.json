@@ -1,5 +1,5 @@
 {
-	"@generated": "438a1f1e7e322b0b291fc60c47ef45100c12f042",
+	"@generated": "aa5bedfe0f4cd43c73e697d4eec90f8c325559ab",
 	"@readonly": "** AUTO-GENERATED: DO NOT EDIT **",
 	"compilerOptions": {
 		"allowSyntheticDefaultImports": true,
@@ -34,6 +34,12 @@
 			],
 			"@liferay/marketplace-js-components-web": [
 				"../../../../../../../marketplace/marketplace-js-components-web/src/main/resources/META-INF/resources/js/index.ts"
+			],
+			"@liferay/object-js-components-web": [
+				"../../../../../../../object/object-js-components-web/src/main/resources/META-INF/resources/index.ts"
+			],
+			"@liferay/site-cms-site-initializer": [
+				"../../../../../../../site/site-cms-site-initializer/src/main/resources/META-INF/resources/js/index.ts"
 			],
 			"frontend-editor-ckeditor-web": [
 				"../../../../../../../frontend-editor/frontend-editor-ckeditor-web/src/main/resources/META-INF/resources/js/index.ts"
@@ -87,6 +93,12 @@
 		},
 		{
 			"path": "../../../../../../../marketplace/marketplace-js-components-web/src/main/resources/META-INF/resources/tsconfig.json"
+		},
+		{
+			"path": "../../../../../../../object/object-js-components-web/src/main/resources/META-INF/resources/tsconfig.json"
+		},
+		{
+			"path": "../../../../../../../site/site-cms-site-initializer/src/main/resources/META-INF/resources/tsconfig.json"
 		},
 		{
 			"path": "../../../../../../../frontend-editor/frontend-editor-ckeditor-web/src/main/resources/META-INF/resources/tsconfig.json"

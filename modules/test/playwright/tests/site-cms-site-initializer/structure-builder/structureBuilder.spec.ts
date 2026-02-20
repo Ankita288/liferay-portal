@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
+import {ObjectDefinitionAPI} from '@liferay/object-admin-rest-client-js';
 import {expect, mergeTests} from '@playwright/test';
 
 import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
 import {loginTest} from '../../../fixtures/loginTest';
 import {pageEditorPagesTest} from '../../../fixtures/pageEditorPagesTest';
+import {clickAndExpectToBeHidden} from '../../../utils/clickAndExpectToBeHidden';
 import {getRandomInt} from '../../../utils/getRandomInt';
 import getRandomString from '../../../utils/getRandomString';
 import {waitForAlert} from '../../../utils/waitForAlert';
@@ -125,7 +127,7 @@ test(
 		for (const type of FIELD_TYPES) {
 			await structureBuilderPage.addField(type);
 
-			if (type === 'Single Select' || type === 'Multiselect') {
+			if (type === 'Select from List') {
 				await structureBuilderPage.changeFieldSettings({
 					picklist: picklist.name,
 				});
@@ -182,7 +184,7 @@ test(
 test(
 	'Can configure a text field',
 	{tag: '@LPD-49168'},
-	async ({page, structureBuilderPage}) => {
+	async ({apiHelpers, page, structureBuilderPage}) => {
 
 		// Create structure
 
@@ -230,7 +232,15 @@ test(
 
 		// Publish the structure
 
-		const {objectFields} = await structureBuilderPage.publishStructure();
+		const structureId = await structureBuilderPage.publishStructure();
+
+		const objectDefinitionAPIClient =
+			await apiHelpers.buildRestClient(ObjectDefinitionAPI);
+
+		const {body: objectDefinition} =
+			await objectDefinitionAPIClient.getObjectDefinition(structureId);
+
+		const {objectFields} = objectDefinition;
 
 		// Check the text field is created with the correct settings
 
@@ -243,18 +253,27 @@ test(
 		expect(textObjectField.label).toStrictEqual({en_US: 'Text Edited'});
 		expect(textObjectField.localized).toBe(true);
 		expect(textObjectField.name).toBe('textEdited');
-		expect(textObjectField.objectFieldSettings[0]).toStrictEqual({
-			name: 'uniqueValues',
-			value: true,
-		});
-		expect(textObjectField.objectFieldSettings[1]).toStrictEqual({
-			name: 'maxLength',
-			value: 10,
-		});
-		expect(textObjectField.objectFieldSettings[2]).toStrictEqual({
-			name: 'showCounter',
-			value: true,
-		});
+
+		expect(textObjectField.objectFieldSettings[0]).toEqual(
+			expect.objectContaining({
+				name: 'uniqueValues',
+				value: true,
+			})
+		);
+
+		expect(textObjectField.objectFieldSettings[1]).toEqual(
+			expect.objectContaining({
+				name: 'maxLength',
+				value: 10,
+			})
+		);
+
+		expect(textObjectField.objectFieldSettings[2]).toEqual(
+			expect.objectContaining({
+				name: 'showCounter',
+				value: true,
+			})
+		);
 	}
 );
 
@@ -269,9 +288,9 @@ test(
 
 		// Add a Single Select field and select it
 
-		await structureBuilderPage.addField('Single Select');
+		await structureBuilderPage.addField('Select from List');
 
-		await structureBuilderPage.selectFields([{label: 'Single Select'}]);
+		await structureBuilderPage.selectFields([{label: 'Select from List'}]);
 
 		// Create new picklist from the button "New Picklist"
 
@@ -359,18 +378,14 @@ test(
 			page.locator('.treeview-link', {hasText: 'File'})
 		).toBeVisible();
 
-		// Check fields are not editable
+		// Check name field is not editable
 
 		await structureBuilderPage.selectFields([{label: 'Title'}]);
 
-		await expect(page.getByLabel('Label')).toBeDisabled();
-		await expect(page.getByLabel('ERC')).toBeDisabled();
 		await expect(page.getByLabel('Field Name')).toBeDisabled();
 
 		await structureBuilderPage.selectFields([{label: 'File'}]);
 
-		await expect(page.getByLabel('Label')).toBeDisabled();
-		await expect(page.getByLabel('ERC')).toBeDisabled();
 		await expect(page.getByLabel('Field Name')).toBeDisabled();
 	}
 );
@@ -477,5 +492,106 @@ test(
 		await expect(
 			page.locator('.treeview-link', {hasText: 'Text'})
 		).toBeVisible();
+	}
+);
+
+test(
+	'Can drag and drop items to repeatable groups',
+	{
+		tag: '@LPD-76099',
+	},
+	async ({page, structureBuilderPage}) => {
+
+		// Create structure and go to structure builder
+
+		const structureLabel = `Structure${getRandomInt()}`;
+
+		await structureBuilderPage.createStructureFromData({
+			label: structureLabel,
+			page: structureBuilderPage,
+			publish: false,
+		});
+
+		// Add some fields and create some repeatable groups
+
+		await structureBuilderPage.addField('Decimal');
+		await structureBuilderPage.addField('Boolean');
+		await structureBuilderPage.addField('Rich Text');
+		await structureBuilderPage.addField('Numeric');
+
+		await structureBuilderPage.createRepeatableGroup({
+			fields: [{label: 'Rich Text'}],
+			label: 'Group 1',
+		});
+
+		await structureBuilderPage.createRepeatableGroup({
+			fields: [{label: 'Numeric'}],
+			label: 'Group 2',
+		});
+
+		// Drag one of the fields to one group
+
+		await structureBuilderPage.dragItem({
+			item: {label: 'Decimal'},
+			target: {label: 'Group 1'},
+		});
+
+		// Try to move the only field in Group 2 and check error
+
+		await structureBuilderPage.dragItem({
+			item: {label: 'Numeric'},
+			target: {label: 'Group 1'},
+			verify: false,
+		});
+
+		await expect(
+			page.getByText(
+				'at least one field is required in a repeatable group'
+			)
+		).toBeVisible();
+
+		// Try to move a locked field and check error
+
+		await structureBuilderPage.dragItem({
+			item: {label: 'Title'},
+			target: {label: 'Group 1'},
+			verify: false,
+		});
+
+		await expect(
+			page.getByText(
+				'Some items could not be moved because they are system fields'
+			)
+		).toBeVisible();
+
+		// Publish and move a field to check warning is shown
+
+		await structureBuilderPage.publishStructure();
+
+		await structureBuilderPage.dragItem({
+			item: {label: 'Boolean'},
+			target: {label: 'Group 1'},
+			verify: false,
+		});
+
+		await page
+			.getByText(
+				'Moving fields may impact existing stored data after publishing the structure.'
+			)
+			.waitFor();
+
+		// Check move is done properly if confirming
+
+		await clickAndExpectToBeHidden({
+			target: page.getByText(
+				'Moving fields may impact existing stored data after publishing the structure.'
+			),
+			trigger: page.locator('.modal-footer').getByText('Move'),
+		});
+
+		await structureBuilderPage.checkIsParent({
+			child: {label: 'Boolean'},
+			parent: {label: 'Group 1'},
+		});
 	}
 );

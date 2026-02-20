@@ -17,6 +17,8 @@ import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.configuration.metatype.annotations.ExtendedObjectClassDefinition;
 import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
+import com.liferay.portal.kernel.log.Log;
+import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.security.permission.PermissionChecker;
 import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
 import com.liferay.portal.kernel.settings.SettingsLocatorHelper;
@@ -28,13 +30,12 @@ import com.liferay.portal.vulcan.pagination.Page;
 import jakarta.validation.ValidationException;
 
 import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.ServerErrorException;
 import jakarta.ws.rs.core.Response;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -71,48 +72,12 @@ public class InstanceConfigurationResourceImpl
 			instanceConfigurationExternalReferenceCode);
 
 		if (configurationScreen != null) {
-			InstanceConfiguration instanceConfiguration =
-				_toInstanceConfiguration(configurationScreen);
-
-			if (instanceConfiguration == null) {
-				throw new InternalServerErrorException(
-					"Export capability is not implemented for instance " +
-						"configuration with external reference code " +
-							instanceConfigurationExternalReferenceCode);
-			}
-
-			return instanceConfiguration;
+			return _getConfigurationScreenInstanceConfiguration(
+				configurationScreen);
 		}
 
-		Configuration[] configurations = _configurationAdmin.listConfigurations(
-			ConfigurationFilterStringUtil.getCompanyScopedFilterString(
-				String.valueOf(contextCompany.getCompanyId()),
-				instanceConfigurationExternalReferenceCode,
-				contextCompany.getDefaultWebId()));
-
-		if (ArrayUtil.isEmpty(configurations)) {
-			throw new NotFoundException(
-				"Unable to find instance configuration with external " +
-					"reference code " +
-						instanceConfigurationExternalReferenceCode);
-		}
-
-		if (configurations.length > 1) {
-			List<String> pids = new ArrayList<>();
-
-			for (Configuration configuration : configurations) {
-				pids.add(configuration.getPid());
-			}
-
-			throw new BadRequestException(
-				StringBundler.concat(
-					instanceConfigurationExternalReferenceCode,
-					" is a factory configuration. Specify one of these PIDs: ",
-					ListUtil.toString(pids, StringPool.BLANK, StringPool.COMMA),
-					"."));
-		}
-
-		return _toInstanceConfiguration(configurations[0]);
+		return _getInstanceConfiguration(
+			instanceConfigurationExternalReferenceCode);
 	}
 
 	@Override
@@ -123,40 +88,11 @@ public class InstanceConfigurationResourceImpl
 
 		_checkPermission();
 
-		Configuration[] configurations = _configurationAdmin.listConfigurations(
-			ConfigurationFilterStringUtil.getCompanyScopedFilterString(
-				String.valueOf(contextCompany.getCompanyId()),
-				contextCompany.getDefaultWebId()));
-
-		if (ArrayUtil.isEmpty(configurations)) {
-			return Page.of(Collections.emptyList());
-		}
-
 		List<InstanceConfiguration> instanceConfigurations = new ArrayList<>();
 
-		for (Configuration configuration : configurations) {
-			InstanceConfiguration instanceConfiguration =
-				_toInstanceConfiguration(configuration);
+		_addInstanceConfigurations(instanceConfigurations);
 
-			if (instanceConfiguration == null) {
-				continue;
-			}
-
-			instanceConfigurations.add(instanceConfiguration);
-		}
-
-		for (ConfigurationScreen configurationScreen :
-				_serviceTrackerMap.values()) {
-
-			InstanceConfiguration instanceConfiguration =
-				_toInstanceConfiguration(configurationScreen);
-
-			if (instanceConfiguration == null) {
-				continue;
-			}
-
-			instanceConfigurations.add(instanceConfiguration);
-		}
+		_addConfigurationScreenInstanceConfigurations(instanceConfigurations);
 
 		return Page.of(instanceConfigurations);
 	}
@@ -185,54 +121,14 @@ public class InstanceConfigurationResourceImpl
 			instanceConfigurationExternalReferenceCode);
 
 		if (configurationScreen != null) {
-			try {
-				ConfigurationScreenUtil.importProperties(
-					_configurationExportImportProcessor, configurationScreen,
-					HashMapDictionaryBuilder.putAll(
-						instanceConfiguration.getProperties()
-					).build(),
-					ExtendedObjectClassDefinition.Scope.COMPANY,
-					contextCompany.getCompanyId());
-			}
-			catch (Exception exception) {
-				throw new BadRequestException(exception.getMessage());
-			}
-
-			return _toInstanceConfiguration(configurationScreen);
+			return _putConfigurationScreenInstanceConfiguration(
+				configurationScreen, instanceConfiguration);
 		}
 
 		instanceConfiguration.setExternalReferenceCode(
 			() -> instanceConfigurationExternalReferenceCode);
 
-		long companyId = contextCompany.getCompanyId();
-
-		String filterString =
-			ConfigurationFilterStringUtil.getCompanyScopedFilterString(
-				String.valueOf(companyId),
-				instanceConfiguration.getExternalReferenceCode(),
-				contextCompany.getDefaultWebId());
-
-		try {
-			Configuration configuration =
-				ConfigurationUtil.addOrUpdateConfiguration(
-					companyId, _configurationAdmin,
-					instanceConfiguration.getExternalReferenceCode(),
-					filterString, instanceConfiguration.getProperties(),
-					ExtendedObjectClassDefinition.Scope.COMPANY,
-					_settingsLocatorHelper);
-
-			if (configuration == null) {
-				throw new NotFoundException(
-					"Unable to find instance configuration with external " +
-						"reference code " +
-							instanceConfiguration.getExternalReferenceCode());
-			}
-
-			return _toInstanceConfiguration(configuration);
-		}
-		catch (ValidationException validationException) {
-			throw new BadRequestException(validationException.getMessage());
-		}
+		return _putInstanceConfiguration(instanceConfiguration);
 	}
 
 	@Activate
@@ -244,6 +140,65 @@ public class InstanceConfigurationResourceImpl
 	@Deactivate
 	protected void deactivate() {
 		_serviceTrackerMap.close();
+	}
+
+	private void _addConfigurationScreenInstanceConfigurations(
+		List<InstanceConfiguration> instanceConfigurations) {
+
+		for (ConfigurationScreen configurationScreen :
+				_serviceTrackerMap.values()) {
+
+			try {
+				InstanceConfiguration instanceConfiguration =
+					_toInstanceConfiguration(configurationScreen);
+
+				Map<String, Object> properties =
+					instanceConfiguration.getProperties();
+
+				if (properties.isEmpty()) {
+					continue;
+				}
+
+				instanceConfigurations.add(instanceConfiguration);
+			}
+			catch (UnsupportedOperationException
+						unsupportedOperationException) {
+
+				if (_log.isDebugEnabled()) {
+					_log.debug(
+						StringBundler.concat(
+							"Skipping configuration ",
+							configurationScreen.getKey(),
+							" because it does not have export capability"),
+						unsupportedOperationException);
+				}
+			}
+		}
+	}
+
+	private void _addInstanceConfigurations(
+			List<InstanceConfiguration> instanceConfigurations)
+		throws Exception {
+
+		Configuration[] configurations = _configurationAdmin.listConfigurations(
+			ConfigurationFilterStringUtil.getCompanyScopedFilterString(
+				contextCompany.getCompanyId(),
+				contextCompany.getDefaultWebId()));
+
+		if (ArrayUtil.isEmpty(configurations)) {
+			return;
+		}
+
+		for (Configuration configuration : configurations) {
+			InstanceConfiguration instanceConfiguration =
+				_toInstanceConfiguration(configuration);
+
+			if (instanceConfiguration == null) {
+				continue;
+			}
+
+			instanceConfigurations.add(instanceConfiguration);
+		}
 	}
 
 	private void _checkFeatureFlag() {
@@ -262,6 +217,129 @@ public class InstanceConfigurationResourceImpl
 			!permissionChecker.isOmniadmin()) {
 
 			throw new NotAuthorizedException(Response.Status.UNAUTHORIZED);
+		}
+	}
+
+	private InstanceConfiguration _getConfigurationScreenInstanceConfiguration(
+		ConfigurationScreen configurationScreen) {
+
+		try {
+			InstanceConfiguration instanceConfiguration =
+				_toInstanceConfiguration(configurationScreen);
+
+			Map<String, Object> properties =
+				instanceConfiguration.getProperties();
+
+			if (properties.isEmpty()) {
+				throw new NotFoundException(
+					StringBundler.concat(
+						"Unable to find entry for instance configuration with ",
+						"external reference code: ",
+						configurationScreen.getKey()));
+			}
+
+			return instanceConfiguration;
+		}
+		catch (UnsupportedOperationException unsupportedOperationException) {
+			throw new ServerErrorException(
+				unsupportedOperationException.getMessage(),
+				Response.Status.NOT_IMPLEMENTED);
+		}
+	}
+
+	private InstanceConfiguration _getInstanceConfiguration(
+			String instanceConfigurationExternalReferenceCode)
+		throws Exception {
+
+		Configuration[] configurations = _configurationAdmin.listConfigurations(
+			ConfigurationFilterStringUtil.getCompanyScopedFilterString(
+				contextCompany.getCompanyId(),
+				instanceConfigurationExternalReferenceCode,
+				contextCompany.getDefaultWebId()));
+
+		if (ArrayUtil.isEmpty(configurations)) {
+			throw new NotFoundException(
+				StringBundler.concat(
+					"Unable to find entry for instance configuration with ",
+					"external reference code: ",
+					instanceConfigurationExternalReferenceCode));
+		}
+
+		if (configurations.length > 1) {
+			List<String> pids = new ArrayList<>();
+
+			for (Configuration configuration : configurations) {
+				pids.add(configuration.getPid());
+			}
+
+			throw new BadRequestException(
+				StringBundler.concat(
+					instanceConfigurationExternalReferenceCode,
+					" is a factory configuration. Specify one of these PIDs: ",
+					ListUtil.toString(pids, StringPool.BLANK, StringPool.COMMA),
+					"."));
+		}
+
+		return _toInstanceConfiguration(configurations[0]);
+	}
+
+	private InstanceConfiguration _putConfigurationScreenInstanceConfiguration(
+		ConfigurationScreen configurationScreen,
+		InstanceConfiguration instanceConfiguration) {
+
+		try {
+			ConfigurationScreenUtil.importProperties(
+				_configurationExportImportProcessor, configurationScreen,
+				HashMapDictionaryBuilder.putAll(
+					instanceConfiguration.getProperties()
+				).build(),
+				ExtendedObjectClassDefinition.Scope.COMPANY,
+				contextCompany.getCompanyId());
+
+			return _toInstanceConfiguration(configurationScreen);
+		}
+		catch (UnsupportedOperationException unsupportedOperationException) {
+			throw new ServerErrorException(
+				unsupportedOperationException.getMessage(),
+				Response.Status.NOT_IMPLEMENTED);
+		}
+		catch (Exception exception) {
+			throw new BadRequestException(exception.getMessage());
+		}
+	}
+
+	private InstanceConfiguration _putInstanceConfiguration(
+			InstanceConfiguration instanceConfiguration)
+		throws Exception {
+
+		long companyId = contextCompany.getCompanyId();
+
+		String filterString =
+			ConfigurationFilterStringUtil.getCompanyScopedFilterString(
+				companyId, instanceConfiguration.getExternalReferenceCode(),
+				contextCompany.getDefaultWebId());
+
+		try {
+			Configuration configuration =
+				ConfigurationUtil.addOrUpdateConfiguration(
+					companyId, _configurationAdmin,
+					instanceConfiguration.getExternalReferenceCode(),
+					filterString, instanceConfiguration.getProperties(),
+					ExtendedObjectClassDefinition.Scope.COMPANY,
+					_settingsLocatorHelper);
+
+			if (configuration == null) {
+				throw new NotFoundException(
+					StringBundler.concat(
+						"Unable to find instance configuration with external ",
+						"reference code: ",
+						instanceConfiguration.getExternalReferenceCode()));
+			}
+
+			return _toInstanceConfiguration(configuration);
+		}
+		catch (ValidationException validationException) {
+			throw new BadRequestException(validationException.getMessage());
 		}
 	}
 
@@ -288,27 +366,24 @@ public class InstanceConfigurationResourceImpl
 	}
 
 	private InstanceConfiguration _toInstanceConfiguration(
-			ConfigurationScreen configurationScreen)
-		throws Exception {
-
-		Map<String, Object> properties = ConfigurationScreenUtil.getProperties(
-			_configurationExportImportProcessor, configurationScreen,
-			ExtendedObjectClassDefinition.Scope.COMPANY,
-			contextCompany.getCompanyId());
-
-		if ((properties == null) || properties.isEmpty()) {
-			return null;
-		}
+		ConfigurationScreen configurationScreen) {
 
 		InstanceConfiguration instanceConfiguration =
 			new InstanceConfiguration();
 
 		instanceConfiguration.setExternalReferenceCode(
 			configurationScreen::getKey);
-		instanceConfiguration.setProperties(() -> properties);
+		instanceConfiguration.setProperties(
+			() -> ConfigurationScreenUtil.getProperties(
+				_configurationExportImportProcessor, configurationScreen,
+				ExtendedObjectClassDefinition.Scope.COMPANY,
+				contextCompany.getCompanyId()));
 
 		return instanceConfiguration;
 	}
+
+	private static final Log _log = LogFactoryUtil.getLog(
+		InstanceConfigurationResourceImpl.class);
 
 	@Reference
 	private ConfigurationAdmin _configurationAdmin;

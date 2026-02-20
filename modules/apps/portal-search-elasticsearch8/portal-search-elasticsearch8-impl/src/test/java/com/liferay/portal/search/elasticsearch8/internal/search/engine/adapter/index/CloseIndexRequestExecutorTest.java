@@ -5,12 +5,13 @@
 
 package com.liferay.portal.search.elasticsearch8.internal.search.engine.adapter.index;
 
+import co.elastic.clients.elasticsearch._types.Time;
+
+import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.search.elasticsearch8.internal.connection.ElasticsearchFixture;
 import com.liferay.portal.search.engine.adapter.index.CloseIndexRequest;
 import com.liferay.portal.search.engine.adapter.index.IndicesOptions;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
-
-import org.elasticsearch.core.TimeValue;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -56,27 +57,24 @@ public class CloseIndexRequestExecutorTest {
 		CloseIndexRequestExecutor closeIndexRequestExecutor =
 			new CloseIndexRequestExecutor(_elasticsearchFixture);
 
-		org.elasticsearch.client.indices.CloseIndexRequest
+		co.elastic.clients.elasticsearch.indices.CloseIndexRequest
 			elasticsearchCloseIndexRequest =
 				closeIndexRequestExecutor.createCloseIndexRequest(
 					closeIndexRequest);
 
 		Assert.assertArrayEquals(
 			closeIndexRequest.getIndexNames(),
-			elasticsearchCloseIndexRequest.indices());
+			ArrayUtil.toStringArray(elasticsearchCloseIndexRequest.index()));
+
+		Time masterTimeout = elasticsearchCloseIndexRequest.masterTimeout();
 
 		Assert.assertEquals(
-			IndicesOptionsTranslatorUtil.translate(
-				closeIndexRequest.getIndicesOptions()),
-			elasticsearchCloseIndexRequest.indicesOptions());
+			closeIndexRequest.getTimeout() + "ms", masterTimeout.time());
+
+		Time timeout = elasticsearchCloseIndexRequest.timeout();
 
 		Assert.assertEquals(
-			TimeValue.timeValueMillis(closeIndexRequest.getTimeout()),
-			elasticsearchCloseIndexRequest.masterNodeTimeout());
-
-		Assert.assertEquals(
-			TimeValue.timeValueMillis(closeIndexRequest.getTimeout()),
-			elasticsearchCloseIndexRequest.timeout());
+			closeIndexRequest.getTimeout() + "ms", timeout.time());
 	}
 
 	private static final String _INDEX_NAME = "test_request_index";

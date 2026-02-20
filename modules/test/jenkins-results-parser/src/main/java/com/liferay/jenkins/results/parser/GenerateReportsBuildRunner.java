@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,6 +90,11 @@ public class GenerateReportsBuildRunner extends BaseBuildRunner<BuildData> {
 		AWS_BUILD_COMPARISON("AWS Build Comparison"),
 		BUILD_HISTORY("Build History"), CI_SYSTEM_HISTORY("CI System History"),
 		CI_SYSTEM_STATUS("CI System Status"),
+		FLAKY_TEST_7_0_x("Flaky Test 7.0.x"),
+		FLAKY_TEST_7_1_x("Flaky Test 7.1.x"),
+		FLAKY_TEST_7_2_x("Flaky Test 7.2.x"),
+		FLAKY_TEST_7_3_x("Flaky Test 7.3.x"),
+		FLAKY_TEST_MASTER("Flaky Test master"),
 		PULL_REQUEST_HISTORY("Pull Request History"),
 		RELEASE_HISTORY("Release History"),
 		UPSTREAM_HISTORY("Upstream History"), UTILIZATION("Utilization");
@@ -294,15 +300,32 @@ public class GenerateReportsBuildRunner extends BaseBuildRunner<BuildData> {
 				DateTimeFormatter.ofPattern("yyyy-MM"));
 		}
 
+		List<String> jenkinsMasterNames = new ArrayList<>();
+
+		try {
+			String jenkinsLoadBalancerWhitelist =
+				JenkinsResultsParserUtil.getProperty(
+					JenkinsResultsParserUtil.getBuildProperties(),
+					"jenkins.load.balancer.whitelist");
+
+			jenkinsLoadBalancerWhitelist =
+				JenkinsResultsParserUtil.expandSlaveRange(
+					jenkinsLoadBalancerWhitelist);
+
+			Collections.addAll(
+				jenkinsMasterNames, jenkinsLoadBalancerWhitelist.split(","));
+		}
+		catch (IOException ioException) {
+			throw new RuntimeException(ioException);
+		}
+
 		TestrayCloudBucket testrayCloudBucket =
 			TestrayCloudBucket.getInstance();
 
 		List<String> keys = new ArrayList<>();
 
-		String jobName = "test-portal-acceptance-pullrequest(master)";
-
-		for (int i = 1; i <= 40; i++) {
-			String jenkinsMasterName = "test-1-" + i;
+		for (String jenkinsMasterName : jenkinsMasterNames) {
+			String jobName = "test-portal-acceptance-pullrequest(master)";
 
 			keys.addAll(
 				_getTestrayBucketBuildReportJSONFilePaths(
@@ -450,6 +473,29 @@ public class GenerateReportsBuildRunner extends BaseBuildRunner<BuildData> {
 		_archiveReport(filePath);
 	}
 
+	private void _generateFlakyTestReport(String reportName)
+		throws IOException {
+
+		String reportFilePath = _getReportFilePath(null);
+
+		FlakyTestReportUtil.copyCIHistoryFiles(reportFilePath);
+
+		String flakyTestReportFilePath = _getReportFilePath(reportName);
+
+		FlakyTestReportUtil.copyBaseReportFiles(flakyTestReportFilePath);
+
+		Files.deleteIfExists(Paths.get(reportFilePath, "ci-history.json.gz"));
+
+		File ciHistoryJSONFile = FlakyTestReportUtil.createCIHistoryJSONFile(
+			reportFilePath, flakyTestReportFilePath);
+
+		FlakyTestReportUtil.writeHTMLFile(ciHistoryJSONFile, reportFilePath);
+
+		_updateReport(flakyTestReportFilePath);
+
+		_archiveReport(flakyTestReportFilePath);
+	}
+
 	private void _generatePullRequestReport(String reportName)
 		throws IOException {
 
@@ -530,6 +576,10 @@ public class GenerateReportsBuildRunner extends BaseBuildRunner<BuildData> {
 					_generateCISystemStatusReport(reportName);
 				}
 
+				if (reportName.startsWith("Flaky Test")) {
+					_generateFlakyTestReport(reportName);
+				}
+
 				if (reportName.equals(Report.PULL_REQUEST_HISTORY.toString())) {
 					_generatePullRequestReport(reportName);
 				}
@@ -562,7 +612,7 @@ public class GenerateReportsBuildRunner extends BaseBuildRunner<BuildData> {
 			}
 
 			sb.append("<a href=\"");
-			sb.append("http://test-1-0.liferay.com/userContent/reports/");
+			sb.append("http://test-1-0-aws.liferay.com/userContent/reports/");
 
 			sb.append(_getReportDirName(reportName));
 
@@ -659,7 +709,16 @@ public class GenerateReportsBuildRunner extends BaseBuildRunner<BuildData> {
 	}
 
 	private String _getReportFilePath(String reportName) {
-		return _TMP_BASE_DIR_PATH + "/reports/" + _getReportDirName(reportName);
+		StringBuilder sb = new StringBuilder();
+
+		sb.append(_TMP_BASE_DIR_PATH);
+		sb.append("/reports/");
+
+		if (!JenkinsResultsParserUtil.isNullOrEmpty(reportName)) {
+			sb.append(_getReportDirName(reportName));
+		}
+
+		return sb.toString();
 	}
 
 	private String[] _getReportNames() {
@@ -932,6 +991,21 @@ public class GenerateReportsBuildRunner extends BaseBuildRunner<BuildData> {
 				put(Report.CI_SYSTEM_HISTORY.toString(), "ci-system-history");
 				put(Report.CI_SYSTEM_STATUS.toString(), "ci-system-status");
 				put(
+					Report.FLAKY_TEST_7_0_x.toString(),
+					"flaky-test-report-7.0.x");
+				put(
+					Report.FLAKY_TEST_7_1_x.toString(),
+					"flaky-test-report-7.1.x");
+				put(
+					Report.FLAKY_TEST_7_2_x.toString(),
+					"flaky-test-report-7.2.x");
+				put(
+					Report.FLAKY_TEST_7_3_x.toString(),
+					"flaky-test-report-7.3.x");
+				put(
+					Report.FLAKY_TEST_MASTER.toString(),
+					"flaky-test-report-master");
+				put(
 					Report.PULL_REQUEST_HISTORY.toString(),
 					"pull-request-report");
 				put(Report.RELEASE_HISTORY.toString(), "release-report");
@@ -944,6 +1018,9 @@ public class GenerateReportsBuildRunner extends BaseBuildRunner<BuildData> {
 	private static final List<String> _validReportNames = Arrays.asList(
 		Report.AWS_BUILD_COMPARISON.toString(), Report.BUILD_HISTORY.toString(),
 		Report.CI_SYSTEM_HISTORY.toString(), Report.CI_SYSTEM_STATUS.toString(),
+		Report.FLAKY_TEST_7_0_x.toString(), Report.FLAKY_TEST_7_1_x.toString(),
+		Report.FLAKY_TEST_7_2_x.toString(), Report.FLAKY_TEST_7_3_x.toString(),
+		Report.FLAKY_TEST_MASTER.toString(),
 		Report.PULL_REQUEST_HISTORY.toString(),
 		Report.RELEASE_HISTORY.toString(), Report.UPSTREAM_HISTORY.toString(),
 		Report.UTILIZATION.toString());

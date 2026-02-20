@@ -88,8 +88,9 @@ export {
 } from './align';
 export {default as AOP} from './aop/AOP.es';
 export {default as buildFragment} from './util/build_fragment';
+export {default as deepClone} from './util/deepClone';
 export {default as printPage} from './util/print_page';
-export {isReducedMotion} from './util/reducedMotion';
 export {default as dateUtils} from './utils/date_time/index';
 export {getObjectValueFromPath} from './utils/object/getObjectValueFromPath';
 export {default as pkceChallenge} from './utils/pkceChallenge';
+export {getFileAsBase64} from './utils/string/getFileAsBase64';

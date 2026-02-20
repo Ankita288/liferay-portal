@@ -22,6 +22,7 @@ import com.liferay.portal.kernel.model.WorkflowDefinitionLink;
 import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.security.permission.resource.ModelResourcePermission;
 import com.liferay.portal.kernel.security.permission.resource.PortletResourcePermission;
+import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
 
 import java.util.Arrays;
@@ -59,7 +60,8 @@ public class ObjectDefinitionServiceImpl
 			boolean portlet, String scope, String storageType,
 			List<ObjectDefinitionSetting> objectDefinitionSettings,
 			List<ObjectField> objectFields,
-			List<WorkflowDefinitionLink> workflowDefinitionLinks)
+			List<WorkflowDefinitionLink> workflowDefinitionLinks,
+			ServiceContext serviceContext)
 		throws PortalException {
 
 		_portletResourcePermission.check(
@@ -78,7 +80,7 @@ public class ObjectDefinitionServiceImpl
 			enableObjectEntryVersioning, friendlyURLSeparator, labelMap, name,
 			panelAppOrder, panelCategoryKey, pluralLabelMap, portlet, scope,
 			storageType, objectDefinitionSettings, objectFields,
-			workflowDefinitionLinks);
+			workflowDefinitionLinks, serviceContext);
 	}
 
 	@Override
@@ -106,7 +108,7 @@ public class ObjectDefinitionServiceImpl
 			String className, boolean enableComments,
 			boolean enableFormContainer, boolean enableFriendlyURLCustomization,
 			boolean enableIndexSearch, boolean enableObjectEntryDraft,
-			boolean enableObjectEntrySchedule,
+			boolean enableObjectEntryHistory, boolean enableObjectEntrySchedule,
 			boolean enableObjectEntrySubscription,
 			boolean enableObjectEntryVersioning, String friendlyURLSeparator,
 			Map<Locale, String> labelMap, String name, String panelAppOrder,
@@ -128,7 +130,7 @@ public class ObjectDefinitionServiceImpl
 		return objectDefinitionLocalService.addSystemObjectDefinition(
 			externalReferenceCode, userId, objectFolderId, className, null,
 			enableComments, enableFormContainer, enableFriendlyURLCustomization,
-			enableIndexSearch, enableObjectEntryDraft,
+			enableIndexSearch, enableObjectEntryDraft, enableObjectEntryHistory,
 			enableObjectEntrySchedule, enableObjectEntrySubscription,
 			enableObjectEntryVersioning, friendlyURLSeparator, labelMap, true,
 			name, panelAppOrder, panelCategoryKey, null, null, pluralLabelMap,
@@ -288,7 +290,8 @@ public class ObjectDefinitionServiceImpl
 			Map<Locale, String> pluralLabelMap, String scope, int status,
 			List<ObjectDefinitionSetting> objectDefinitionSettings,
 			List<ObjectField> objectFields,
-			List<WorkflowDefinitionLink> workflowDefinitionLinks)
+			List<WorkflowDefinitionLink> workflowDefinitionLinks,
+			ServiceContext serviceContext)
 		throws PortalException {
 
 		_objectDefinitionModelResourcePermission.check(
@@ -309,7 +312,7 @@ public class ObjectDefinitionServiceImpl
 			enableObjectEntryVersioning, friendlyURLSeparator, labelMap, name,
 			panelAppOrder, panelCategoryKey, portlet, pluralLabelMap, scope,
 			status, objectDefinitionSettings, objectFields,
-			workflowDefinitionLinks);
+			workflowDefinitionLinks, serviceContext);
 	}
 
 	@Override

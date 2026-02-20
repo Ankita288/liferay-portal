@@ -279,6 +279,19 @@ public class LayoutServiceWrapper
 	}
 
 	@Override
+	public Layout convertEmptyLayout(
+			long plid, java.util.Map<java.util.Locale, String> nameMap,
+			String type, long classNameId, long classPK,
+			String masterLayoutPageTemplateEntryERC,
+			ServiceContext serviceContext)
+		throws Exception {
+
+		return _layoutService.convertEmptyLayout(
+			plid, nameMap, type, classNameId, classPK,
+			masterLayoutPageTemplateEntryERC, serviceContext);
+	}
+
+	@Override
 	public Layout copyLayout(
 			long groupId, boolean privateLayout,
 			java.util.Map<java.util.Locale, String> localeNamesMap,
@@ -289,6 +302,24 @@ public class LayoutServiceWrapper
 		return _layoutService.copyLayout(
 			groupId, privateLayout, localeNamesMap, hidden, system,
 			copyPermissions, sourcePlid, serviceContext);
+	}
+
+	@Override
+	public Layout copyLayoutContent(Layout sourceLayout, Layout targetLayout)
+		throws Exception {
+
+		return _layoutService.copyLayoutContent(sourceLayout, targetLayout);
+	}
+
+	@Override
+	public Layout copyLayoutContent(
+			long sourceSegmentsExperienceId, Layout sourceLayout,
+			long targetSegmentsExperienceId, Layout targetLayout)
+		throws Exception {
+
+		return _layoutService.copyLayoutContent(
+			sourceSegmentsExperienceId, sourceLayout,
+			targetSegmentsExperienceId, targetLayout);
 	}
 
 	/**
@@ -690,12 +721,12 @@ public class LayoutServiceWrapper
 
 	@Override
 	public Layout getOrAddEmptyLayout(
-			String externalReferenceCode, long groupId,
+			String externalReferenceCode, long groupId, boolean privateLayout,
 			ServiceContext serviceContext)
 		throws Exception {
 
 		return _layoutService.getOrAddEmptyLayout(
-			externalReferenceCode, groupId, serviceContext);
+			externalReferenceCode, groupId, privateLayout, serviceContext);
 	}
 
 	/**
@@ -916,8 +947,12 @@ public class LayoutServiceWrapper
 	 String)}.
 	 * @param hasIconImage if the layout has a custom icon image
 	 * @param iconBytes the byte array of the layout's new icon image
-	 * @param styleBookEntryERC the external reference code of the style book entry
-	 * @param faviconFileEntryId the file entry ID of the layout's new favicon
+	 * @param styleBookEntryERC the external reference code of the style book
+	 entry
+	 * @param faviconFileEntryERC the file entry external reference code of the
+	 layout's new favicon
+	 * @param faviconFileEntryScopeERC the file entry scope external reference
+	 code of the layout's new favicon
 	 * @param masterLayoutPageTemplateEntryERC the external reference code key
 	 of the master layout page template entry
 	 * @param serviceContext the service context to be applied. Can set the
@@ -937,7 +972,8 @@ public class LayoutServiceWrapper
 			boolean hidden,
 			java.util.Map<java.util.Locale, String> friendlyURLMap,
 			boolean hasIconImage, byte[] iconBytes, String styleBookEntryERC,
-			long faviconFileEntryId, String masterLayoutPageTemplateEntryERC,
+			String faviconFileEntryERC, String faviconFileEntryScopeERC,
+			String masterLayoutPageTemplateEntryERC,
 			ServiceContext serviceContext)
 		throws com.liferay.portal.kernel.exception.PortalException {
 
@@ -945,8 +981,8 @@ public class LayoutServiceWrapper
 			groupId, privateLayout, layoutId, parentLayoutId, localeNamesMap,
 			localeTitlesMap, descriptionMap, keywordsMap, robotsMap, type,
 			hidden, friendlyURLMap, hasIconImage, iconBytes, styleBookEntryERC,
-			faviconFileEntryId, masterLayoutPageTemplateEntryERC,
-			serviceContext);
+			faviconFileEntryERC, faviconFileEntryScopeERC,
+			masterLayoutPageTemplateEntryERC, serviceContext);
 	}
 
 	/**

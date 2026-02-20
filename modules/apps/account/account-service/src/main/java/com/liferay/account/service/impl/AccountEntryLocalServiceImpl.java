@@ -23,6 +23,7 @@ import com.liferay.expando.kernel.model.ExpandoBridge;
 import com.liferay.expando.kernel.service.ExpandoRowLocalService;
 import com.liferay.expando.kernel.util.ExpandoBridgeFactoryUtil;
 import com.liferay.exportimport.kernel.empty.model.EmptyModelManager;
+import com.liferay.exportimport.kernel.empty.model.EmptyModelManagerUtil;
 import com.liferay.object.entry.util.ObjectEntryThreadLocal;
 import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.sql.dsl.DSLFunctionFactoryUtil;
@@ -497,7 +498,8 @@ public class AccountEntryLocalServiceImpl
 				WorkflowConstants.STATUS_EMPTY, null),
 			externalReferenceCode,
 			this::fetchAccountEntryByExternalReferenceCode,
-			this::getAccountEntryByExternalReferenceCode);
+			this::getAccountEntryByExternalReferenceCode,
+			AccountEntry.class.getName());
 	}
 
 	@Override
@@ -687,9 +689,10 @@ public class AccountEntryLocalServiceImpl
 				accountEntry = updateDomains(accountEntryId, domains);
 			}
 
-			if (status == WorkflowConstants.STATUS_EMPTY) {
-				status = WorkflowConstants.STATUS_APPROVED;
-			}
+			status = EmptyModelManagerUtil.solveEmptyModel(
+				externalReferenceCode, accountEntry.getModelClassName(),
+				accountEntry.getCompanyId(), 0L, status,
+				() -> WorkflowConstants.STATUS_APPROVED);
 
 			ServiceContext workflowServiceContext = new ServiceContext();
 			long workflowUserId = accountEntry.getUserId();

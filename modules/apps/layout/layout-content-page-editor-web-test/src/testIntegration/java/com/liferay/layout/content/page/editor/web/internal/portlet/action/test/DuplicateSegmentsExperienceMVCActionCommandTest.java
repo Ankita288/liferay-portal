@@ -15,20 +15,19 @@ import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
 import com.liferay.portal.kernel.service.CompanyLocalService;
-import com.liferay.portal.kernel.service.LayoutLocalService;
+import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.ServiceContextThreadLocal;
 import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.kernel.test.portlet.MockLiferayPortletActionRequest;
 import com.liferay.portal.kernel.test.portlet.MockLiferayPortletActionResponse;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
-import com.liferay.portal.kernel.test.rule.DeleteAfterTestRun;
-import com.liferay.portal.kernel.test.util.GroupTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
+import com.liferay.portal.kernel.util.ScopeUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
@@ -70,7 +69,7 @@ public class DuplicateSegmentsExperienceMVCActionCommandTest {
 
 	@Before
 	public void setUp() throws Exception {
-		_group = GroupTestUtil.addGroup();
+		_group = _groupLocalService.getGroup(TestPropsValues.getGroupId());
 
 		_layout = LayoutTestUtil.addTypeContentLayout(_group);
 
@@ -89,7 +88,10 @@ public class DuplicateSegmentsExperienceMVCActionCommandTest {
 
 		SegmentsExperience segmentsExperience =
 			_segmentsExperienceService.addSegmentsExperience(
-				null, _group.getGroupId(), segmentsEntry.getSegmentsEntryId(),
+				null, _group.getGroupId(),
+				segmentsEntry.getExternalReferenceCode(),
+				ScopeUtil.getItemScopeExternalReferenceCode(
+					segmentsEntry.getGroupId(), _group.getGroupId()),
 				_layout.getPlid(),
 				Collections.singletonMap(
 					LocaleUtil.getSiteDefault(), "Experience"),
@@ -126,8 +128,11 @@ public class DuplicateSegmentsExperienceMVCActionCommandTest {
 			segmentsExperience.getPriority() - 1,
 			segmentsExperienceJSONObject.getInt("priority"));
 		Assert.assertEquals(
-			segmentsExperience.getSegmentsEntryId(),
-			segmentsExperienceJSONObject.getLong("segmentsEntryId"));
+			segmentsExperience.getSegmentsEntryERC(),
+			segmentsExperienceJSONObject.getString("segmentsEntryERC"));
+		Assert.assertEquals(
+			segmentsExperience.getSegmentsEntryScopeERC(),
+			segmentsExperienceJSONObject.getString("segmentsEntryScopeERC"));
 		Assert.assertTrue(
 			segmentsExperienceJSONObject.getLong("segmentsExperienceId") > 0);
 
@@ -201,13 +206,12 @@ public class DuplicateSegmentsExperienceMVCActionCommandTest {
 	@Inject
 	private FragmentEntryLinkLocalService _fragmentEntryLinkLocalService;
 
-	@DeleteAfterTestRun
 	private Group _group;
 
-	private Layout _layout;
-
 	@Inject
-	private LayoutLocalService _layoutLocalService;
+	private GroupLocalService _groupLocalService;
+
+	private Layout _layout;
 
 	@Inject(
 		filter = "mvc.command.name=/layout_content_page_editor/duplicate_segments_experience"

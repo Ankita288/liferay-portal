@@ -6,26 +6,35 @@
 package com.liferay.data.cleanup.internal.verify;
 
 import com.liferay.data.cleanup.internal.verify.util.PostUpgradeDataCleanupProcessUtil;
+import com.liferay.object.constants.ObjectDefinitionConstants;
+import com.liferay.object.model.ObjectDefinition;
+import com.liferay.object.service.ObjectDefinitionLocalService;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.dao.db.BaseDBProcess;
 import com.liferay.portal.kernel.dao.db.DBInspector;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.ClassName;
+import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.ModelHintsUtil;
 import com.liferay.portal.kernel.module.util.SystemBundleUtil;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
+import com.liferay.portal.kernel.service.CompanyLocalService;
 import com.liferay.portal.kernel.upgrade.data.cleanup.util.DataCleanupLoggingUtil;
+import com.liferay.portal.kernel.util.StringUtil;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
@@ -34,16 +43,18 @@ import org.osgi.framework.BundleContext;
  * @author Luis Ortiz
  */
 public class ClassNamePostUpgradeDataCleanupProcess
-	implements PostUpgradeDataCleanupProcess {
+	extends BaseDBProcess implements PostUpgradeDataCleanupProcess {
 
 	public ClassNamePostUpgradeDataCleanupProcess(
-		ClassNameLocalService classNameLocalService, Connection connection) {
+		ClassNameLocalService classNameLocalService,
+		CompanyLocalService companyLocalService, Connection connection,
+		ObjectDefinitionLocalService objectDefinitionLocalService) {
 
 		_classNameLocalService = classNameLocalService;
+		_companyLocalService = companyLocalService;
+		_objectDefinitionLocalService = objectDefinitionLocalService;
 
-		_connection = connection;
-
-		_dbInspector = new DBInspector(_connection);
+		this.connection = connection;
 	}
 
 	@Override
@@ -64,103 +75,146 @@ public class ClassNamePostUpgradeDataCleanupProcess
 		BundleContext bundleContext = SystemBundleUtil.getBundleContext();
 		List<ClassName> classNames = _classNameLocalService.getClassNames(
 			QueryUtil.ALL_POS, QueryUtil.ALL_POS);
-		DBInspector dbInspector = new DBInspector(_connection);
+		DBInspector dbInspector = new DBInspector(connection);
 		Set<String> models = new HashSet<>(ModelHintsUtil.getModels());
 
-		for (ClassName className : classNames) {
-			String value = className.getValue();
+		List<String> tableNames = new ArrayList<>();
 
-			if (!value.startsWith("com.liferay.")) {
+		for (String tableName : dbInspector.getTableNames(null)) {
+			if (!dbInspector.hasColumn(tableName, "classNameId") ||
+				StringUtil.equalsIgnoreCase(tableName, "ClassName_")) {
+
 				continue;
 			}
 
-			int dashIndex = value.indexOf(StringPool.DASH);
-			int poundIndex = value.indexOf(StringPool.POUND);
+			tableNames.add(tableName);
+		}
 
-			if (dashIndex != -1) {
-				value = value.substring(0, dashIndex);
-			}
+		processConcurrently(
+			classNames.toArray(new ClassName[0]),
+			className -> {
+				String value = className.getValue();
 
-			if (poundIndex != -1) {
-				value = value.substring(0, poundIndex);
-			}
-
-			if (models.contains(value)) {
-				continue;
-			}
-
-			Class<?> clazz = null;
-
-			for (Bundle bundle : bundleContext.getBundles()) {
-				try {
-					clazz = bundle.loadClass(value);
-
-					break;
+				if (!value.startsWith("com.liferay.")) {
+					return;
 				}
-				catch (ClassNotFoundException classNotFoundException) {
-					if (_log.isDebugEnabled()) {
-						_log.debug(classNotFoundException);
+
+				if (StringUtil.startsWith(
+						value,
+						ObjectDefinitionConstants.
+							CLASS_NAME_PREFIX_CUSTOM_OBJECT_DEFINITION)) {
+
+					AtomicReference<ObjectDefinition> objectDefinition =
+						new AtomicReference<>();
+
+					String finalValue = value;
+
+					_companyLocalService.forEachCompanyId(
+						companyId -> {
+							if (objectDefinition.get() != null) {
+								return;
+							}
+
+							objectDefinition.set(
+								_objectDefinitionLocalService.
+									fetchObjectDefinitionByClassName(
+										companyId, finalValue));
+						});
+
+					if (objectDefinition.get() != null) {
+						return;
 					}
 				}
-			}
 
-			if (clazz != null) {
-				continue;
-			}
+				int index = value.indexOf(StringPool.DASH);
 
-			List<String> tableNames = dbInspector.getTableNames(null);
-			Set<String> usedTableNames = new HashSet<>();
+				if ((index != -1) &&
+					StringUtil.startsWith(value, Layout.class.getName())) {
 
-			tableNames.remove(dbInspector.normalizeName("ClassName_"));
-
-			for (String tableName : tableNames) {
-				if (!dbInspector.hasColumn(tableName, "classNameId")) {
-					continue;
+					value = value.substring(0, index);
 				}
 
-				try (PreparedStatement preparedStatement =
-						_connection.prepareStatement(
-							"select 1 from " + tableName +
-								" where classNameId = ?")) {
+				boolean missingClass = false;
 
-					preparedStatement.setLong(1, className.getClassNameId());
+				for (String currentValue : value.split("[-_]")) {
+					if (models.contains(currentValue)) {
+						continue;
+					}
 
-					try (ResultSet resultSet =
-							preparedStatement.executeQuery()) {
+					Class<?> clazz = null;
 
-						if (resultSet.next()) {
-							usedTableNames.add(tableName);
+					for (Bundle bundle : bundleContext.getBundles()) {
+						try {
+							clazz = bundle.loadClass(currentValue);
+
+							break;
+						}
+						catch (ClassNotFoundException classNotFoundException) {
+							if (_log.isDebugEnabled()) {
+								_log.debug(classNotFoundException);
+							}
+						}
+					}
+
+					if (clazz == null) {
+						missingClass = true;
+
+						break;
+					}
+				}
+
+				if (!missingClass) {
+					return;
+				}
+
+				Set<String> usedTableNames = new HashSet<>();
+
+				for (String tableName : tableNames) {
+					try (PreparedStatement preparedStatement =
+							connection.prepareStatement(
+								"select 1 from " + tableName +
+									" where classNameId = ?")) {
+
+						preparedStatement.setLong(
+							1, className.getClassNameId());
+
+						try (ResultSet resultSet =
+								preparedStatement.executeQuery()) {
+
+							if (resultSet.next()) {
+								usedTableNames.add(tableName);
+							}
 						}
 					}
 				}
-			}
 
-			if (usedTableNames.isEmpty()) {
-				_classNameLocalService.deleteClassName(className);
+				if (usedTableNames.isEmpty()) {
+					_classNameLocalService.deleteClassName(className);
 
-				DataCleanupLoggingUtil.logDelete(
-					_log, 1, _dbInspector.normalizeName("ClassName_"),
-					StringBundler.concat(
-						"\"", value,
-						"\" is not defined in any deployed module and is not ",
-						"in use"));
-			}
-			else if (_log.isInfoEnabled()) {
-				_log.info(
-					StringBundler.concat(
-						"Class name ", value,
-						" is not defined in any deployed module but is ",
-						"referenced in the next tables: ",
-						String.join(", ", new TreeSet<>(usedTableNames))));
-			}
-		}
+					DataCleanupLoggingUtil.logDelete(
+						_log, 1, dbInspector.normalizeName("ClassName_"),
+						StringBundler.concat(
+							"\"", value,
+							"\" is not defined in any deployed module and is ",
+							"not in use"));
+				}
+				else if (_log.isWarnEnabled()) {
+					_log.warn(
+						StringBundler.concat(
+							"Class name ", value,
+							" is not defined in any deployed module but is ",
+							"referenced in the next tables: ",
+							String.join(", ", new TreeSet<>(usedTableNames))));
+				}
+			},
+			null);
 	}
 
 	private static final Log _log = LogFactoryUtil.getLog(
 		ClassNamePostUpgradeDataCleanupProcess.class);
 
 	private final ClassNameLocalService _classNameLocalService;
-	private final Connection _connection;
-	private final DBInspector _dbInspector;
+	private final CompanyLocalService _companyLocalService;
+	private final ObjectDefinitionLocalService _objectDefinitionLocalService;
 
 }

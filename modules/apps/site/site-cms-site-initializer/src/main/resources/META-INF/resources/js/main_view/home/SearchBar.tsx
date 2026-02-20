@@ -25,12 +25,19 @@ export default function SearchBar({
 	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 
-		window.location.href = searchResultsURL + '?q=' + term;
+		const encodedState = encodeURIComponent(JSON.stringify({q: term}));
+
+		window.location.href =
+			searchResultsURL +
+			'?com.liferay.site.cms.site.initializer-allSection_fdsConfig=' +
+			encodedState;
 	};
 
 	return (
 		<div className="align-items-center d-flex flex-column home-section p-2 p-sm-3">
-			<h1>Welcome, {userFirstName}!</h1>
+			<div aria-level={2} className="h1" role="heading">
+				Welcome, {userFirstName}!
+			</div>
 
 			<div className="container mt-5">
 				<div className="justify-content-center row">

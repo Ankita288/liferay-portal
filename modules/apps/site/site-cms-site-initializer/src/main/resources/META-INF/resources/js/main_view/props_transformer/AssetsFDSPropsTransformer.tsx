@@ -8,7 +8,6 @@ import {
 	IView,
 	replaceTokens,
 } from '@liferay/frontend-data-set-web';
-import {openModal} from 'frontend-js-components-web';
 import React from 'react';
 
 import StatusLabel from '../../common/components/StatusLabel';
@@ -17,12 +16,15 @@ import {AssetLibrary} from '../../common/types/AssetLibrary';
 import {ISearchAssetObjectEntry} from '../../common/types/AssetType';
 import {OBJECT_ENTRY_FOLDER_CLASS_NAME} from '../../common/utils/constants';
 import {getScopeExternalReferenceCode} from '../../common/utils/getScopeExternalReferenceCode';
-import CategoriesAndTagsModalContent from '../categorization/modal/CategoriesAndTagsModalContent';
+import {openCMSModal} from '../../common/utils/openCMSModal';
+import EditAssetCategoriesModalContent from '../categorization/modal/EditAssetCategoriesModalContent';
+import EditAssetTagsModalContent from '../categorization/modal/EditAssetTagsModalContent';
 import {defaultPermissionsBulkAction} from '../default_permission/BulkDefaultPermissionModalContent';
 import {permissionsBulkAction} from '../default_permission/BulkPermissionModalContent';
 import DefaultPermissionModalContent from '../default_permission/DefaultPermissionModalContent';
 import openResetAssetPermissionModal from '../default_permission/ResetPermissionModalContent';
 import AssetTypeInfoPanel from '../info_panel/AssetTypeInfoPanelContent';
+import ExportTranslationModalContent from '../modal/ExportTranslationModalContent';
 import AssetNavigationModalContent from '../modal/asset_navigation_view/AssetNavigationModalContent';
 import ACTIONS from './actions/creationMenuActions';
 import deleteAssetEntriesBulkAction, {
@@ -30,9 +32,11 @@ import deleteAssetEntriesBulkAction, {
 } from './actions/deleteAssetEntriesBulkAction';
 import deleteItemAction from './actions/deleteItemAction';
 import executeResetPermissionBulkAction from './actions/executeResetPermissionBulkAction';
+import expireEntriesBulkAction from './actions/expireEntriesBulkAction';
 import openFolderItemSelectorAction from './actions/openFolderItemSelectorAction';
 import shareAction from './actions/shareAction';
 import {triggerAssetDownloadBulkAction} from './actions/triggerAssetDownloadBulkAction';
+import AdditionalItemInfoRenderer from './cell_renderers/AdditionalItemInfoRenderer';
 import AuthorRenderer from './cell_renderers/AuthorRenderer';
 import SimpleActionLinkRenderer from './cell_renderers/SimpleActionLinkRenderer';
 import SpaceRendererWithCache from './cell_renderers/SpaceRendererWithCache';
@@ -44,6 +48,8 @@ import GalleryView from './views/GalleryView';
 export type AdditionalProps = {
 	assetLibraries: AssetLibrary[];
 	autocompleteURL: string;
+	availableExportFileFormats: any[];
+	availableTargetLocales: any[];
 	baseFolderViewURL: string;
 	brokenLinksCheckerEnabled: boolean;
 	cmsGroupId?: number;
@@ -59,6 +65,7 @@ export type AdditionalProps = {
 	parentObjectEntryFolderExternalReferenceCode: string;
 	redirect: string;
 	rootObjectEntryFolderExternalReferenceCode: string;
+	showAdditionalItemInfo?: boolean;
 };
 
 export default function AssetsFDSPropsTransformer({
@@ -71,6 +78,7 @@ export default function AssetsFDSPropsTransformer({
 	additionalProps: AdditionalProps;
 	apiURL?: string;
 	creationMenu: any;
+	id?: string;
 	itemsActions?: any[];
 	views: IView[];
 }) {
@@ -120,14 +128,30 @@ export default function AssetsFDSPropsTransformer({
 					type: 'internal',
 				} as IInternalRenderer,
 				{
-					component: ({actions, itemData, options, value}) =>
-						SimpleActionLinkRenderer({
-							actions,
-							additionalProps,
-							itemData,
-							options,
-							value,
-						}),
+					component: ({actions, itemData, options, value}) => {
+						const simpleActionLink = (
+							<SimpleActionLinkRenderer
+								actions={actions}
+								additionalProps={additionalProps}
+								itemData={itemData}
+								options={options}
+								value={value}
+							/>
+						);
+
+						if (!additionalProps.showAdditionalItemInfo) {
+							return simpleActionLink;
+						}
+
+						return (
+							<>
+								{simpleActionLink}
+								<AdditionalItemInfoRenderer
+									itemData={itemData}
+								/>
+							</>
+						);
+					},
 					name: 'simpleActionLinkTableCellRenderer',
 					type: 'internal',
 				} as IInternalRenderer,
@@ -255,10 +279,7 @@ export default function AssetsFDSPropsTransformer({
 				action?.data?.id === 'default-permissions' ||
 				action?.data?.id === 'edit-and-propagate-default-permissions'
 			) {
-				openModal({
-					containerProps: {
-						className: '',
-					},
+				openCMSModal({
 					contentComponent: ({
 						closeModal,
 					}: {
@@ -296,17 +317,43 @@ export default function AssetsFDSPropsTransformer({
 					await deleteItemAction(itemData, loadData);
 				}
 			}
-			else if (
-				action?.data?.id === 'export-for-translation' ||
-				action?.data?.id === 'import-translation'
-			) {
+			else if (action?.data?.id === 'export-for-translation') {
 				event?.preventDefault();
 
-				openModal({
-					size: 'full-screen',
-					title: action.label,
-					url: replaceTokens(action.href, itemData),
+				openCMSModal({
+					contentComponent: ({
+						closeModal,
+					}: {
+						closeModal: () => void;
+					}) =>
+						ExportTranslationModalContent({
+							availableExportFileFormats:
+								additionalProps.availableExportFileFormats,
+							availableSourceLocales: Object.keys(
+								itemData.embedded?.title_i18n || {}
+							)
+								.map((languageId) =>
+									additionalProps.availableTargetLocales.find(
+										(locale) =>
+											locale.languageId === languageId
+									)
+								)
+								.filter(Boolean),
+							availableTargetLocales:
+								additionalProps.availableTargetLocales,
+							closeModal,
+							defaultSourceLanguageId:
+								itemData.embedded?.defaultLanguageId,
+							itemId: itemData.embedded.id,
+						}),
 				});
+			}
+			else if (action?.data?.id === 'import-translation') {
+				event?.preventDefault();
+
+				const formattedHref = replaceTokens(action.href, itemData);
+
+				ACTIONS.importTranslation(itemData, formattedHref, loadData);
 			}
 			else if (action?.data?.id === 'reset-to-default-permissions') {
 				openResetAssetPermissionModal({
@@ -322,6 +369,7 @@ export default function AssetsFDSPropsTransformer({
 					autocompleteURL,
 					collaboratorURL: collaboratorURLs[itemData.entryClassName],
 					creator: itemData.embedded.creator,
+					entryClassName: itemData.entryClassName,
 					itemId: itemData.embedded.id,
 					title: itemData.embedded?.title,
 				});
@@ -341,10 +389,7 @@ export default function AssetsFDSPropsTransformer({
 					(item: any) => item.embedded.id === itemData.embedded.id
 				);
 
-				openModal({
-					containerProps: {
-						className: '',
-					},
+				openCMSModal({
 					contentComponent: () =>
 						AssetNavigationModalContent({
 							additionalProps,
@@ -363,8 +408,8 @@ export default function AssetsFDSPropsTransformer({
 			action: any;
 			selectedData: any;
 		}) => {
-			if (action?.data?.id === 'categoriesAndTags') {
-				openModal({
+			if (action?.data?.id === 'edit-categories') {
+				openCMSModal({
 					center: true,
 					containerProps: {
 						className: 'modal-height-lg',
@@ -374,8 +419,30 @@ export default function AssetsFDSPropsTransformer({
 					}: {
 						closeModal: () => void;
 					}) =>
-						CategoriesAndTagsModalContent({
+						EditAssetCategoriesModalContent({
 							apiURL: otherProps.apiURL,
+							assetLibraries: additionalProps.assetLibraries,
+							closeModal,
+							cmsGroupId: additionalProps.cmsGroupId as number,
+							selectedData,
+						}),
+					size: 'md',
+				});
+			}
+			else if (action?.data?.id === 'edit-tags') {
+				openCMSModal({
+					center: true,
+					containerProps: {
+						className: 'modal-height-lg',
+					},
+					contentComponent: ({
+						closeModal,
+					}: {
+						closeModal: () => void;
+					}) =>
+						EditAssetTagsModalContent({
+							apiURL: otherProps?.apiURL,
+							assetLibraries: additionalProps.assetLibraries,
 							closeModal,
 							cmsGroupId: additionalProps.cmsGroupId as number,
 							selectedData,
@@ -403,6 +470,7 @@ export default function AssetsFDSPropsTransformer({
 						onDelete: async () => {
 							executeBulkDeleteAction(
 								otherProps.apiURL as string,
+								otherProps.id || '',
 								selectedData
 							);
 						},
@@ -415,6 +483,7 @@ export default function AssetsFDSPropsTransformer({
 						onSkip: async () => {
 							deleteAssetEntriesBulkAction({
 								apiURL: otherProps.apiURL,
+								dataSetId: otherProps.id,
 								selectedData,
 							});
 						},
@@ -461,6 +530,13 @@ export default function AssetsFDSPropsTransformer({
 						additionalProps.parentObjectEntryFolderExternalReferenceCode,
 					selectedData,
 					singleRoleMode: true,
+				});
+			}
+			else if (action?.data.id === 'expire') {
+				expireEntriesBulkAction({
+					apiURL: otherProps.apiURL,
+					dataSetId: otherProps.id,
+					selectedData,
 				});
 			}
 			else if (action?.data?.id === 'permissions') {

@@ -235,6 +235,7 @@ public abstract class BaseTaxonomyCategoryResourceTestCase {
 		taxonomyCategory.setExternalReferenceCode(regex);
 		taxonomyCategory.setId(regex);
 		taxonomyCategory.setName(regex);
+		taxonomyCategory.setPath(regex);
 		taxonomyCategory.setSiteExternalReferenceCode(regex);
 
 		String json = TaxonomyCategorySerDes.toJSON(taxonomyCategory);
@@ -248,6 +249,7 @@ public abstract class BaseTaxonomyCategoryResourceTestCase {
 		Assert.assertEquals(regex, taxonomyCategory.getExternalReferenceCode());
 		Assert.assertEquals(regex, taxonomyCategory.getId());
 		Assert.assertEquals(regex, taxonomyCategory.getName());
+		Assert.assertEquals(regex, taxonomyCategory.getPath());
 		Assert.assertEquals(
 			regex, taxonomyCategory.getSiteExternalReferenceCode());
 	}
@@ -4803,6 +4805,13 @@ public abstract class BaseTaxonomyCategoryResourceTestCase {
 	@Test
 	public void testBatchEngineDeleteImportTask() throws Exception {
 		TaxonomyCategory taxonomyCategory1 =
+			testBatchEngineDeleteImportTask_addAssetLibraryTaxonomyCategory();
+
+		testBatchEngineDeleteImportTask_deleteTaxonomyCategory(
+			200, taxonomyCategory1.getExternalReferenceCode(), null,
+			"assetLibraryId", String.valueOf(testDepotEntryGroup.getGroupId()));
+
+		taxonomyCategory1 =
 			testBatchEngineDeleteImportTask_addTaxonomyCategory();
 
 		testBatchEngineDeleteImportTask_deleteTaxonomyCategory(
@@ -4812,6 +4821,85 @@ public abstract class BaseTaxonomyCategoryResourceTestCase {
 			404,
 			taxonomyCategoryResource.getTaxonomyCategoryHttpResponse(
 				taxonomyCategory1.getId()));
+
+		taxonomyCategory1 =
+			testBatchEngineDeleteImportTask_addSiteTaxonomyCategory();
+
+		testBatchEngineDeleteImportTask_deleteTaxonomyCategory(
+			200, taxonomyCategory1.getExternalReferenceCode(), null, "siteId",
+			String.valueOf(testGroup.getGroupId()));
+
+		taxonomyCategory1 =
+			testBatchEngineDeleteImportTask_addAssetLibraryTaxonomyCategory();
+		TaxonomyCategory taxonomyCategory2 =
+			testBatchEngineDeleteImportTask_addAssetLibraryTaxonomyCategory();
+
+		testBatchEngineDeleteImportTask_deleteTaxonomyCategory(
+			200, taxonomyCategory2.getExternalReferenceCode(),
+			taxonomyCategory1.getId(), "assetLibraryId",
+			String.valueOf(testDepotEntryGroup.getGroupId()));
+
+		assertHttpResponseStatusCode(
+			404,
+			taxonomyCategoryResource.getTaxonomyCategoryHttpResponse(
+				taxonomyCategory1.getId()));
+		assertHttpResponseStatusCode(
+			200,
+			taxonomyCategoryResource.getTaxonomyCategoryHttpResponse(
+				taxonomyCategory2.getId()));
+
+		testBatchEngineDeleteImportTask_deleteTaxonomyCategory(
+			200, taxonomyCategory2.getExternalReferenceCode(),
+			taxonomyCategory1.getId(), "assetLibraryId",
+			String.valueOf(testDepotEntryGroup.getGroupId()));
+
+		assertHttpResponseStatusCode(
+			404,
+			taxonomyCategoryResource.getTaxonomyCategoryHttpResponse(
+				taxonomyCategory2.getId()));
+
+		taxonomyCategory1 =
+			testBatchEngineDeleteImportTask_addSiteTaxonomyCategory();
+		taxonomyCategory2 =
+			testBatchEngineDeleteImportTask_addSiteTaxonomyCategory();
+
+		testBatchEngineDeleteImportTask_deleteTaxonomyCategory(
+			200, taxonomyCategory2.getExternalReferenceCode(),
+			taxonomyCategory1.getId(), "siteId",
+			String.valueOf(testGroup.getGroupId()));
+
+		assertHttpResponseStatusCode(
+			404,
+			taxonomyCategoryResource.getTaxonomyCategoryHttpResponse(
+				taxonomyCategory1.getId()));
+		assertHttpResponseStatusCode(
+			200,
+			taxonomyCategoryResource.getTaxonomyCategoryHttpResponse(
+				taxonomyCategory2.getId()));
+
+		testBatchEngineDeleteImportTask_deleteTaxonomyCategory(
+			200, taxonomyCategory2.getExternalReferenceCode(),
+			taxonomyCategory1.getId(), "siteId",
+			String.valueOf(testGroup.getGroupId()));
+
+		assertHttpResponseStatusCode(
+			404,
+			taxonomyCategoryResource.getTaxonomyCategoryHttpResponse(
+				taxonomyCategory2.getId()));
+
+		taxonomyCategory1 =
+			testBatchEngineDeleteImportTask_addSiteTaxonomyCategory();
+
+		testBatchEngineDeleteImportTask_deleteTaxonomyCategory(
+			400, taxonomyCategory1.getExternalReferenceCode(),
+			taxonomyCategory1.getId(), "assetLibraryId",
+			String.valueOf(testDepotEntryGroup.getGroupId()), "siteId",
+			String.valueOf(testGroup.getGroupId()));
+
+		assertHttpResponseStatusCode(
+			200,
+			taxonomyCategoryResource.getTaxonomyCategoryHttpResponse(
+				taxonomyCategory1.getId()));
 	}
 
 	protected TaxonomyCategory
@@ -4819,6 +4907,20 @@ public abstract class BaseTaxonomyCategoryResourceTestCase {
 		throws Exception {
 
 		return testDeleteTaxonomyCategory_addTaxonomyCategory();
+	}
+
+	protected TaxonomyCategory
+			testBatchEngineDeleteImportTask_addAssetLibraryTaxonomyCategory()
+		throws Exception {
+
+		return testDeleteAssetLibraryTaxonomyCategoryByExternalReferenceCode_addTaxonomyCategory();
+	}
+
+	protected TaxonomyCategory
+			testBatchEngineDeleteImportTask_addSiteTaxonomyCategory()
+		throws Exception {
+
+		return testDeleteSiteTaxonomyCategoryByExternalReferenceCode_addTaxonomyCategory();
 	}
 
 	protected void testBatchEngineDeleteImportTask_deleteTaxonomyCategory(
@@ -5357,6 +5459,14 @@ public abstract class BaseTaxonomyCategoryResourceTestCase {
 				continue;
 			}
 
+			if (Objects.equals("path", additionalAssertFieldName)) {
+				if (taxonomyCategory.getPath() == null) {
+					valid = false;
+				}
+
+				continue;
+			}
+
 			if (Objects.equals("permissions", additionalAssertFieldName)) {
 				if (taxonomyCategory.getPermissions() == null) {
 					valid = false;
@@ -5696,6 +5806,17 @@ public abstract class BaseTaxonomyCategoryResourceTestCase {
 				if (!Objects.deepEquals(
 						taxonomyCategory1.getParentTaxonomyVocabulary(),
 						taxonomyCategory2.getParentTaxonomyVocabulary())) {
+
+					return false;
+				}
+
+				continue;
+			}
+
+			if (Objects.equals("path", additionalAssertFieldName)) {
+				if (!Objects.deepEquals(
+						taxonomyCategory1.getPath(),
+						taxonomyCategory2.getPath())) {
 
 					return false;
 				}
@@ -6216,6 +6337,52 @@ public abstract class BaseTaxonomyCategoryResourceTestCase {
 				"Invalid entity field " + entityFieldName);
 		}
 
+		if (entityFieldName.equals("path")) {
+			Object object = taxonomyCategory.getPath();
+
+			String value = String.valueOf(object);
+
+			if (operator.equals("contains")) {
+				sb = new StringBundler();
+
+				sb.append("contains(");
+				sb.append(entityFieldName);
+				sb.append(",'");
+
+				if ((object != null) && (value.length() > 2)) {
+					sb.append(value.substring(1, value.length() - 1));
+				}
+				else {
+					sb.append(value);
+				}
+
+				sb.append("')");
+			}
+			else if (operator.equals("startswith")) {
+				sb = new StringBundler();
+
+				sb.append("startswith(");
+				sb.append(entityFieldName);
+				sb.append(",'");
+
+				if ((object != null) && (value.length() > 1)) {
+					sb.append(value.substring(0, value.length() - 1));
+				}
+				else {
+					sb.append(value);
+				}
+
+				sb.append("')");
+			}
+			else {
+				sb.append("'");
+				sb.append(value);
+				sb.append("'");
+			}
+
+			return sb.toString();
+		}
+
 		if (entityFieldName.equals("permissions")) {
 			throw new IllegalArgumentException(
 				"Invalid entity field " + entityFieldName);
@@ -6351,6 +6518,7 @@ public abstract class BaseTaxonomyCategoryResourceTestCase {
 				id = StringUtil.toLowerCase(RandomTestUtil.randomString());
 				name = StringUtil.toLowerCase(RandomTestUtil.randomString());
 				numberOfTaxonomyCategories = RandomTestUtil.randomInt();
+				path = StringUtil.toLowerCase(RandomTestUtil.randomString());
 				siteExternalReferenceCode =
 					testGroup.getExternalReferenceCode();
 				siteId = testGroup.getGroupId();

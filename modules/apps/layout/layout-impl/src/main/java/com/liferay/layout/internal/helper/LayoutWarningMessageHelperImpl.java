@@ -56,7 +56,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -227,7 +226,7 @@ public class LayoutWarningMessageHelperImpl
 	private long _getFileEntryId(
 			JSONObject editableValueJSONObject,
 			HttpServletRequest httpServletRequest,
-			HttpServletResponse httpServletResponse, Locale locale)
+			HttpServletResponse httpServletResponse, ThemeDisplay themeDisplay)
 		throws Exception {
 
 		if (_fragmentEntryProcessorHelper.isMapped(editableValueJSONObject) ||
@@ -239,8 +238,10 @@ public class LayoutWarningMessageHelperImpl
 			Object fieldValue = _fragmentEntryProcessorHelper.getFieldValue(
 				editableValueJSONObject, new HashMap<>(),
 				new DefaultFragmentEntryProcessorContext(
-					httpServletRequest, httpServletResponse,
-					FragmentEntryLinkConstants.VIEW, locale));
+					themeDisplay.getCompanyId(), httpServletRequest,
+					httpServletResponse, themeDisplay.getLocale(),
+					FragmentEntryLinkConstants.VIEW,
+					themeDisplay.getScopeGroupId()));
 
 			if (fieldValue == null) {
 				return 0;
@@ -270,7 +271,7 @@ public class LayoutWarningMessageHelperImpl
 		}
 
 		String value = _fragmentEntryProcessorHelper.getEditableValue(
-			editableValueJSONObject, locale);
+			editableValueJSONObject, themeDisplay.getLocale());
 
 		if (JSONUtil.isJSONObject(value)) {
 			try {
@@ -386,6 +387,7 @@ public class LayoutWarningMessageHelperImpl
 
 		InfoPage<?> infoPage = layoutListRetriever.getInfoPage(
 			listObjectReferenceFactory.getListObjectReference(
+				themeDisplay.getCompanyId(), themeDisplay.getScopeGroupId(),
 				layoutObjectReferenceJSONObject),
 			defaultLayoutListRetrieverContext);
 
@@ -405,17 +407,10 @@ public class LayoutWarningMessageHelperImpl
 
 		long fileEntryId = 0;
 
-		if (backgroundImageJSONObject.has("fileEntryId")) {
-			fileEntryId = backgroundImageJSONObject.getLong("fileEntryId");
-		}
-		else if (backgroundImageJSONObject.has("classNameId") &&
-				 backgroundImageJSONObject.has("classPK") &&
-				 backgroundImageJSONObject.has("fieldId")) {
-
+		if (backgroundImageJSONObject.has("fieldId")) {
 			fileEntryId = _fragmentEntryProcessorHelper.getFileEntryId(
-				backgroundImageJSONObject.getLong("classNameId"),
-				backgroundImageJSONObject.getLong("classPK"),
 				backgroundImageJSONObject.getString("fieldId"),
+				themeDisplay.getScopeGroupId(), backgroundImageJSONObject,
 				themeDisplay.getLocale());
 		}
 		else if (backgroundImageJSONObject.has("collectionFieldId")) {
@@ -431,6 +426,10 @@ public class LayoutWarningMessageHelperImpl
 				(InfoItemDetails)httpServletRequest.getAttribute(
 					InfoDisplayWebKeys.INFO_ITEM_DETAILS),
 				themeDisplay);
+		}
+		else {
+			fileEntryId = _fragmentEntryProcessorHelper.getFileEntryId(
+				themeDisplay.getScopeGroupId(), backgroundImageJSONObject);
 		}
 
 		return _exceedsFileSize(fileEntryId);
@@ -472,7 +471,7 @@ public class LayoutWarningMessageHelperImpl
 				if (_exceedsFileSize(
 						_getFileEntryId(
 							editableValueJSONObject, httpServletRequest,
-							httpServletResponse, themeDisplay.getLocale()))) {
+							httpServletResponse, themeDisplay))) {
 
 					return true;
 				}

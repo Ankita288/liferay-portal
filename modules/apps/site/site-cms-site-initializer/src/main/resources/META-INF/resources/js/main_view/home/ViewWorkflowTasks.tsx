@@ -12,12 +12,10 @@ import {
 	FrontendDataSet,
 	IInternalRenderer,
 } from '@liferay/frontend-data-set-web';
-import {openModal} from 'frontend-js-components-web';
 import {sub} from 'frontend-js-web';
 import React, {useCallback, useEffect, useState} from 'react';
 
 import AssignToModalContent from '../home/modal/AssignToModalContent';
-import TransitionWorkflowStateModalContent from '../home/modal/TransitionWorkflowStateModalContent';
 import UpdateDueDateModalContent from '../home/modal/UpdateDueDateModalContent';
 
 import '../../../css/home/Home.scss';
@@ -26,6 +24,7 @@ import {
 	getWorkflowTasksAssignedToMyRoles,
 } from '../../common/services/WorkflowService';
 import {WorkflowTask} from '../../common/types/WorkflowTask';
+import {openCMSModal} from '../../common/utils/openCMSModal';
 import WorkflowTaskRenderer from '../props_transformer/cell_renderers/WorkflowTaskRenderer';
 
 export default function ViewWorkflowTasks({
@@ -149,55 +148,11 @@ export default function ViewWorkflowTasks({
 				? [
 						{
 							data: {
-								id: 'approve',
-							},
-							label: Liferay.Language.get('approve'),
-							onClick: ({itemData}: any) => {
-								openModal({
-									contentComponent: ({
-										closeModal,
-									}: {
-										closeModal: () => void;
-									}) =>
-										TransitionWorkflowStateModalContent({
-											closeModal,
-											loadData: getWorkflowTasks,
-											transitionName: 'approve',
-											workflowTaskId: Number(itemData.id),
-										}),
-									size: 'md',
-								});
-							},
-						},
-						{
-							data: {
-								id: 'reject',
-							},
-							label: Liferay.Language.get('reject'),
-							onClick: ({itemData}: any) => {
-								openModal({
-									contentComponent: ({
-										closeModal,
-									}: {
-										closeModal: () => void;
-									}) =>
-										TransitionWorkflowStateModalContent({
-											closeModal,
-											loadData: getWorkflowTasks,
-											transitionName: 'reject',
-											workflowTaskId: Number(itemData.id),
-										}),
-									size: 'md',
-								});
-							},
-						},
-						{
-							data: {
 								id: 'assignTo',
 							},
 							label: Liferay.Language.get('assign-to'),
 							onClick: ({itemData}: any) => {
-								openModal({
+								openCMSModal({
 									contentComponent: ({
 										closeModal,
 									}: {
@@ -219,7 +174,7 @@ export default function ViewWorkflowTasks({
 							},
 							label: Liferay.Language.get('update-due-date'),
 							onClick: ({itemData}: any) => {
-								openModal({
+								openCMSModal({
 									contentComponent: ({
 										closeModal,
 									}: {
@@ -243,7 +198,7 @@ export default function ViewWorkflowTasks({
 							},
 							label: Liferay.Language.get('assign-to-me'),
 							onClick: ({itemData}: any) => {
-								openModal({
+								openCMSModal({
 									contentComponent: ({
 										closeModal,
 									}: {
@@ -265,7 +220,7 @@ export default function ViewWorkflowTasks({
 							},
 							label: Liferay.Language.get('assign-to-...'),
 							onClick: ({itemData}: any) => {
-								openModal({
+								openCMSModal({
 									contentComponent: ({
 										closeModal,
 									}: {
@@ -287,7 +242,7 @@ export default function ViewWorkflowTasks({
 							},
 							label: Liferay.Language.get('update-due-date'),
 							onClick: ({itemData}: any) => {
-								openModal({
+								openCMSModal({
 									contentComponent: ({
 										closeModal,
 									}: {
@@ -327,7 +282,11 @@ export default function ViewWorkflowTasks({
 	return (
 		<div className="container-fluid-max p-2 p-sm-3">
 			<div className="align-items-center d-flex justify-content-between mb-4">
-				<span className="font-weight-semi-bold mr-3 text-4">
+				<span
+					aria-level={2}
+					className="font-weight-semi-bold mr-3 text-4"
+					role="heading"
+				>
 					{Liferay.Language.get('my-workflow-tasks')}
 				</span>
 

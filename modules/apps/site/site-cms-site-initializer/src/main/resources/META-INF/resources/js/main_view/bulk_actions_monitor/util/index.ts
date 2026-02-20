@@ -3,14 +3,17 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
+import {IAssetObjectEntry} from '../../../common/types/AssetType';
 import {
 	IBulkActionFDSData,
 	IBulkActionFDSDataItemTransformed,
+	IBulkActionTask,
 	IBulkActionTaskType,
 	TBulkActionTaskDTO,
 } from '../../../common/types/BulkActionTask';
 import {OBJECT_ENTRY_FOLDER_CLASS_NAME} from '../../../common/utils/constants';
 import {
+	TASK_STATUS_PROPS,
 	URL_BULK_ACTION_TASK,
 	URL_DOWNLOAD_BULK_ACTION_TASK,
 	URL_TASKS_REPORT_DETAIL,
@@ -52,7 +55,7 @@ export function composeCreateTaskURL(
 }
 
 export function composeCreateTaskDTO(
-	actionKey: keyof IBulkActionTaskType,
+	type: keyof IBulkActionTaskType,
 	keyValues: IBulkActionTaskType[keyof IBulkActionTaskType] = {},
 	{items = [], selectAll = false}: IBulkActionFDSData
 ): TBulkActionTaskDTO {
@@ -64,7 +67,7 @@ export function composeCreateTaskDTO(
 					file,
 					id: classPK,
 					title: name,
-				} = {} as any,
+				} = {} as IAssetObjectEntry,
 				entryClassName,
 				externalReferenceCode,
 			}: any) => {
@@ -76,15 +79,15 @@ export function composeCreateTaskDTO(
 					name,
 				} as IBulkActionFDSDataItemTransformed;
 
-				if (actionKey === 'DownloadBulkAction') {
+				if (type === 'DownloadBulkAction') {
 					itemsTransformed.file = file;
 				}
 
 				return itemsTransformed;
 			}
 		),
-		selectionScope: {selectAll: selectAll ? true : null},
-		type: actionKey,
+		selectionScope: {selectAll},
+		type,
 		...keyValues,
 	} as TBulkActionTaskDTO;
 }
@@ -100,4 +103,15 @@ export function getTaskReportLink(
 	const href = `${URL_TASKS_REPORT_DETAIL}${classNameId}/${taskId}`;
 
 	return `<a class="alert-link lead" href="${href}"><strong>${Liferay.Language.get('task-report')}</strong></a>`;
+}
+
+export function getTaskStatusProps(bulkActionTask: IBulkActionTask) {
+	const {executionStatus, numberOfFailedItems, numberOfItems} =
+		bulkActionTask as IBulkActionTask;
+
+	if (numberOfFailedItems === Number(numberOfItems)) {
+		return TASK_STATUS_PROPS.failed;
+	}
+
+	return TASK_STATUS_PROPS[executionStatus.key];
 }

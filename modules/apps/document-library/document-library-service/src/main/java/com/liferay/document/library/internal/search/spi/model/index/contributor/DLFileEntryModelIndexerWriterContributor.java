@@ -41,7 +41,7 @@ public class DLFileEntryModelIndexerWriterContributor
 		ModelIndexerWriterDocumentHelper modelIndexerWriterDocumentHelper) {
 
 		batchIndexingActionable.setPerformActionMethod(
-			(DLFileEntry dlFileEntry) -> batchIndexingActionable.addDocuments(
+			(DLFileEntry dlFileEntry) -> batchIndexingActionable.addDocument(
 				modelIndexerWriterDocumentHelper.getDocument(dlFileEntry)));
 	}
 
@@ -79,7 +79,7 @@ public class DLFileEntryModelIndexerWriterContributor
 		}
 
 		if (!dlFileEntry.isInTrash() && !dlFileVersion.isApproved() &&
-			!dlFileVersion.isExpired() && !dlFileVersion.isScheduled()) {
+			!dlFileVersion.isExpired()) {
 
 			return IndexerWriterMode.SKIP;
 		}

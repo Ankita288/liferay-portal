@@ -7,7 +7,6 @@ package com.liferay.consent.management.platform.integration.internal.servlet.tag
 
 import com.liferay.consent.management.platform.integration.configuration.ConsentManagementPlatformConfiguration;
 import com.liferay.portal.configuration.module.configuration.ConfigurationProviderUtil;
-import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.module.configuration.ConfigurationException;
@@ -43,12 +42,6 @@ public class ConsentManagementPlatformTopHeadDynamicInclude
 			(ThemeDisplay)httpServletRequest.getAttribute(
 				WebKeys.THEME_DISPLAY);
 
-		if (!FeatureFlagManagerUtil.isEnabled(
-				themeDisplay.getCompanyId(), "LPD-65286")) {
-
-			return;
-		}
-
 		ConsentManagementPlatformConfiguration
 			consentManagementPlatformConfiguration = null;
 
@@ -56,6 +49,7 @@ public class ConsentManagementPlatformTopHeadDynamicInclude
 			consentManagementPlatformConfiguration =
 				ConfigurationProviderUtil.getGroupConfiguration(
 					ConsentManagementPlatformConfiguration.class,
+					themeDisplay.getCompanyId(),
 					themeDisplay.getScopeGroupId());
 		}
 		catch (ConfigurationException configurationException) {
@@ -77,7 +71,8 @@ public class ConsentManagementPlatformTopHeadDynamicInclude
 
 	@Override
 	public void register(DynamicIncludeRegistry dynamicIncludeRegistry) {
-		dynamicIncludeRegistry.register("/html/common/themes/top_head.jsp#pre");
+		dynamicIncludeRegistry.register(
+			"/html/common/themes/top_head.jsp#consent_management_platform");
 	}
 
 	private static final Log _log = LogFactoryUtil.getLog(
