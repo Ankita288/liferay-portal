@@ -10,6 +10,7 @@ import com.liferay.dynamic.data.mapping.item.selector.DDMTemplateItemSelectorCri
 import com.liferay.dynamic.data.mapping.item.selector.DDMTemplateItemSelectorReturnType;
 import com.liferay.dynamic.data.mapping.model.DDMStructure;
 import com.liferay.dynamic.data.mapping.model.DDMTemplate;
+import com.liferay.dynamic.data.mapping.service.DDMStructureLocalService;
 import com.liferay.dynamic.data.mapping.service.DDMTemplateServiceUtil;
 import com.liferay.dynamic.data.mapping.util.DDMUtil;
 import com.liferay.item.selector.ItemSelectorReturnType;
@@ -39,9 +40,11 @@ public class DDMTemplateItemSelectorViewDescriptor
 	implements ItemSelectorViewDescriptor<DDMTemplate> {
 
 	public DDMTemplateItemSelectorViewDescriptor(
+		DDMStructureLocalService ddmStructureLocalService,
 		DDMTemplateItemSelectorCriterion ddmTemplateItemSelectorCriterion,
 		HttpServletRequest httpServletRequest, PortletURL portletURL) {
 
+		_ddmStructureLocalService = ddmStructureLocalService;
 		_ddmTemplateItemSelectorCriterion = ddmTemplateItemSelectorCriterion;
 		_httpServletRequest = httpServletRequest;
 		_portletURL = portletURL;
@@ -110,10 +113,17 @@ public class DDMTemplateItemSelectorViewDescriptor
 				getOrderByCol(), getOrderByType()));
 		ddmTemplateSearchContainer.setOrderByType(getOrderByType());
 
+		DDMStructure ddmStructure = _ddmStructureLocalService.getDDMStructure(
+			_ddmTemplateItemSelectorCriterion.getDDMStructureId());
+
 		long[] groupIds =
 			SiteConnectedGroupGroupProviderUtil.
 				getCurrentAndAncestorSiteAndDepotGroupIds(
-					_themeDisplay.getScopeGroupId(), false, true);
+					new long[] {
+						_themeDisplay.getSiteGroupId(),
+						ddmStructure.getGroupId()
+					},
+					false);
 
 		ddmTemplateSearchContainer.setResultsAndTotal(
 			() -> DDMTemplateServiceUtil.search(
@@ -142,6 +152,11 @@ public class DDMTemplateItemSelectorViewDescriptor
 	}
 
 	@Override
+	public boolean isShowBreadcrumb() {
+		return false;
+	}
+
+	@Override
 	public boolean isShowSearch() {
 		return true;
 	}
@@ -156,6 +171,7 @@ public class DDMTemplateItemSelectorViewDescriptor
 		return _keywords;
 	}
 
+	private final DDMStructureLocalService _ddmStructureLocalService;
 	private final DDMTemplateItemSelectorCriterion
 		_ddmTemplateItemSelectorCriterion;
 	private final HttpServletRequest _httpServletRequest;
