@@ -6,12 +6,20 @@
 package com.liferay.dynamic.data.mapping.service.test;
 
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
+import com.liferay.depot.constants.DepotConstants;
+import com.liferay.depot.group.provider.SiteConnectedGroupGroupProvider;
+import com.liferay.depot.model.DepotEntry;
+import com.liferay.depot.service.DepotEntryGroupRelLocalService;
+import com.liferay.depot.service.DepotEntryLocalService;
 import com.liferay.dynamic.data.mapping.constants.DDMTemplateConstants;
 import com.liferay.dynamic.data.mapping.model.DDMStructure;
 import com.liferay.dynamic.data.mapping.model.DDMTemplate;
 import com.liferay.dynamic.data.mapping.service.DDMTemplateLocalService;
 import com.liferay.dynamic.data.mapping.service.DDMTemplateService;
 import com.liferay.dynamic.data.mapping.service.DDMTemplateServiceUtil;
+import com.liferay.dynamic.data.mapping.test.util.DDMStructureTestUtil;
+import com.liferay.dynamic.data.mapping.test.util.DDMTemplateTestUtil;
+import com.liferay.journal.model.JournalArticle;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.model.Group;
@@ -34,6 +42,7 @@ import com.liferay.portal.kernel.test.util.RoleTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.test.util.UserTestUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.StringUtil;
@@ -70,7 +79,7 @@ public class DDMTemplateServiceTest extends BaseDDMServiceTestCase {
 	public void setUp() throws Exception {
 		super.setUp();
 
-		_group = GroupTestUtil.addGroup();
+		_group1 = GroupTestUtil.addGroup();
 		_recordSetClassNameId = PortalUtil.getClassNameId(
 			DDL_RECORD_SET_CLASS_NAME);
 		_structureClassNameId = PortalUtil.getClassNameId(DDMStructure.class);
@@ -91,7 +100,7 @@ public class DDMTemplateServiceTest extends BaseDDMServiceTestCase {
 	public void testAddTemplateWithoutAddPermission() throws Exception {
 		try {
 			UserTestUtil.setUser(
-				UserTestUtil.addGroupUser(_group, RoleConstants.SITE_MEMBER));
+				UserTestUtil.addGroupUser(_group1, RoleConstants.SITE_MEMBER));
 
 			_ddmTemplateService.addTemplate(
 				RandomTestUtil.randomString(), group.getGroupId(),
@@ -153,7 +162,7 @@ public class DDMTemplateServiceTest extends BaseDDMServiceTestCase {
 
 		try {
 			UserTestUtil.setUser(
-				UserTestUtil.addGroupUser(_group, RoleConstants.SITE_MEMBER));
+				UserTestUtil.addGroupUser(_group1, RoleConstants.SITE_MEMBER));
 
 			_ddmTemplateService.deleteTemplate(
 				template.getExternalReferenceCode(), template.getGroupId());
@@ -216,7 +225,7 @@ public class DDMTemplateServiceTest extends BaseDDMServiceTestCase {
 
 		try {
 			UserTestUtil.setUser(
-				UserTestUtil.addGroupUser(_group, RoleConstants.SITE_MEMBER));
+				UserTestUtil.addGroupUser(_group1, RoleConstants.SITE_MEMBER));
 
 			_ddmTemplateService.getTemplateByExternalReferenceCode(
 				template.getExternalReferenceCode(), template.getGroupId());
@@ -507,7 +516,7 @@ public class DDMTemplateServiceTest extends BaseDDMServiceTestCase {
 
 		List<DDMTemplate> ddmTemplates = DDMTemplateServiceUtil.search(
 			TestPropsValues.getCompanyId(),
-			new long[] {group.getGroupId(), _group.getGroupId()},
+			new long[] {group.getGroupId(), _group1.getGroupId()},
 			new long[] {_structureClassNameId},
 			new long[] {structure.getStructureId()}, _recordSetClassNameId,
 			StringPool.BLANK, DDMTemplateConstants.TEMPLATE_TYPE_FORM,
@@ -586,7 +595,7 @@ public class DDMTemplateServiceTest extends BaseDDMServiceTestCase {
 
 		List<DDMTemplate> ddmTemplates = DDMTemplateServiceUtil.search(
 			TestPropsValues.getCompanyId(),
-			new long[] {group.getGroupId(), _group.getGroupId()},
+			new long[] {group.getGroupId(), _group1.getGroupId()},
 			new long[] {_structureClassNameId},
 			new long[] {structure.getStructureId()}, _recordSetClassNameId,
 			name, description, type, mode, language,
@@ -626,7 +635,7 @@ public class DDMTemplateServiceTest extends BaseDDMServiceTestCase {
 
 		int count = DDMTemplateServiceUtil.searchCount(
 			TestPropsValues.getCompanyId(),
-			new long[] {group.getGroupId(), _group.getGroupId()},
+			new long[] {group.getGroupId(), _group1.getGroupId()},
 			new long[] {_structureClassNameId},
 			new long[] {structure.getStructureId()}, _recordSetClassNameId,
 			StringUtil.randomString(), description, type, mode, language,
@@ -739,13 +748,73 @@ public class DDMTemplateServiceTest extends BaseDDMServiceTestCase {
 
 		int count = DDMTemplateServiceUtil.searchCount(
 			TestPropsValues.getCompanyId(),
-			new long[] {group.getGroupId(), _group.getGroupId()},
+			new long[] {group.getGroupId(), _group1.getGroupId()},
 			new long[] {_structureClassNameId},
 			new long[] {structure.getStructureId()}, _recordSetClassNameId,
 			name, description, type, mode, language,
 			WorkflowConstants.STATUS_ANY, false);
 
 		Assert.assertEquals(3, count);
+	}
+
+	@Test
+	public void testSearchExcludesCrossSiteTemplatesForAssetLibraryStructure()
+		throws Exception {
+
+		_group2 = GroupTestUtil.addGroup();
+
+		_depotEntry = _depotEntryLocalService.addDepotEntry(
+			HashMapBuilder.put(
+				LocaleUtil.getDefault(), RandomTestUtil.randomString()
+			).build(),
+			Collections.emptyMap(), DepotConstants.TYPE_ASSET_LIBRARY,
+			ServiceContextTestUtil.getServiceContext());
+
+		_depotEntryGroupRelLocalService.addDepotEntryGroupRel(
+			_depotEntry.getDepotEntryId(), _group1.getGroupId());
+		_depotEntryGroupRelLocalService.addDepotEntryGroupRel(
+			_depotEntry.getDepotEntryId(), _group2.getGroupId());
+
+		DDMStructure ddmStructure = DDMStructureTestUtil.addStructure(
+			_depotEntry.getGroupId(), JournalArticle.class.getName());
+
+		String script = getTestTemplateScript(TemplateConstants.LANG_TYPE_FTL);
+
+		DDMTemplate group1Template = DDMTemplateTestUtil.addTemplate(
+			_group1.getGroupId(), ddmStructure.getStructureId(),
+			ddmStructure.getClassNameId(), TemplateConstants.LANG_TYPE_FTL,
+			script, LocaleUtil.getSiteDefault());
+		DDMTemplate group2Template = DDMTemplateTestUtil.addTemplate(
+			_group2.getGroupId(), ddmStructure.getStructureId(),
+			ddmStructure.getClassNameId(), TemplateConstants.LANG_TYPE_FTL,
+			script, LocaleUtil.getSiteDefault());
+		DDMTemplate depotTemplate = DDMTemplateTestUtil.addTemplate(
+			_depotEntry.getGroupId(), ddmStructure.getStructureId(),
+			ddmStructure.getClassNameId(), TemplateConstants.LANG_TYPE_FTL,
+			script, LocaleUtil.getSiteDefault());
+
+		long[] groupIds =
+			_siteConnectedGroupGroupProvider.
+				getCurrentAndAncestorSiteAndDepotGroupIds(
+					new long[] {
+						_group1.getGroupId(), ddmStructure.getGroupId()
+					},
+					false);
+
+		List<DDMTemplate> ddmTemplates = DDMTemplateServiceUtil.search(
+			TestPropsValues.getCompanyId(), groupIds,
+			new long[] {_structureClassNameId},
+			new long[] {ddmStructure.getStructureId()},
+			ddmStructure.getClassNameId(), StringPool.BLANK, StringPool.BLANK,
+			StringPool.BLANK, WorkflowConstants.STATUS_ANY, QueryUtil.ALL_POS,
+			QueryUtil.ALL_POS, null);
+
+		Assert.assertTrue(
+			ddmTemplates.toString(), ddmTemplates.contains(group1Template));
+		Assert.assertTrue(
+			ddmTemplates.toString(), ddmTemplates.contains(depotTemplate));
+		Assert.assertFalse(
+			ddmTemplates.toString(), ddmTemplates.contains(group2Template));
 	}
 
 	@Rule
@@ -775,12 +844,27 @@ public class DDMTemplateServiceTest extends BaseDDMServiceTestCase {
 	private DDMTemplateService _ddmTemplateService;
 
 	@DeleteAfterTestRun
-	private Group _group;
+	private DepotEntry _depotEntry;
+
+	@Inject
+	private DepotEntryGroupRelLocalService _depotEntryGroupRelLocalService;
+
+	@Inject
+	private DepotEntryLocalService _depotEntryLocalService;
+
+	@DeleteAfterTestRun
+	private Group _group1;
+
+	@DeleteAfterTestRun
+	private Group _group2;
 
 	private String _originalName;
 	private PermissionChecker _originalPermissionChecker;
 
 	@DeleteAfterTestRun
 	private User _siteAdminUser;
+
+	@Inject
+	private SiteConnectedGroupGroupProvider _siteConnectedGroupGroupProvider;
 
 }
