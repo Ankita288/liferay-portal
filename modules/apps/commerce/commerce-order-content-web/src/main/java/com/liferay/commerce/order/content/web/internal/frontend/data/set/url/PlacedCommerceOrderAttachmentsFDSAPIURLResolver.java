@@ -22,7 +22,7 @@ import org.osgi.service.component.annotations.Reference;
  * @author Tancredi Covioli
  */
 @Component(
-	property = "fds.rest.application.key=/commerce/order-attachments/CommerceOrderAttachment",
+	property = "fds.rest.application.key=/headless-commerce-delivery-order/v1.0/Attachment",
 	service = FDSAPIURLResolver.class
 )
 public class PlacedCommerceOrderAttachmentsFDSAPIURLResolver
@@ -30,7 +30,7 @@ public class PlacedCommerceOrderAttachmentsFDSAPIURLResolver
 
 	@Override
 	public String getSchema() {
-		return "CommerceOrderAttachment";
+		return "Attachment";
 	}
 
 	@Override
@@ -46,8 +46,12 @@ public class PlacedCommerceOrderAttachmentsFDSAPIURLResolver
 		}
 
 		return StringUtil.replace(
-			baseURL, new String[] {"{commerceOrderId}"},
-			new String[] {String.valueOf(commerceOrder.getCommerceOrderId())});
+			baseURL,
+			new String[] {"{externalReferenceCode}", "{placedOrderId}"},
+			new String[] {
+				String.valueOf(commerceOrder.getExternalReferenceCode()),
+				String.valueOf(commerceOrder.getCommerceOrderId())
+			});
 	}
 
 	@Reference

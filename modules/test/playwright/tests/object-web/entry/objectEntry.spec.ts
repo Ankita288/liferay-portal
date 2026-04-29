@@ -42,11 +42,9 @@ import getPageDefinition from '../../layout-content-page-editor-web/main/utils/g
 import getWidgetDefinition from '../../layout-content-page-editor-web/main/utils/getWidgetDefinition';
 import createSiteTemplate from '../../layout-set-prototype-web/main/utils/createSiteTemplate';
 import {cmsPagesTest} from '../../site-cms-site-initializer/main/fixtures/cmsPagesTest';
-import {templatesPageTest} from '../../template-web/main/fixtures/templatesPageTest';
 import {
 	getFDSDateTimeFormat,
 	getObjectEntryUIDateTimeFormat,
-	getPageEditorDateFormat,
 	getUTCOffsetFormatted,
 } from '../utils/dateFormat';
 import {createFile, deleteFile} from '../utils/fileHelpers';
@@ -75,7 +73,6 @@ const test = mergeTests(
 	pageEditorPagesTest,
 	pagesAdminPagesTest,
 	productMenuPageTest,
-	templatesPageTest,
 	workflowPagesTest,
 	usersAndOrganizationsPagesTest
 );
@@ -99,55 +96,31 @@ const ckEditor4Test = mergeTests(
 	})
 );
 
-let contentPageName: string;
 let displayPageId: string;
-let informationTemplateName: string;
 let siteLanguage = 'en';
 
-test.afterEach(
-	async ({
-		accountSettingsPage,
-		apiHelpers,
-		page,
-		pagesAdminPage,
-		templatesPage,
-	}) => {
-		if (contentPageName) {
-			await pagesAdminPage.goto();
+test.afterEach(async ({accountSettingsPage, apiHelpers, page}) => {
+	if (displayPageId) {
+		await apiHelpers.jsonWebServicesLayoutPageTemplateEntry.deleteLayoutPageTemplateEntry(
+			{
+				layoutPageTemplateEntryId: displayPageId,
+			}
+		);
 
-			await pagesAdminPage.deletePage(contentPageName);
-		}
-
-		if (displayPageId) {
-			await apiHelpers.jsonWebServicesLayoutPageTemplateEntry.deleteLayoutPageTemplateEntry(
-				{
-					layoutPageTemplateEntryId: displayPageId,
-				}
-			);
-
-			displayPageId = '';
-		}
-
-		if (informationTemplateName) {
-			await templatesPage.goto();
-
-			await templatesPage.deleteInformationTemplate(
-				informationTemplateName
-			);
-		}
-
-		if (siteLanguage !== 'en') {
-			await accountSettingsPage.selectAccountLanguage({
-				languageId: 'en_US',
-				navigate: true,
-			});
-
-			await page.goto('en');
-
-			siteLanguage = 'en';
-		}
+		displayPageId = '';
 	}
-);
+
+	if (siteLanguage !== 'en') {
+		await accountSettingsPage.selectAccountLanguage({
+			languageId: 'en_US',
+			navigate: true,
+		});
+
+		await page.goto('en');
+
+		siteLanguage = 'en';
+	}
+});
 
 assigneeTest(
 	'can create, read, update and delete an entry with assignee object field',
@@ -1780,306 +1753,6 @@ test.describe('Manage object entries through Object Definition widget', () => {
 	});
 });
 
-test.describe('Manage object entries through Page Templates', () => {
-	test('verify if the object entries are displayed when selecting to preview an object entry on a page template', async ({
-		apiHelpers,
-		displayPageTemplatesPage,
-		page,
-		pageEditorPage,
-	}) => {
-		test.slow();
-		const objectDefinitionLabel = 'ObjectDefinitionLabel' + getRandomInt();
-		const objectDefinitionName = 'ObjectDefinitionName' + getRandomInt();
-
-		const {listTypeDefinition, listTypeEntries} =
-			await postListTypeDefinitionListTypeEntries({
-				apiHelpers,
-			});
-
-		const objectFields = generateObjectFields({
-			listTypeDefinitionExternalReferenceCode:
-				listTypeDefinition.externalReferenceCode,
-			objectFieldBusinessTypes: [
-				'AutoIncrement',
-				'Decimal',
-				'Date',
-				'Boolean',
-				'Encrypted',
-				'Integer',
-				'LongInteger',
-				'LongText',
-				'MultiselectPicklist',
-				'Picklist',
-				'PrecisionDecimal',
-				'RichText',
-				'Text',
-			],
-		});
-
-		apiHelpers.data.push({
-			id: listTypeDefinition.id,
-			type: 'listTypeDefinition',
-		});
-
-		const objectDefinitionAPIClient =
-			await apiHelpers.buildRestClient(ObjectDefinitionAPI);
-
-		const {body: objectDefinition} =
-			await objectDefinitionAPIClient.postObjectDefinition({
-				active: true,
-				label: {
-					en_US: objectDefinitionLabel,
-				},
-				name: objectDefinitionName,
-				objectFields,
-				pluralLabel: {
-					en_US: objectDefinitionLabel,
-				},
-				portlet: true,
-				scope: 'company',
-				status: {
-					code: 0,
-				},
-			});
-
-		apiHelpers.data.push({
-			id: objectDefinition.id,
-			type: 'objectDefinition',
-		});
-
-		const {objectEntry: objectEntryValues} =
-			await generateObjectEntryValues({
-				listTypeEntries: listTypeEntries.map(
-					(listTypeEntry) => listTypeEntry.name
-				),
-				objectEntryFormat: 'API',
-				objectFields,
-			});
-
-		const applicationName =
-			'c/' + objectDefinition.name.toLowerCase() + 's';
-
-		const objectEntry = await apiHelpers.objectEntry.postObjectEntry(
-			objectEntryValues,
-			applicationName
-		);
-
-		await displayPageTemplatesPage.goto();
-
-		const displayPageTemplateName = getRandomString();
-
-		await displayPageTemplatesPage.createTemplate({
-			contentType: objectDefinition.label['en_US'],
-			name: displayPageTemplateName,
-		});
-
-		await page.getByTitle(displayPageTemplateName).click();
-
-		overloop: for (const [_, objectField] of objectDefinition.objectFields
-			.filter((objectField) => !objectField.system)
-			.entries()) {
-			await pageEditorPage.addFragment('Basic Components', 'Heading');
-
-			await page.getByText('Heading Example', {exact: true}).click();
-
-			await pageEditorPage.setMappingConfiguration({
-				mapping: {
-					entity: objectDefinitionLabel,
-					entry: objectEntry.externalReferenceCode,
-					field: objectField.label['en_US'],
-				},
-				source: 'content',
-			});
-
-			let matchString: string;
-
-			switch (objectField.businessType) {
-				case 'Date': {
-					const date = new Date(
-						Date.parse(
-							objectEntryValues[objectField.name] as string
-						)
-					);
-
-					matchString = getPageEditorDateFormat(date);
-
-					// Defer date validation for CI trace view analysis (issue #LRCI-4253)
-
-					continue overloop;
-				}
-				case 'Picklist': {
-					matchString = (
-						objectEntryValues[objectField.name] as {
-							key: string;
-						}
-					).key;
-
-					break;
-				}
-				case 'MultiselectPicklist': {
-					(objectEntryValues[objectField.name] as string[]).forEach(
-						(listTypeEntry, index) => {
-							index < 1
-								? (matchString = `${listTypeEntry}`)
-								: (matchString += `, ${listTypeEntry}`);
-						}
-					);
-
-					break;
-				}
-				default: {
-					matchString =
-						objectEntryValues[objectField.name].toString();
-				}
-			}
-
-			await expect(
-				page.getByTitle('Edit Text').filter({hasText: matchString})
-			).toBeVisible();
-		}
-
-		// Clean up
-
-		await displayPageTemplatesPage.goto();
-
-		await displayPageTemplatesPage.deleteTemplate(objectDefinitionLabel);
-	});
-
-	test('verify it is possible to create a information template with an object as an item type and see its entries', async ({
-		apiHelpers,
-		page,
-		pageEditorPage,
-		pagesAdminPage,
-		templatesPage,
-	}) => {
-		const {listTypeDefinition, listTypeEntries} =
-			await postListTypeDefinitionListTypeEntries({
-				apiHelpers,
-			});
-
-		const objectFields = generateObjectFields({
-			listTypeDefinitionExternalReferenceCode:
-				listTypeDefinition.externalReferenceCode,
-			objectFieldBusinessTypes: [
-				'Boolean',
-				'Decimal',
-				'Integer',
-				'LongText',
-				'Picklist',
-				'Text',
-			],
-		});
-
-		apiHelpers.data.push({
-			id: listTypeDefinition.id,
-			type: 'listTypeDefinition',
-		});
-
-		const objectDefinition =
-			await apiHelpers.objectAdmin.postRandomObjectDefinition({
-				objectFields,
-				status: {code: 0},
-			});
-
-		apiHelpers.data.push({
-			id: objectDefinition.id,
-			type: 'objectDefinition',
-		});
-
-		const {objectEntry: objectEntryValues} =
-			await generateObjectEntryValues({
-				listTypeEntries: listTypeEntries.map(
-					(listTypeEntry) => listTypeEntry.name
-				),
-				objectEntryFormat: 'API',
-				objectFields,
-			});
-
-		const applicationName =
-			'c/' + objectDefinition.name.toLowerCase() + 's';
-
-		const objectEntry = await apiHelpers.objectEntry.postObjectEntry(
-			objectEntryValues,
-			applicationName
-		);
-
-		informationTemplateName = 'Object Template' + getRandomInt();
-
-		await test.step('create information template and add object fields', async () => {
-			await templatesPage.goto();
-
-			await templatesPage.createInformationTemplate({
-				itemType: objectDefinition.label['en_US'],
-				name: informationTemplateName,
-			});
-
-			for (const objectField of objectFields) {
-				await page
-					.getByRole('button', {name: objectField.label['en_US']})
-					.click();
-			}
-
-			await templatesPage.saveTemplate(informationTemplateName);
-		});
-
-		contentPageName = getRandomString();
-
-		await test.step('create page template with HTML element linked to the informationTemplateName', async () => {
-			await pagesAdminPage.goto();
-
-			await pagesAdminPage.createNewPage({
-				name: contentPageName,
-			});
-
-			await pagesAdminPage.editPage(contentPageName);
-
-			await pageEditorPage.addFragment('Basic Components', 'HTML');
-
-			const htmlFragmentId = await pageEditorPage.getFragmentId('HTML');
-
-			await pageEditorPage.selectEditable(htmlFragmentId, 'element-html');
-
-			await pageEditorPage.setMappedItem({
-				entity: objectDefinition.label['en_US'],
-				entry: objectEntry.id.toString(),
-				entryLocator: page
-					.frameLocator('iframe[title="Select"]')
-					.getByText(objectEntry.id.toString())
-					.first(),
-				field: informationTemplateName,
-			});
-
-			await pageEditorPage.waitForChangesSaved();
-
-			await pageEditorPage.publishPage();
-		});
-
-		await test.step('go to created page and assert object entries', async () => {
-			await page.goto(`/web/guest/${contentPageName}`);
-
-			const entries = Object.values(objectEntryValues)
-				.map((value) => {
-					if (typeof value === 'boolean') {
-						return value ? 'Yes' : 'No';
-					}
-
-					if (
-						typeof value === 'object' &&
-						value !== null &&
-						'key' in (value as object)
-					) {
-						return (value as {key: string}).key;
-					}
-
-					return String(value);
-				})
-				.join(' ');
-
-			await expect(page.getByText(entries)).toBeVisible();
-		});
-	});
-});
-
 test.describe('Manage object entries through View Object Entries', () => {
 	test('can add and update an entry with all object fields', async ({
 		apiHelpers,
@@ -2173,10 +1846,27 @@ test.describe('Manage object entries through View Object Entries', () => {
 
 		await viewObjectEntriesPage.backButton.click();
 
-		for (const {entry} of objectFieldObjectEntryValues) {
+		const dataRow = page.getByRole('row').nth(1);
+
+		const columnHeaderLocator = page.getByRole('columnheader');
+
+		await columnHeaderLocator.first().waitFor();
+
+		const columnHeaders = await columnHeaderLocator.allInnerTexts();
+
+		const columnMap = new Map(
+			columnHeaders.map((text, index) => [
+				text.trim().toLowerCase(),
+				index,
+			])
+		);
+
+		for (const {entry, name} of objectFieldObjectEntryValues) {
+			const columnIndex = columnMap.get(name.toLowerCase());
+
 			await expect(
-				page.locator('td').getByText(entry, {exact: true})
-			).toBeVisible();
+				dataRow.getByRole('cell').nth(columnIndex!)
+			).toHaveText(entry);
 		}
 
 		const selectedListTypeEntry = objectFieldObjectEntryValues.find(
@@ -2432,6 +2122,138 @@ test.describe('Manage object entries through View Object Entries', () => {
 			).toBeVisible();
 		}
 	);
+
+	test('can add entry with empty value for picklist field', async ({
+		apiHelpers,
+		page,
+		viewObjectEntriesPage,
+	}) => {
+		const {listTypeDefinition} =
+			await postListTypeDefinitionListTypeEntries({
+				apiHelpers,
+				listTypeEntriesLength: 2,
+			});
+
+		const objectFields = generateObjectFields({
+			listTypeDefinitionExternalReferenceCode:
+				listTypeDefinition.externalReferenceCode,
+			objectFieldBusinessTypes: [
+				{
+					businessType: 'Picklist',
+				},
+				{
+					businessType: 'Text',
+					label: {en_US: 'Text Field'},
+				},
+			],
+		});
+
+		const objectDefinition =
+			await apiHelpers.objectAdmin.postRandomObjectDefinition({
+				objectFields,
+				status: {code: 0},
+			});
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await viewObjectEntriesPage.clickAddObjectEntry(
+			objectDefinition.label['en_US']
+		);
+
+		await viewObjectEntriesPage.fillObjectEntry({
+			objectFieldBusinessType: 'Text',
+			objectFieldLabel: 'Text Field',
+			objectFieldValue: 'test',
+		});
+
+		await viewObjectEntriesPage.saveObjectEntryButton.click();
+
+		await expect(viewObjectEntriesPage.successMessage).toBeVisible();
+
+		await viewObjectEntriesPage.backButton.click();
+
+		await expect(
+			page.locator('td').getByText('test', {exact: true})
+		).toBeVisible();
+	});
+
+	test('can add object entry with add permission', async ({
+		apiHelpers,
+		page,
+		viewObjectEntriesPage,
+	}) => {
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: ['Text'],
+		});
+
+		const objectDefinition =
+			await apiHelpers.objectAdmin.postRandomObjectDefinition({
+				objectFields,
+				status: {code: 0},
+			});
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+
+		const companyId = await page.evaluate(() => {
+			return Liferay.ThemeDisplay.getCompanyId();
+		});
+
+		const user = await createUserWithPermissions({
+			apiHelpers,
+			rolePermissions: [
+				{
+					actionIds: ['VIEW_CONTROL_PANEL'],
+					primaryKey: companyId,
+					resourceName: '90',
+					scope: 1,
+				},
+				{
+					actionIds: ['ACCESS_IN_CONTROL_PANEL'],
+					primaryKey: companyId,
+					resourceName: `com_liferay_object_web_internal_object_definitions_portlet_ObjectDefinitionsPortlet_${objectDefinition.className.split('#')[1]}`,
+					scope: 1,
+				},
+				{
+					actionIds: ['ADD_OBJECT_ENTRY'],
+					primaryKey: companyId,
+					resourceName: `com.liferay.object#${objectDefinition.id}`,
+					scope: 1,
+				},
+			],
+		});
+
+		await performUserSwitch(page, user.alternateName);
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await viewObjectEntriesPage.clickAddObjectEntry(
+			objectDefinition.label['en_US']
+		);
+
+		await viewObjectEntriesPage.fillObjectEntry({
+			objectFieldBusinessType: 'Text',
+			objectFieldLabel: objectFields[0].label['en_US'],
+			objectFieldValue: 'test',
+		});
+
+		await viewObjectEntriesPage.saveObjectEntryButton.click();
+
+		await expect(viewObjectEntriesPage.successMessage).toBeVisible();
+
+		await viewObjectEntriesPage.backButton.click();
+
+		await expect(
+			page.locator('td').getByText('test', {exact: true})
+		).toBeVisible();
+	});
 
 	test(
 		'can attach files after changing the overall maximum upload request size setting',
@@ -2695,6 +2517,55 @@ test.describe('Manage object entries through View Object Entries', () => {
 		await expect(
 			page.getByRole('cell', {name: getFDSDateTimeFormat(date)})
 		).toHaveText('Jun 1, 2023, 12:00:00 PM');
+	});
+
+	test('can create an object entry with special characters on a text field named Name', async ({
+		apiHelpers,
+		page,
+		viewObjectEntriesPage,
+	}) => {
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: [
+				{
+					businessType: 'Text',
+					label: {en_US: 'Name'},
+					name: 'name',
+				},
+			],
+		});
+
+		const objectDefinition =
+			await apiHelpers.objectAdmin.postRandomObjectDefinition({
+				objectFields,
+				status: {code: 0},
+			});
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await viewObjectEntriesPage.clickAddObjectEntry(
+			objectDefinition.label['en_US']
+		);
+
+		await viewObjectEntriesPage.fillObjectEntry({
+			objectFieldBusinessType: 'Text',
+			objectFieldLabel: 'Name',
+			objectFieldValue: '@~!& ^%$&_-',
+		});
+
+		await viewObjectEntriesPage.saveObjectEntryButton.click();
+
+		await expect(viewObjectEntriesPage.successMessage).toBeVisible();
+
+		await viewObjectEntriesPage.backButton.click();
+
+		await expect(
+			page.locator('td').getByText('@~!& ^%$&_-', {exact: true})
+		).toBeVisible();
 	});
 
 	test('can delete a custom field when existing entries', async ({
@@ -3879,6 +3750,60 @@ test.describe('Manage object entries through View Object Entries', () => {
 		await expect(page.getByRole('menu')).toContainText('test 2');
 	});
 
+	test('can view other users entry with view permission', async ({
+		apiHelpers,
+		page,
+		viewObjectEntriesPage,
+	}) => {
+		const objectDefinition =
+			await apiHelpers.objectAdmin.postRandomObjectDefinition({
+				status: {code: 0},
+			});
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+
+		const objectEntry = getRandomString();
+
+		await apiHelpers.objectEntry.postObjectEntry(
+			{textField: objectEntry},
+			'c/' + objectDefinition.name.toLowerCase() + 's'
+		);
+
+		const company =
+			await apiHelpers.jsonWebServicesCompany.getCompanyByWebId(
+				'liferay.com'
+			);
+
+		const user = await createUserWithPermissions({
+			apiHelpers,
+			rolePermissions: [
+				{
+					actionIds: ['ACCESS_IN_CONTROL_PANEL'] as any[],
+					primaryKey: company.companyId,
+					resourceName: `com_liferay_object_web_internal_object_definitions_portlet_ObjectDefinitionsPortlet_${objectDefinition.className.split('#')[1]}`,
+					scope: 1,
+				},
+				{
+					actionIds: ['VIEW'] as any[],
+					primaryKey: company.companyId,
+					resourceName: objectDefinition.className,
+					scope: 1,
+				},
+			],
+		});
+
+		await performUserSwitch(page, user.alternateName);
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await expect(
+			page.getByRole('cell', {exact: true, name: objectEntry})
+		).toBeVisible();
+	});
+
 	test('can view success message entirely in arabic', async ({
 		apiHelpers,
 		page,
@@ -3910,6 +3835,31 @@ test.describe('Manage object entries through View Object Entries', () => {
 		await viewObjectEntriesPage.saveObjectEntryButtonArabic.click();
 
 		await expect(viewObjectEntriesPage.successMessageArabic).toBeVisible();
+	});
+
+	test('can view user name on author column', async ({
+		apiHelpers,
+		page,
+		viewObjectEntriesPage,
+	}) => {
+		const objectDefinition =
+			await apiHelpers.objectAdmin.postRandomObjectDefinition({
+				status: {code: 0},
+			});
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+
+		await apiHelpers.objectEntry.postObjectEntry(
+			{textField: getRandomString()},
+			'c/' + objectDefinition.name.toLowerCase() + 's'
+		);
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await expect(page.getByRole('cell', {name: 'Test Test'})).toBeVisible();
 	});
 
 	test('cannot add translation to a non-translatable field', async ({
@@ -3958,6 +3908,70 @@ test.describe('Manage object entries through View Object Entries', () => {
 		const translationButton = page.getByRole('button', {name: 'en-us'});
 
 		await expect(translationButton).toHaveCount(0);
+	});
+
+	test('cannot view other users entry without view permission', async ({
+		apiHelpers,
+		page,
+		viewObjectEntriesPage,
+	}) => {
+		const objectDefinition =
+			await apiHelpers.objectAdmin.postRandomObjectDefinition({
+				status: {code: 0},
+			});
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+
+		const objectEntry = getRandomString();
+
+		await apiHelpers.objectEntry.postObjectEntry(
+			{textField: objectEntry},
+			'c/' + objectDefinition.name.toLowerCase() + 's'
+		);
+
+		const company =
+			await apiHelpers.jsonWebServicesCompany.getCompanyByWebId(
+				'liferay.com'
+			);
+
+		const user = await createUserWithPermissions({
+			apiHelpers,
+			rolePermissions: [
+				{
+					actionIds: ['ACCESS_IN_CONTROL_PANEL'] as any[],
+					primaryKey: company.companyId,
+					resourceName: `com_liferay_object_web_internal_object_definitions_portlet_ObjectDefinitionsPortlet_${objectDefinition.className.split('#')[1]}`,
+					scope: 1,
+				},
+				{
+					actionIds: ['ADD_OBJECT_ENTRY'] as any[],
+					primaryKey: company.companyId,
+					resourceName: `com.liferay.object#${objectDefinition.id}`,
+					scope: 1,
+				},
+			],
+		});
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await expect(
+			page.getByRole('cell', {exact: true, name: objectEntry})
+		).toBeVisible();
+
+		await performUserSwitch(page, user.alternateName);
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await expect(
+			page.getByText('Add ' + objectDefinition.label.en_US)
+		).toBeVisible();
+
+		await expect(
+			page.getByRole('cell', {exact: true, name: objectEntry})
+		).not.toBeVisible();
 	});
 
 	test('change the object entry status from Draft to Approved after processing an update', async ({
@@ -4276,6 +4290,51 @@ test.describe('Manage object entries through View Object Entries', () => {
 			await commerceCatalogSystemSettingsPage.toggleProductVersioning();
 		}
 	);
+
+	test('duplicated entry is not submitted when refreshing page', async ({
+		apiHelpers,
+		page,
+		viewObjectEntriesPage,
+	}) => {
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: ['Text'],
+		});
+
+		const objectDefinition =
+			await apiHelpers.objectAdmin.postRandomObjectDefinition({
+				objectFields,
+				status: {code: 0},
+			});
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await viewObjectEntriesPage.clickAddObjectEntry(
+			objectDefinition.label['en_US']
+		);
+
+		await viewObjectEntriesPage.fillObjectEntry({
+			objectFieldBusinessType: 'Text',
+			objectFieldLabel: objectFields[0].label['en_US'],
+			objectFieldValue: 'test',
+		});
+
+		await viewObjectEntriesPage.saveObjectEntryButton.click();
+
+		await expect(viewObjectEntriesPage.successMessage).toBeVisible();
+
+		await page.reload();
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await expect(
+			page.locator('td').getByText('test', {exact: true})
+		).toHaveCount(1);
+	});
 
 	test('error message is displayed in the language of the site context', async ({
 		apiHelpers,

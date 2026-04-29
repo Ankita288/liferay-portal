@@ -125,10 +125,7 @@ import org.json.JSONObject;
  */
 public class JenkinsResultsParserUtil {
 
-	public static final String[] CACHED_REPOSITORIES = {
-		"liferay-jenkins-ee", "liferay-jenkins-results-parser-samples-ee",
-		"liferay-portal"
-	};
+	public static final String JENKINS_REPOSITORY_NAME = "liferay-jenkins-ee";
 
 	public static final int PAGES_GITHUB_API_PAGES_SIZE_MAX = 10;
 
@@ -138,10 +135,7 @@ public class JenkinsResultsParserUtil {
 
 	public static final String[] URLS_BUILD_PROPERTIES_DEFAULT = {
 		URL_CACHE + "/liferay-jenkins-ee/build.properties",
-		URL_CACHE + "/liferay-jenkins-ee/commands/build.properties",
-		URL_CACHE + "/liferay-portal/build.properties",
-		URL_CACHE + "/liferay-portal/ci.properties",
-		URL_CACHE + "/liferay-portal/test.properties"
+		URL_CACHE + "/liferay-jenkins-ee/commands/build.properties"
 	};
 
 	public static final String[] URLS_GIT_DIRECTORIES_JSON_DEFAULT = {
@@ -150,11 +144,6 @@ public class JenkinsResultsParserUtil {
 
 	public static final String[] URLS_GIT_WORKING_DIRECTORIES_JSON_DEFAULT = {
 		URL_CACHE + "/liferay-jenkins-ee/git-working-directories.json"
-	};
-
-	public static final String[] URLS_JENKINS_BUILD_PROPERTIES_DEFAULT = {
-		URL_CACHE + "/liferay-jenkins-ee/build.properties",
-		URL_CACHE + "/liferay-jenkins-ee/commands/build.properties"
 	};
 
 	public static final String[] URLS_JENKINS_PROPERTIES_DEFAULT = {
@@ -2401,41 +2390,13 @@ public class JenkinsResultsParserUtil {
 	}
 
 	public static Properties getJenkinsBuildProperties() {
-		Properties properties = new Properties();
-
-		synchronized (_jenkinsBuildProperties) {
-			if (!_jenkinsBuildProperties.isEmpty()) {
-				properties.putAll(_jenkinsBuildProperties);
-
-				return properties;
-			}
-
-			for (String url : URLS_JENKINS_BUILD_PROPERTIES_DEFAULT) {
-				if (url.startsWith("file://")) {
-					properties.putAll(
-						getProperties(new File(url.replace("file://", ""))));
-
-					continue;
-				}
-
-				try {
-					properties.load(
-						new StringReader(
-							toString(
-								getLocalURL(url), false, 0, null, null, 0,
-								_MILLIS_TIMEOUT_DEFAULT, null, true)));
-				}
-				catch (IOException ioException) {
-					throw new RuntimeException(ioException);
-				}
-			}
-
-			_jenkinsBuildProperties.clear();
-
-			_jenkinsBuildProperties.putAll(properties);
+		try {
+			return getBuildProperties();
 		}
-
-		return new SecureProperties(properties);
+		catch (IOException ioException) {
+			throw new RuntimeException(
+				"Unable to get build properties", ioException);
+		}
 	}
 
 	public static String getJenkinsBuildResult(String buildURL) {
@@ -2896,10 +2857,6 @@ public class JenkinsResultsParserUtil {
 
 			if (file.exists()) {
 				remoteURL = fileURL;
-			}
-			else {
-				remoteURL = remoteURL.replace(
-					Build.DEPENDENCIES_URL_TOKEN, urlDependenciesHttp);
 			}
 		}
 
@@ -4288,30 +4245,6 @@ public class JenkinsResultsParserUtil {
 		return _topLevelJobNames.contains(jobName);
 	}
 
-	public static boolean isUnifiedBuilderSupported(String upstreamBranchName) {
-		if (Objects.equals(upstreamBranchName, "master")) {
-			return true;
-		}
-
-		if (upstreamBranchName == null) {
-			return false;
-		}
-
-		Matcher matcher = _quarterlyReleaseYearPattern.matcher(
-			upstreamBranchName);
-
-		if (matcher.matches()) {
-			int year = Integer.parseInt(matcher.group(1));
-			int quarter = Integer.parseInt(matcher.group(2));
-
-			if ((year > 2026) || ((year == 2026) && (quarter >= 2))) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
 	public static boolean isURL(String urlString) {
 		if (isNullOrEmpty(urlString) || !urlString.matches("https?://.+")) {
 			return false;
@@ -5307,22 +5240,6 @@ public class JenkinsResultsParserUtil {
 			HttpRequestMethod httpRequestMethod, String postContent,
 			int retryPeriod, int timeout, HTTPAuthorization httpAuthorization)
 		throws IOException {
-
-		if (url.startsWith("file:") &&
-			url.contains("liferay-jenkins-results-parser-samples-ee")) {
-
-			File file = new File(url.replace("file:", ""));
-
-			if (!file.exists()) {
-				if (url.contains("json?")) {
-					url = url.substring(0, url.indexOf("json?") + 4);
-				}
-
-				if (url.contains("json[qt]")) {
-					url = url.substring(0, url.indexOf("json[qt]") + 4);
-				}
-			}
-		}
 
 		if (url.contains("/userContent/") && (timeout == 0)) {
 			timeout = 5000;
@@ -6666,38 +6583,29 @@ public class JenkinsResultsParserUtil {
 	protected static String initCacheURL() {
 		String cacheDirPath = System.getenv("CACHE_DIR");
 
-		if ((cacheDirPath == null) &&
-			(System.getenv("JENKINS_GITHUB_URL") != null)) {
-
+		if (cacheDirPath == null) {
 			cacheDirPath = "/opt/dev/projects/github";
 		}
 
-		if (cacheDirPath != null) {
-			File cacheDir = new File(cacheDirPath);
+		File cacheDir = new File(cacheDirPath);
 
-			if (cacheDir.exists()) {
-				for (String cachedRepository : CACHED_REPOSITORIES) {
-					File cacheRepositoryDir = new File(
-						cacheDir, cachedRepository);
+		File cacheRepositoryDir = new File(cacheDir, JENKINS_REPOSITORY_NAME);
 
-					if (!cacheRepositoryDir.exists()) {
-						break;
-					}
-				}
+		if (cacheDir.exists() && cacheRepositoryDir.exists()) {
+			System.out.println("Using " + cacheDirPath + " for cached files");
 
-				System.out.println(
-					"Using " + cacheDirPath + " for cached files");
-
-				return "file://" + cacheDirPath;
-			}
+			return "file://" + cacheDirPath;
 		}
 
-		return "http://mirrors-no-cache.lax.liferay.com/github.com/liferay";
+		throw new RuntimeException(
+			combine(
+				"Unable to locate local ", JENKINS_REPOSITORY_NAME,
+				" repository at ", cacheDirPath,
+				". Set CACHE_DIR to a directory containing a ",
+				JENKINS_REPOSITORY_NAME, " checkout."));
 	}
 
 	protected static String urlDependenciesFile;
-	protected static String urlDependenciesHttp =
-		URL_CACHE + "/liferay-jenkins-results-parser-samples-ee/1/";
 
 	static {
 		File dependenciesDir = new File("src/test/resources/dependencies/");
@@ -7524,7 +7432,6 @@ public class JenkinsResultsParserUtil {
 	private static JSONArray _gitWorkingDirectoriesJSONArray;
 	private static final Pattern _javaVersionPattern = Pattern.compile(
 		"(\\d+\\.\\d+)");
-	private static final Properties _jenkinsBuildProperties = new Properties();
 	private static final Pattern _jenkinsBuildQueueURLPattern = Pattern.compile(
 		"https?://test-\\d+-\\d+(.liferay.com)?/queue/item/(?<queueId>\\d+)/?");
 	private static final Pattern _jenkinsMasterPattern = Pattern.compile(
@@ -7549,8 +7456,6 @@ public class JenkinsResultsParserUtil {
 		"\\$\\{([^\\}]+)\\}");
 	private static final Pattern _poshiFileNamePattern = Pattern.compile(
 		".*\\.(function|macro|path|prose|testcase)");
-	private static final Pattern _quarterlyReleaseYearPattern = Pattern.compile(
-		"release-(\\d{4})\\.q(\\d+).*");
 	private static final Set<String> _redactTokens = new HashSet<>();
 	private static final Pattern _remoteURLAuthorityPattern1 = Pattern.compile(
 		"https://(test-[0-9]+-[0])-aws.liferay.com/");

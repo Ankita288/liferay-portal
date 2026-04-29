@@ -36,11 +36,9 @@ public class PlacedCommerceOrderAttachmentTableFDSView
 			"title", "title",
 			fdsTableSchemaField -> fdsTableSchemaField.setSortable(true)
 		).add(
-			"attachment.extension", "extension",
-			fdsTableSchemaField -> fdsTableSchemaField.setSortable(true)
+			"extension", "extension"
 		).add(
-			"attachmentType.name", "type",
-			fdsTableSchemaField -> fdsTableSchemaField.setSortable(true)
+			"typeLabel", "type"
 		).add(
 			"priority", "priority",
 			fdsTableSchemaField -> fdsTableSchemaField.setSortable(true)

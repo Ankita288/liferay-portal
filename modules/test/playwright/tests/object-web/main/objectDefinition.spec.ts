@@ -11,8 +11,8 @@ import {
 } from '@liferay/object-admin-rest-client-js';
 import {expect, mergeTests} from '@playwright/test';
 
-import {collectionsPagesTest} from '../../../fixtures/collectionsPagesTest';
 import {dataApiHelpersTest} from '../../../fixtures/dataApiHelpersTest';
+import {displayPageTemplatesPagesTest} from '../../../fixtures/displayPageTemplatesPagesTest';
 import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
 import {fragmentsPagesTest} from '../../../fixtures/fragmentPagesTest';
 import {isolatedSiteTest} from '../../../fixtures/isolatedSiteTest';
@@ -24,14 +24,13 @@ import getRandomString from '../../../utils/getRandomString';
 import {performUserSwitch, userData} from '../../../utils/performLogin';
 import {waitForAlert} from '../../../utils/waitForAlert';
 import getFormContainerDefinition from '../../layout-content-page-editor-web/main/utils/getFormContainerDefinition';
-import getFragmentDefinition from '../../layout-content-page-editor-web/main/utils/getFragmentDefinition';
 import getPageDefinition from '../../layout-content-page-editor-web/main/utils/getPageDefinition';
 import {localizationPagesTest} from '../../site-admin-web/main/fixtures/localizationPagesTest';
 import {generateObjectFields} from '../utils/generateObjectFields';
 
 const test = mergeTests(
-	collectionsPagesTest,
 	dataApiHelpersTest,
+	displayPageTemplatesPagesTest,
 	featureFlagsTest({
 		'LPS-178052': {enabled: true},
 	}),
@@ -1648,99 +1647,6 @@ test.describe('Manage object definitions through View Object Definitions', () =>
 		await editObjectDetailsPage.saveButton.click();
 
 		await expect(page.getByText('Required')).toBeVisible();
-	});
-});
-
-test.describe('Manage object definitions through a Page', () => {
-	test('can display an object reactivated on the Collection Providers', async ({
-		apiHelpers,
-		collectionsPage,
-		page,
-		site,
-		viewObjectDefinitionsPage,
-	}) => {
-		const objectDefinition =
-			await apiHelpers.objectAdmin.postRandomObjectDefinition({
-				status: {code: 0},
-			});
-
-		apiHelpers.data.push({
-			id: objectDefinition.id,
-			type: 'objectDefinition',
-		});
-
-		await viewObjectDefinitionsPage.goto();
-
-		await viewObjectDefinitionsPage.changeObjectActivateStatus(
-			objectDefinition.name
-		);
-
-		await viewObjectDefinitionsPage.goto();
-
-		await viewObjectDefinitionsPage.changeObjectActivateStatus(
-			objectDefinition.name
-		);
-
-		await collectionsPage.goto(site.friendlyUrlPath);
-
-		await page.getByRole('link', {name: 'Collection Providers'}).click();
-
-		await expect(
-			page.getByText(objectDefinition.name).first()
-		).toBeVisible();
-	});
-
-	test('can display an object reactivated on the Page Item Selector', async ({
-		apiHelpers,
-		page,
-		pageEditorPage,
-		site,
-		viewObjectDefinitionsPage,
-	}) => {
-		const objectDefinition =
-			await apiHelpers.objectAdmin.postRandomObjectDefinition({
-				status: {code: 0},
-			});
-
-		apiHelpers.data.push({
-			id: objectDefinition.id,
-			type: 'objectDefinition',
-		});
-
-		await viewObjectDefinitionsPage.goto();
-
-		await viewObjectDefinitionsPage.changeObjectActivateStatus(
-			objectDefinition.name
-		);
-
-		await viewObjectDefinitionsPage.goto();
-
-		await viewObjectDefinitionsPage.changeObjectActivateStatus(
-			objectDefinition.name
-		);
-
-		const headingDefinition = getFragmentDefinition({
-			id: getRandomString(),
-			key: 'BASIC_COMPONENT-heading',
-		});
-
-		const layout = await apiHelpers.headlessDelivery.createSitePage({
-			pageDefinition: getPageDefinition([headingDefinition]),
-			siteId: site.id,
-			title: getRandomString(),
-		});
-
-		await pageEditorPage.goto(layout, site.friendlyUrlPath);
-
-		await page.getByText('Heading Example', {exact: true}).dblclick();
-
-		await page.getByLabel('Select Item').click();
-
-		await expect(
-			page
-				.frameLocator('iframe[title="Select"]')
-				.getByRole('menuitem', {name: objectDefinition.name})
-		).toBeVisible();
 	});
 });
 

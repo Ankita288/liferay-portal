@@ -244,4 +244,4 @@ public class WidgetInstancePageElementDefinition
 	}
 
 }
-// LIFERAY-REST-BUILDER-HASH:-714371673
+// LIFERAY-REST-BUILDER-HASH:-1801798946

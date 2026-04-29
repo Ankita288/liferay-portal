@@ -719,10 +719,6 @@ public class CloudBucketUtil {
 			String destination, String source)
 		throws IOException {
 
-		StringBuilder sb = new StringBuilder();
-
-		sb.append("gcloud auth activate-service-account --key-file ");
-
 		String gcpApplicationCredentialFilePath = null;
 
 		if (destination.startsWith(GCP_BUCKET_PATH_JENKINS_CI_DATA) ||
@@ -752,7 +748,19 @@ public class CloudBucketUtil {
 				gcpApplicationCredentialFilePath);
 
 			if (gcpApplicationCredentialFile.exists()) {
+				String credentialFileName =
+					gcpApplicationCredentialFile.getName();
+
+				String configurationName = credentialFileName.substring(
+					0, credentialFileName.lastIndexOf('.'));
+
+				StringBuilder sb = new StringBuilder();
+
+				sb.append("(gcloud config configurations activate ");
+				sb.append(configurationName);
+				sb.append(" --quiet || gcloud auth login --cred-file=");
 				sb.append(gcpApplicationCredentialFilePath);
+				sb.append(" --quiet)");
 
 				return sb.toString();
 			}

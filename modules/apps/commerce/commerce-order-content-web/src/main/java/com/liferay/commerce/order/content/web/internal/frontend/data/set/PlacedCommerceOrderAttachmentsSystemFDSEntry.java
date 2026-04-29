@@ -8,8 +8,6 @@ package com.liferay.commerce.order.content.web.internal.frontend.data.set;
 import com.liferay.commerce.order.content.web.internal.constants.CommerceOrderFragmentFDSNames;
 import com.liferay.frontend.data.set.SystemFDSEntry;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 import org.osgi.service.component.annotations.Component;
 
 /**
@@ -23,14 +21,6 @@ public class PlacedCommerceOrderAttachmentsSystemFDSEntry
 	implements SystemFDSEntry {
 
 	@Override
-	public String getAdditionalAPIURLParameters(
-		HttpServletRequest httpServletRequest) {
-
-		return "r_commerceOrderToCommerceOrderAttachments_commerceOrderId eq " +
-			"'{commerceOrderId}'";
-	}
-
-	@Override
 	public String getDescription() {
 		return null;
 	}
@@ -42,17 +32,17 @@ public class PlacedCommerceOrderAttachmentsSystemFDSEntry
 
 	@Override
 	public String getRESTApplication() {
-		return "/commerce/order-attachments";
+		return "/headless-commerce-delivery-order/v1.0";
 	}
 
 	@Override
 	public String getRESTEndpoint() {
-		return "/";
+		return "/v1.0/placed-orders/{placedOrderId}/attachments";
 	}
 
 	@Override
 	public String getRESTSchema() {
-		return "CommerceOrderAttachment";
+		return "Attachment";
 	}
 
 	@Override

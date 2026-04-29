@@ -514,6 +514,11 @@ export class DataApiHelpers extends ApiHelpers {
 			else if (item.type === 'document') {
 				await this.headlessDelivery.deleteDocument(item.id);
 			}
+			else if (item.type === 'keyword') {
+				await this.headlessAdminTaxonomy.deleteKeyword({
+					id: item.id,
+				});
+			}
 			else if (item.type === 'layoutSetPrototype') {
 				await this.jsonWebServicesLayoutSetPrototype.deleteLayoutSetPrototypes(
 					item.id
@@ -603,8 +608,13 @@ export class DataApiHelpers extends ApiHelpers {
 				await this.headlessCommerceAdminOrder.deleteOrder(item.id);
 			}
 			else if (item.type === 'orderAttachment') {
+				const [orderId, attachmentId] = String(item.id)
+					.split('_')
+					.map(Number);
+
 				await this.headlessCommerceAdminOrderAttachment.deleteOrderAttachment(
-					item.id
+					attachmentId,
+					orderId
 				);
 			}
 			else if (item.type === 'orderRule') {
@@ -738,6 +748,11 @@ export class DataApiHelpers extends ApiHelpers {
 			}
 			else if (item.type === 'wishList') {
 				await this.headlessCommerceDeliveryCatalog.deleteWishList(
+					item.id
+				);
+			}
+			else if (item.type === 'workflowDefinition') {
+				await this.headlessAdminWorkflow.deleteWorkflowDefinition(
 					item.id
 				);
 			}

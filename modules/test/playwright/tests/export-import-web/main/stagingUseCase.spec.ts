@@ -41,6 +41,7 @@ const test = mergeTests(
 	dataApiHelpersTest,
 	featureFlagsTest({
 		'LPD-35443': {enabled: true},
+		'LPD-39304': {enabled: true},
 	}),
 	loginTest(),
 	assetPublisherPagesTest,

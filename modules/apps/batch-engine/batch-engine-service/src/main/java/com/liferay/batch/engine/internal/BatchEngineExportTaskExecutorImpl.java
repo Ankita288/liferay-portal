@@ -213,7 +213,7 @@ public class BatchEngineExportTaskExecutorImpl
 	}
 
 	private Filter _createCursorFilter(
-		Filter originalFilter, long lastEntryClassPK) {
+		long lastEntryClassPK, Filter originalFilter) {
 
 		BooleanFilter booleanFilter = new BooleanFilter();
 
@@ -296,13 +296,7 @@ public class BatchEngineExportTaskExecutorImpl
 			Sort[] sorts = _getSorts(
 				batchEngineTaskItemDelegate, parameters, user);
 
-			boolean cursorPaginationActive = false;
-
-			if (_USE_EXPORT_CURSOR_PAGINATION &&
-				_isSearchCursorPaginationEnabled(sorts)) {
-
-				cursorPaginationActive = true;
-			}
+			boolean cursorPaginationActive = _isCursorPaginationEnabled(sorts);
 
 			Page<?> page = batchEngineTaskItemDelegate.read(
 				filter, Pagination.of(1, exportBatchSize), sorts,
@@ -378,19 +372,18 @@ public class BatchEngineExportTaskExecutorImpl
 					}
 				}
 
+				Filter readFilter = filter;
+				Pagination pagination = Pagination.of(
+					(int)page.getPage() + 1, exportBatchSize);
+
 				if (cursorPaginationActive) {
-					page = batchEngineTaskItemDelegate.read(
-						_createCursorFilter(filter, lastItemId),
-						Pagination.of(1, exportBatchSize), sorts,
-						filteredParameters, (String)parameters.get("search"));
+					readFilter = _createCursorFilter(lastItemId, filter);
+					pagination = Pagination.of(1, exportBatchSize);
 				}
-				else {
-					page = batchEngineTaskItemDelegate.read(
-						filter,
-						Pagination.of((int)page.getPage() + 1, exportBatchSize),
-						sorts, filteredParameters,
-						(String)parameters.get("search"));
-				}
+
+				page = batchEngineTaskItemDelegate.read(
+					readFilter, pagination, sorts, filteredParameters,
+					(String)parameters.get("search"));
 
 				items = page.getItems();
 			}
@@ -647,7 +640,7 @@ public class BatchEngineExportTaskExecutorImpl
 		return zipOutputStream;
 	}
 
-	private boolean _isSearchCursorPaginationEnabled(Sort[] sorts) {
+	private boolean _isCursorPaginationEnabled(Sort[] sorts) {
 		if (sorts == null) {
 			return true;
 		}
@@ -688,8 +681,6 @@ public class BatchEngineExportTaskExecutorImpl
 			batchEngineExportTask.getExecuteStatus(),
 			batchEngineExportTask.getBatchEngineExportTaskId());
 	}
-
-	private static final boolean _USE_EXPORT_CURSOR_PAGINATION = true;
 
 	private static final Log _log = LogFactoryUtil.getLog(
 		BatchEngineExportTaskExecutorImpl.class);

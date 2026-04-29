@@ -282,4 +282,4 @@ public class SuccessFormContainerSubmissionResultSerDes {
 	}
 
 }
-// LIFERAY-REST-BUILDER-HASH:2012918975
+// LIFERAY-REST-BUILDER-HASH:739657603

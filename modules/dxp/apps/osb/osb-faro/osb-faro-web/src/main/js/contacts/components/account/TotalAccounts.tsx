@@ -4,9 +4,13 @@ import classNames from 'classnames';
 import ClayIcon from '@clayui/icon';
 import Loading from 'shared/components/Loading';
 import React from 'react';
+import {
+	AccountMetricType,
+	IAccountMetric,
+	Metric
+} from '../../pages/account/utils/types';
 import {getIcon, getStatsColor} from 'shared/util/metrics';
 import {isNil} from 'lodash/fp';
-import {Metric} from '../../pages/account/utils/types';
 import {sub} from 'shared/util/lang';
 import {Text} from '@clayui/core';
 import {toRounded} from 'shared/util/numbers';
@@ -17,7 +21,7 @@ interface IAccountCardProps {
 	className?: string;
 	description: string;
 	loading?: boolean;
-	metrics: Metric;
+	metrics?: Metric;
 	title: string;
 }
 
@@ -73,7 +77,10 @@ const AccountCard: React.FC<IAccountCardProps> = ({
 										metrics?.trend?.trendClassification
 									)
 								}}
-								symbol={getIcon(metrics?.trend?.percentage)}
+								symbol={
+									getIcon(metrics?.trend?.percentage ?? 0) ??
+									''
+								}
 							/>
 						)}
 					{sub(
@@ -85,7 +92,8 @@ const AccountCard: React.FC<IAccountCardProps> = ({
 								style={{
 									color:
 										getStatsColor(
-											metrics?.trend?.trendClassification
+											metrics?.trend
+												?.trendClassification || ''
 										) || TrendClassification.Neutral
 								}}
 							>
@@ -103,15 +111,20 @@ const AccountCard: React.FC<IAccountCardProps> = ({
 	);
 };
 
-const TotalAccounts = ({groupId}) => {
+const TotalAccounts = ({groupId}: {groupId: string}) => {
 	const {data, loading} = useRequest({
-		dataSourceFn: API.accounts.fetchMetrics,
+		dataSourceFn: API.accounts.fetchMetrics as (params: {
+			[key: string]: any;
+		}) => Promise<any>,
 		variables: {
 			groupId
 		}
 	});
 
-	const {activeCount, newCount, totalCount} = data || {};
+	const metrics = data as IAccountMetric[] | undefined;
+
+	const getMetric = (metricType: AccountMetricType) =>
+		metrics?.find(metric => metric.metricType === metricType);
 
 	return (
 		<div className='d-flex w-100'>
@@ -121,7 +134,7 @@ const TotalAccounts = ({groupId}) => {
 					'displays-all-accounts-included-in-this-property'
 				)}
 				loading={loading}
-				metrics={totalCount || {}}
+				metrics={getMetric(AccountMetricType.Total)}
 				title={Liferay.Language.get('total-accounts')}
 			/>
 
@@ -131,7 +144,7 @@ const TotalAccounts = ({groupId}) => {
 					'displays-all-new-accounts-included-in-this-property'
 				)}
 				loading={loading}
-				metrics={newCount || {}}
+				metrics={getMetric(AccountMetricType.New)}
 				title={Liferay.Language.get('new-accounts')}
 			/>
 
@@ -140,7 +153,7 @@ const TotalAccounts = ({groupId}) => {
 					'displays-all-active-accounts-included-in-this-property'
 				)}
 				loading={loading}
-				metrics={activeCount || {}}
+				metrics={getMetric(AccountMetricType.Active)}
 				title={Liferay.Language.get('active-accounts')}
 			/>
 		</div>

@@ -7,7 +7,6 @@ package com.liferay.commerce.order.content.web.internal.frontend.data.set.url;
 
 import com.liferay.commerce.model.CommerceOrder;
 import com.liferay.commerce.util.CommerceOrderInfoItemUtil;
-import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
@@ -46,6 +45,12 @@ public class PlacedCommerceOrderAttachmentsFDSAPIURLResolverTest {
 			RandomTestUtil.randomLong()
 		);
 
+		Mockito.when(
+			_commerceOrder.getExternalReferenceCode()
+		).thenReturn(
+			RandomTestUtil.randomString()
+		);
+
 		_commerceOrderInfoItemUtilMockedStatic.when(
 			() -> CommerceOrderInfoItemUtil.getCommerceOrder(
 				Mockito.any(), Mockito.any())
@@ -57,14 +62,28 @@ public class PlacedCommerceOrderAttachmentsFDSAPIURLResolverTest {
 	@Test
 	public void testResolve() throws PortalException {
 		String baseURLString =
-			"/commerce/order-attachment?filter=r_" +
-				"commerceOrderToCommerceOrderAttachments_commerceOrderId eq '";
+			"/o/headless-commerce-delivery-order/v1.0/placed-orders/";
 
 		Assert.assertEquals(
 			baseURLString + _commerceOrder.getCommerceOrderId() +
-				StringPool.APOSTROPHE,
+				"/attachments",
 			_placedCommerceOrderAttachmentsFDSAPIURLResolver.resolve(
-				baseURLString + "{commerceOrderId}'", _mockHttpServletRequest));
+				baseURLString + "{placedOrderId}/attachments",
+				_mockHttpServletRequest));
+	}
+
+	@Test
+	public void testResolveByExternalReferenceCode() throws PortalException {
+		String baseURLString =
+			"/o/headless-commerce-delivery-order/v1.0/placed-orders" +
+				"/by-externalReferenceCode/";
+
+		Assert.assertEquals(
+			baseURLString + _commerceOrder.getExternalReferenceCode() +
+				"/attachments",
+			_placedCommerceOrderAttachmentsFDSAPIURLResolver.resolve(
+				baseURLString + "{externalReferenceCode}/attachments",
+				_mockHttpServletRequest));
 	}
 
 	private static final MockedStatic<CommerceOrderInfoItemUtil>

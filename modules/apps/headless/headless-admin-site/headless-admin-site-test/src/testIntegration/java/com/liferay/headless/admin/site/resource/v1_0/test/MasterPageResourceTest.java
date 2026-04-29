@@ -11,9 +11,11 @@ import com.liferay.exportimport.kernel.staging.MergeLayoutPrototypesThreadLocal;
 import com.liferay.fragment.model.FragmentEntryLink;
 import com.liferay.fragment.service.FragmentEntryLinkLocalService;
 import com.liferay.headless.admin.site.client.custom.field.CustomField;
+import com.liferay.headless.admin.site.client.dto.v1_0.ContainerPageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.ContentPageSpecification;
 import com.liferay.headless.admin.site.client.dto.v1_0.MasterPage;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageElement;
+import com.liferay.headless.admin.site.client.dto.v1_0.PageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageExperience;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageSpecification;
 import com.liferay.headless.admin.site.client.dto.v1_0.ThumbnailURLReference;
@@ -380,6 +382,7 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 
 	@Override
 	@Test
+	@TestInfo("LPD-86817")
 	public void testPutSiteMasterPage() throws Exception {
 		_testPutSiteMasterPage(randomMasterPage());
 
@@ -633,6 +636,34 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 			TestPropsValues.getUserId(), testGroup, true, false,
 			ServiceContextTestUtil.getServiceContext(
 				testGroup, TestPropsValues.getUserId()));
+	}
+
+	private PageElement _getContainerPageElement() {
+		PageElement pageElement = new PageElement();
+
+		pageElement.setExternalReferenceCode(
+			() -> StringUtil.toLowerCase(RandomTestUtil.randomString()));
+
+		ContainerPageElementDefinition containerPageElementDefinition =
+			new ContainerPageElementDefinition();
+
+		containerPageElementDefinition.setIndexed(Boolean.FALSE);
+		containerPageElementDefinition.setLayout(
+			() -> new com.liferay.headless.admin.site.client.dto.v1_0.Layout() {
+				{
+					setContentDisplay(ContentDisplay.FLEX_ROW);
+				}
+			});
+		containerPageElementDefinition.setType(
+			PageElementDefinition.Type.CONTAINER);
+
+		pageElement.setPageElementDefinition(containerPageElementDefinition);
+
+		pageElement.setPageElements(new PageElement[0]);
+		pageElement.setParentExternalReferenceCode(StringPool.BLANK);
+		pageElement.setPosition(1);
+
+		return pageElement;
 	}
 
 	private MasterPage _getMasterPage(
@@ -1308,7 +1339,7 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 		_testPutSiteMasterPageWithPageSpecifications(
 			PageSpecification.Status.DRAFT, PageSpecification.Status.DRAFT,
 			PageSpecification.Status.APPROVED, PageSpecification.Status.DRAFT);
-		_testPutSiteMasterPageWithPageSpecificationsWithCustomFields();
+		_testPutSiteMasterPageWithPageSpecificationsWithCustomFieldsAndPageElements();
 	}
 
 	private void _testPutSiteMasterPageWithPageSpecifications(
@@ -1352,7 +1383,7 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 			draftContentPageSpecification, publishedContentPageSpecification);
 	}
 
-	private void _testPutSiteMasterPageWithPageSpecificationsWithCustomFields()
+	private void _testPutSiteMasterPageWithPageSpecificationsWithCustomFieldsAndPageElements()
 		throws Exception {
 
 		try (PageSpecificationsTestUtil.ExpandoTableAutocloseable
@@ -1366,6 +1397,12 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 
 			MasterPage putMasterPage = postMasterPage;
 
+			PageElement[] pageElements = {
+				PageElementsTestUtil.getDropZonePageElement(
+					RandomTestUtil.randomString(), testGroup.getGroupId()),
+				_getContainerPageElement()
+			};
+
 			putMasterPage.setPageSpecifications(
 				() -> TransformUtil.transform(
 					putMasterPage.getPageSpecifications(),
@@ -1373,7 +1410,16 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 						pageSpecification.setCustomFields(
 							PageSpecificationsTestUtil.getCustomFields());
 
-						return pageSpecification;
+						ContentPageSpecification contentPageSpecification =
+							(ContentPageSpecification)pageSpecification;
+
+						for (PageExperience pageExperience :
+								contentPageSpecification.getPageExperiences()) {
+
+							pageExperience.setPageElements(pageElements);
+						}
+
+						return contentPageSpecification;
 					},
 					PageSpecification.class));
 
@@ -1388,6 +1434,8 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 					CustomField[].class),
 				testGroup.getGroupId(),
 				updateMasterPage.getPageSpecifications());
+
+			_assertPageElements(pageElements, updateMasterPage);
 		}
 	}
 

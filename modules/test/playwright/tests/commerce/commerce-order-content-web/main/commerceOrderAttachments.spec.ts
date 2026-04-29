@@ -33,7 +33,7 @@ export const test = mergeTests(
 );
 
 test(
-	'Order Attachments Data Set fragment',
+	'Order Attachments Data Set fragment - placed order',
 	{tag: '@LPD-83041'},
 	async ({apiHelpers, displayPageTemplatesPage, page, pageEditorPage}) => {
 		test.setTimeout(180000);
@@ -76,21 +76,98 @@ test(
 			orderStatus: ORDER_WORKFLOW_STATUS_CODE.PROCESSING,
 		});
 
-		const attachmentTitle = getRandomString();
+		const attachmentTitle = `${getRandomString()}.png`;
 
 		await apiHelpers.headlessCommerceAdminOrderAttachment.postOrderAttachment(
+			order.id,
 			{
-				attachment: {
-					fileBase64:
-						'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-					name: 'invoice.png',
-				},
-				attachmentType: {key: 'invoice'},
+				attachment:
+					'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
 				priority: 1,
-				r_accountToCommerceOrderAttachments_accountEntryId: account.id,
-				r_commerceOrderToCommerceOrderAttachments_commerceOrderId:
-					order.id,
 				title: attachmentTitle,
+				type: 'invoice',
+			}
+		);
+
+		await displayPageTemplatesPage.goto(site.friendlyUrlPath);
+
+		const displayPageTemplateName = getRandomString();
+
+		await displayPageTemplatesPage.createTemplate({
+			contentType: 'Order',
+			name: displayPageTemplateName,
+		});
+		await displayPageTemplatesPage.editTemplate(displayPageTemplateName);
+
+		await pageEditorPage.addFragment('Order', 'Order Attachments Data Set');
+		await pageEditorPage.waitForChangesSaved();
+
+		await displayPageTemplatesPage.publishTemplate();
+		await displayPageTemplatesPage.markAsDefault(displayPageTemplateName);
+
+		await page.goto(
+			liferayConfig.environment.baseUrl +
+				`/web/${site.name}/order/${order.id}`
+		);
+
+		await expect(
+			page.getByText(attachmentTitle, {exact: true})
+		).toBeVisible();
+		await expect(page.getByText('png', {exact: true})).toBeVisible();
+		await expect(page.getByText('Invoice', {exact: true})).toBeVisible();
+	}
+);
+
+test(
+	'Order Attachments Data Set fragment - open cart',
+	{tag: '@LPD-83041'},
+	async ({apiHelpers, displayPageTemplatesPage, page, pageEditorPage}) => {
+		test.setTimeout(180000);
+
+		const {channel, site} = await classicCommerceSetUp(
+			apiHelpers,
+			`B2B_${getRandomString()}`
+		);
+
+		const account = await apiHelpers.headlessAdminUser.postAccount({
+			name: getRandomString(),
+			type: 'business',
+		});
+
+		const address =
+			await apiHelpers.headlessCommerceAdminAccount.postAddress(
+				account.id,
+				{phoneNumber: '1234567890', regionISOCode: 'AL'}
+			);
+
+		const sku =
+			await apiHelpers.headlessCommerceAdminCatalog.getSkuByName(
+				'CLSC55861'
+			);
+
+		const order = await apiHelpers.headlessCommerceAdminOrder.postOrder({
+			accountId: account.id,
+			billingAddressId: address.id,
+			channelId: channel.id,
+			orderItems: [
+				{
+					quantity: 1,
+					skuId: sku.id,
+				},
+			],
+			shippingAddressId: address.id,
+		});
+
+		const attachmentTitle = `${getRandomString()}.png`;
+
+		await apiHelpers.headlessCommerceAdminOrderAttachment.postOrderAttachment(
+			order.id,
+			{
+				attachment:
+					'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+				priority: 1,
+				title: attachmentTitle,
+				type: 'invoice',
 			}
 		);
 
