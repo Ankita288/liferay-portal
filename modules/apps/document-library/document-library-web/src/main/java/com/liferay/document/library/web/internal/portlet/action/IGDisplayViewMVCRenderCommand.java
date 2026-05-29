@@ -6,8 +6,15 @@
 package com.liferay.document.library.web.internal.portlet.action;
 
 import com.liferay.document.library.constants.DLPortletKeys;
+import com.liferay.document.library.web.internal.display.context.helper.DLPortletInstanceSettingsHelper;
+import com.liferay.document.library.web.internal.display.context.helper.IGRequestHelper;
 import com.liferay.document.library.web.internal.helper.DLTrashHelper;
+import com.liferay.document.library.web.internal.util.DLFolderUtil;
+import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCRenderCommand;
+import com.liferay.portal.kernel.repository.model.Folder;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -32,6 +39,19 @@ public class IGDisplayViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 	@Override
 	protected String getPath() {
 		return "/image_gallery_display/view.jsp";
+	}
+
+	@Override
+	protected void validateFolder(
+			HttpServletRequest httpServletRequest, Folder folder)
+		throws PortalException {
+
+		DLPortletInstanceSettingsHelper dlPortletInstanceSettingsHelper =
+			new DLPortletInstanceSettingsHelper(
+				new IGRequestHelper(httpServletRequest));
+
+		DLFolderUtil.validateFolder(
+			folder, dlPortletInstanceSettingsHelper.getRootFolderId());
 	}
 
 	@Reference

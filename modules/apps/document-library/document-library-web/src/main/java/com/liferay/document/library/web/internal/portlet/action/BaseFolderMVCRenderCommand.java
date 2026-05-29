@@ -17,11 +17,14 @@ import com.liferay.portal.kernel.security.auth.PrincipalException;
 import com.liferay.portal.kernel.security.permission.PermissionChecker;
 import com.liferay.portal.kernel.servlet.SessionErrors;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
+import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.WebKeys;
 
 import jakarta.portlet.PortletException;
 import jakarta.portlet.RenderRequest;
 import jakarta.portlet.RenderResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * @author Iván Zaera
@@ -42,6 +45,9 @@ public abstract class BaseFolderMVCRenderCommand implements MVCRenderCommand {
 						WebKeys.THEME_DISPLAY);
 
 				checkPermissions(themeDisplay.getPermissionChecker(), folder);
+
+				validateFolder(
+					PortalUtil.getHttpServletRequest(renderRequest), folder);
 
 				CTTimelineUtil.setCTTimelineKeys(
 					renderRequest, DLFolder.class, folder.getFolderId());
@@ -71,5 +77,10 @@ public abstract class BaseFolderMVCRenderCommand implements MVCRenderCommand {
 	protected abstract DLTrashHelper getDLTrashHelper();
 
 	protected abstract String getPath();
+
+	protected void validateFolder(
+			HttpServletRequest httpServletRequest, Folder folder)
+		throws PortalException {
+	}
 
 }
