@@ -20,10 +20,13 @@ import com.liferay.portal.kernel.dao.orm.Property;
 import com.liferay.portal.kernel.dao.orm.PropertyFactoryUtil;
 import com.liferay.portal.kernel.exception.ModelListenerException;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.log.Log;
+import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.BaseModelListener;
 import com.liferay.portal.kernel.model.ModelListener;
 import com.liferay.portal.kernel.search.Indexer;
 import com.liferay.portal.kernel.search.IndexerRegistry;
+import com.liferay.portal.kernel.transaction.TransactionCallbackUtil;
 import com.liferay.portal.kernel.util.Portal;
 
 import java.util.Map;
@@ -108,15 +111,25 @@ public class DDMStructureModelListener extends BaseModelListener<DDMStructure> {
 			};
 		}
 
+		actionableDynamicQuery.setInterval(100);
 		actionableDynamicQuery.setParallel(true);
 		actionableDynamicQuery.setPerformActionMethod(performActionMethod);
 
-		try {
-			actionableDynamicQuery.performActions();
-		}
-		catch (PortalException portalException) {
-			throw new ModelListenerException(portalException);
-		}
+		TransactionCallbackUtil.registerCommitCallback(
+			() -> {
+				try {
+					actionableDynamicQuery.performActions();
+				}
+				catch (Exception exception) {
+					_log.error(
+						"Unable to update the journal articles of dynamic " +
+							"data mapping structure " +
+								ddmStructure.getStructureId(),
+						exception);
+				}
+
+				return null;
+			});
 	}
 
 	@Override
@@ -167,6 +180,9 @@ public class DDMStructureModelListener extends BaseModelListener<DDMStructure> {
 
 		return false;
 	}
+
+	private static final Log _log = LogFactoryUtil.getLog(
+		DDMStructureModelListener.class);
 
 	@Reference
 	private DDMFieldLocalService _ddmFieldLocalService;
