@@ -251,6 +251,75 @@ public class JournalConverterImplTest {
 		_assertDynamicContentElement(dynamicContentElement, null);
 	}
 
+	@Test
+	@TestInfo("LPD-110309")
+	public void testUpdateContentDynamicElementWithSingleSelectValue() {
+		JournalConverterImpl journalConverterImpl = new JournalConverterImpl();
+
+		ReflectionTestUtil.setFieldValue(
+			journalConverterImpl, "_jsonFactory", new JSONFactoryImpl());
+
+		DDMFormField ddmFormField = _createDDMFormField(
+			"string", true, "select", "select");
+
+		ddmFormField.setMultiple(false);
+
+		DDMFormFieldOptions ddmFormFieldOptions = new DDMFormFieldOptions();
+
+		String optionValue = RandomTestUtil.randomString();
+		String optionReference = RandomTestUtil.randomString();
+
+		ddmFormFieldOptions.addOption(optionValue);
+		ddmFormFieldOptions.addOptionLabel(
+			optionValue, LocaleUtil.US, RandomTestUtil.randomString());
+		ddmFormFieldOptions.addOptionReference(optionValue, optionReference);
+
+		ddmFormField.setDDMFormFieldOptions(ddmFormFieldOptions);
+
+		Element rootElement = _createRootElement();
+
+		Field field = new Field(
+			RandomTestUtil.randomLong(), ddmFormField.getName(),
+			HashMapBuilder.put(
+				LocaleUtil.US,
+				ListUtil.fromArray(
+					(Serializable)JSONUtil.put(
+						optionValue
+					).toString())
+			).build(),
+			LocaleUtil.US);
+
+		ReflectionTestUtil.invoke(
+			journalConverterImpl, "_updateContentDynamicElement",
+			new Class<?>[] {
+				int.class, DDMFormField.class, Element.class, Field.class
+			},
+			0, ddmFormField, rootElement, field);
+
+		List<Element> dynamicContentElements = rootElement.elements(
+			"dynamic-content");
+
+		Assert.assertEquals(
+			dynamicContentElements.toString(), 1,
+			dynamicContentElements.size());
+
+		Element dynamicContentElement = dynamicContentElements.get(0);
+
+		Assert.assertEquals(optionValue, dynamicContentElement.getText());
+
+		List<Element> optionElements = dynamicContentElement.elements("option");
+
+		Assert.assertEquals(
+			optionElements.toString(), 1, optionElements.size());
+
+		Element optionElement = optionElements.get(0);
+
+		Assert.assertEquals(optionValue, optionElement.getText());
+
+		_assertDynamicContentElement(
+			dynamicContentElement, Collections.singletonList(optionReference));
+	}
+
 	private void _assertDynamicContentElement(
 		Element dynamicContentElement, List<String> expectedReferences) {
 
